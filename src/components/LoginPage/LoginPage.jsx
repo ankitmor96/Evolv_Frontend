@@ -30,12 +30,6 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const PhoneHandsetIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111111" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-  </svg>
-);
-
 const MailEnvelopeIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555555" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <rect x="2" y="4" width="20" height="16" rx="3"></rect>
@@ -168,9 +162,7 @@ const LoginPage = () => {
   const [rememberMe, setRememberMe] = useState(true);
   const [fieldErrors, setFieldErrors] = useState({});
 
-  // Phone + OTP state
-  const [countryCode, setCountryCode] = useState("+1");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  // OTP state (Email OTP)
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -321,41 +313,6 @@ const LoginPage = () => {
       }
     } catch (err) {
       setErrorMessage(err.message || "Authentication failed.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSendPhoneOTP = async (e) => {
-    e?.preventDefault();
-    setErrorMessage("");
-    setSuccessMessage("");
-    setIsLoading(true);
-
-    try {
-      const res = await authService.sendPhoneOTP(countryCode, phoneNumber);
-      setOtpSent(true);
-      setCountdown(30);
-      setSuccessMessage(res.message || "OTP code sent to your phone! Use 123456 to test.");
-    } catch (err) {
-      setErrorMessage(err.message || "Failed to send OTP.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyPhoneOTP = async (e) => {
-    e.preventDefault();
-    setErrorMessage("");
-    setSuccessMessage("");
-    setIsLoading(true);
-
-    try {
-      const result = await authService.verifyPhoneOTP(countryCode, phoneNumber, otpCode);
-      setSuccessMessage(`Logged in successfully with phone!`);
-      setCurrentUser(result.user);
-    } catch (err) {
-      setErrorMessage(err.message || "Invalid OTP code.");
     } finally {
       setIsLoading(false);
     }
@@ -572,8 +529,6 @@ const LoginPage = () => {
                         )
                       ) : authMethod === "forgot_password" ? (
                         <>Reset <span>Password</span></>
-                      ) : authMethod === "phone" ? (
-                        <>Phone <span>Login</span></>
                       ) : authMethod === "email_otp" ? (
                         <>Email OTP <span>Login</span></>
                       ) : isAuthRoute ? (
@@ -862,81 +817,7 @@ const LoginPage = () => {
                     </form>
                   )}
 
-                  {/* METHOD 2: Phone + OTP Login */}
-                  {authMethod === "phone" && (
-                    <form onSubmit={otpSent ? handleVerifyPhoneOTP : handleSendPhoneOTP}>
-                      <div className="input-group">
-                        <select
-                          className="country-select"
-                          value={countryCode}
-                          onChange={(e) => setCountryCode(e.target.value)}
-                          disabled={otpSent}
-                        >
-                          <option value="+1">🇺🇸 +1</option>
-                          <option value="+91">🇮🇳 +91</option>
-                          <option value="+44">🇬🇧 +44</option>
-                          <option value="+61">🇦🇺 +61</option>
-                          <option value="+81">🇯🇵 +81</option>
-                        </select>
-
-                        <input
-                          type="tel"
-                          placeholder="Phone Number"
-                          value={phoneNumber}
-                          onChange={(e) => setPhoneNumber(e.target.value)}
-                          disabled={otpSent}
-                          required
-                        />
-                      </div>
-
-                      {otpSent && (
-                        <div className="input-group">
-                          <span className="input-icon">🔑</span>
-                          <input
-                            type="text"
-                            placeholder="Enter 6-digit OTP (e.g. 123456)"
-                            value={otpCode}
-                            onChange={(e) => setOtpCode(e.target.value)}
-                            maxLength={6}
-                            required
-                          />
-                        </div>
-                      )}
-
-                      <button type="submit" className="main-login-btn" disabled={isLoading}>
-                        {isLoading ? (
-                          <span className="loader-spinner"></span>
-                        ) : otpSent ? (
-                          <>Verify & Login <span><ArrowRightIcon /></span></>
-                        ) : (
-                          <>Send OTP <span><ArrowRightIcon /></span></>
-                        )}
-                      </button>
-
-                      {otpSent && (
-                        <div className="otp-resend-row">
-                          <button
-                            type="button"
-                            className="forgot-btn"
-                            disabled={countdown > 0 || isLoading}
-                            onClick={handleSendPhoneOTP}
-                          >
-                            {countdown > 0 ? `Resend OTP in ${countdown}s` : "Resend OTP"}
-                          </button>
-
-                          <button
-                            type="button"
-                            className="forgot-btn change-num-btn"
-                            onClick={() => setOtpSent(false)}
-                          >
-                            Edit Number
-                          </button>
-                        </div>
-                      )}
-                    </form>
-                  )}
-
-                  {/* METHOD 3: Email OTP Login */}
+                  {/* METHOD 2: Email OTP Login */}
                   {authMethod === "email_otp" && (
                     <form onSubmit={otpSent ? handleVerifyEmailOTP : handleSendEmailOTP}>
                       <div className="input-group">
@@ -1060,15 +941,6 @@ const LoginPage = () => {
                       <div className="social-buttons social-buttons-two">
                         <button
                           type="button"
-                          onClick={() => switchMethod("phone")}
-                          className={authMethod === "phone" ? "active-social" : ""}
-                        >
-                          <strong className="phone"><PhoneHandsetIcon /></strong>
-                          <span>Phone</span>
-                        </button>
-
-                        <button
-                          type="button"
                           onClick={() => switchMethod("email_otp")}
                           className={authMethod === "email_otp" ? "active-social" : ""}
                         >
@@ -1078,7 +950,7 @@ const LoginPage = () => {
                       </div>
                     </>
                   ) : (
-                    <div className="social-buttons">
+                    <div className="social-buttons social-buttons-two">
                       <button
                         type="button"
                         onClick={handleGoogleLogin}
@@ -1087,15 +959,6 @@ const LoginPage = () => {
                       >
                         <strong className="google"><GoogleIcon /></strong>
                         <span>Google</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => switchMethod("phone")}
-                        className={authMethod === "phone" ? "active-social" : ""}
-                      >
-                        <strong className="phone"><PhoneHandsetIcon /></strong>
-                        <span>Phone</span>
                       </button>
 
                       <button

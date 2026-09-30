@@ -656,17 +656,6 @@ select {
   font-weight: 400;
 }
 
-.country-select {
-  border: 0;
-  background: transparent;
-  outline: 0;
-  padding-left: 10px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #141017;
-  cursor: pointer;
-}
-
 .password-toggle {
   border: 0;
   background: transparent;
@@ -841,6 +830,11 @@ select {
   gap: 8px;
 }
 
+/* Google + Email OTP – two buttons, evenly centred */
+.social-buttons-two {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .social-buttons button {
   height: 60px;
   border: 1.5px solid #e9e6ed;
@@ -880,10 +874,6 @@ select {
 
 .google {
   color: #4285f4;
-}
-
-.phone {
-  color: #111;
 }
 
 .email {
@@ -1480,8 +1470,14 @@ select {
 }
 
 .auth-route .social-buttons.social-buttons-two {
-  grid-template-columns: repeat(2, 1fr);
   margin-top: 8px;
+}
+
+/* Lone Email OTP button – keeps its half width but sits centred */
+.auth-route .social-buttons.social-buttons-two > button:only-child {
+  grid-column: 1 / -1;
+  width: calc(50% - 4px);
+  justify-self: center;
 }
 
 /* Prevent horizontal scroll on small screens (auth pages only) */
