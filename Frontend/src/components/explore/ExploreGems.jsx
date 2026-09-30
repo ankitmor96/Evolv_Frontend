@@ -1,0 +1,350 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import HeroHeader from '../HeroHeader';
+import { fetchRecommendedCreators, connectToCreator } from '../../services/creatorService';
+import './ExploreGems.css';
+
+// ─── Draft key — same key the onboarding flow uses ──────────────────────────
+const DRAFT_KEY = 'evolve-onboarding-draft';
+
+/** Load the saved onboarding profile from localStorage. */
+function loadProfile() {
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (saved && typeof saved === 'object') {
+        const list = (v) => (Array.isArray(v) ? v : []);
+        const text = (v) => (typeof v === 'string' ? v : '');
+        return {
+          name: text(saved.name),
+          username: text(saved.username),
+          profilePhoto: typeof saved.profilePhoto === 'string' ? saved.profilePhoto : null,
+          role: text(saved.role),
+          curiosities: list(saved.curiosities),
+          skills: {
+            canDo: list(saved.skills?.canDo),
+            learning: list(saved.skills?.learning),
+            wantToImprove: list(saved.skills?.wantToImprove),
+          },
+          focusDomains: list(saved.focusDomains),
+        };
+      }
+    }
+  } catch {
+    /* corrupted — return defaults */
+  }
+  return null;
+}
+
+/** Derive a clean interest list from the profile (curiosities + focus domains). */
+function deriveInterests(profile) {
+  if (!profile) return [];
+  const raw = [...(profile.curiosities || []), ...(profile.focusDomains || [])];
+  // Deduplicate while preserving order
+  const seen = new Set();
+  return raw.filter((item) => {
+    const key = item.toLowerCase().trim();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+// ─── Profile Appearance Modal ──────────────────────────────────────────────────
+function ProfileAppearanceModal({ profile, onClose }) {
+  const [visible, setVisible] = useState(true);
+
+  const interests = deriveInterests(profile);
+
+  return (
+    <div className="eg-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="pa-title">
+      <div className="eg-modal-card">
+        <button className="eg-modal-close" aria-label="Close" onClick={onClose}>×</button>
+
+        <h2 id="pa-title" className="eg-modal-title">Profile Appearance</h2>
+        <p className="eg-modal-sub">Control how other EVOLV members see you.</p>
+
+        <div className="eg-modal-avatar-row">
+          {profile?.profilePhoto ? (
+            <img
+              src={profile.profilePhoto}
+              alt={profile.name || 'You'}
+              className="eg-modal-avatar"
+            />
+          ) : (
+            <div className="eg-modal-avatar-placeholder">
+              {(profile?.name || 'U').charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div className="eg-modal-avatar-info">
+            <strong>{profile?.name || 'Your Name'}</strong>
+            <span>@{profile?.username || 'username'}</span>
+          </div>
+        </div>
+
+        <div className="eg-modal-section">
+          <span className="eg-modal-label">PRIMARY ROLE</span>
+          <span className="eg-modal-value">{profile?.role || '—'}</span>
+        </div>
+
+        <div className="eg-modal-section">
+          <span className="eg-modal-label">INTERESTS</span>
+          <div className="eg-modal-pills">
+            {interests.length > 0
+              ? interests.map((i) => <span key={i} className="eg-interest-pill">{i}</span>)
+              : <span className="eg-modal-empty">No interests selected yet.</span>
+            }
+          </div>
+        </div>
+
+        <div className="eg-modal-section eg-modal-toggle-row">
+          <span className="eg-modal-label">SHOW MY PROFILE</span>
+          <label className="eg-toggle">
+            <input
+              type="checkbox"
+              checked={visible}
+              onChange={(e) => setVisible(e.target.checked)}
+              aria-label="Show my profile to other users"
+            />
+            <span className="eg-toggle-track">
+              <span className="eg-toggle-thumb" />
+            </span>
+          </label>
+        </div>
+
+        <div className="eg-modal-actions">
+          <button className="eg-btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="eg-btn-primary" onClick={onClose}>Save Changes</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Skeleton Card ─────────────────────────────────────────────────────────────
+function SkeletonCard() {
+  return (
+    <div className="eg-creator-card eg-skeleton" aria-hidden="true">
+      <div className="eg-skeleton-avatar" />
+      <div className="eg-skeleton-line eg-skeleton-name" />
+      <div className="eg-skeleton-line eg-skeleton-domain" />
+      <div className="eg-skeleton-btn" />
+    </div>
+  );
+}
+
+// ─── Creator Card ──────────────────────────────────────────────────────────────
+function CreatorCard({ creator, isConnected, onConnect, connectingId }) {
+  const isConnecting = connectingId === creator.id;
+
+  return (
+    <div className="eg-creator-card">
+      <div className="eg-creator-avatar-wrap">
+        <img
+          src={creator.profileImage}
+          alt={creator.displayName}
+          className="eg-creator-avatar"
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+            e.currentTarget.nextSibling.style.display = 'flex';
+          }}
+        />
+        <div className="eg-creator-avatar-fallback" style={{ display: 'none' }}>
+          {creator.displayName.charAt(0).toUpperCase()}
+        </div>
+      </div>
+
+      <p className="eg-creator-username">@{creator.username}</p>
+      <p className="eg-creator-domain">{creator.domain}</p>
+
+      <button
+        className={`eg-connect-btn ${isConnected ? 'connected' : ''} ${isConnecting ? 'loading' : ''}`}
+        onClick={() => onConnect(creator.id)}
+        disabled={isConnected || isConnecting}
+        aria-label={
+          isConnected
+            ? `Connected with ${creator.displayName}`
+            : `Connect with ${creator.displayName}`
+        }
+      >
+        {isConnecting ? (
+          <span className="eg-btn-spinner" />
+        ) : isConnected ? (
+          <>Connected <span className="eg-check">✓</span></>
+        ) : (
+          <>Connect <span className="eg-arrow">→</span></>
+        )}
+      </button>
+    </div>
+  );
+}
+
+// ─── Empty State ───────────────────────────────────────────────────────────────
+function EmptyState() {
+  return (
+    <div className="eg-empty-state">
+      <div className="eg-empty-icon">💎</div>
+      <h3 className="eg-empty-title">No gems found yet.</h3>
+      <p className="eg-empty-sub">Try adding more interests to discover more people.</p>
+      <a
+        href="/#/onboarding"
+        className="eg-btn-primary eg-empty-cta"
+        onClick={(e) => {
+          e.preventDefault();
+          window.location.hash = '/onboarding';
+          window.dispatchEvent(new Event('navigated'));
+        }}
+      >
+        Update Interests →
+      </a>
+    </div>
+  );
+}
+
+// ─── Main ExploreGems Page ─────────────────────────────────────────────────────
+export default function ExploreGems() {
+  const [profile] = useState(loadProfile);
+  const [interests] = useState(() => deriveInterests(loadProfile()));
+  const [creators, setCreators] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [connectedIds, setConnectedIds] = useState(new Set());
+  const [connectingId, setConnectingId] = useState(null);
+  const [showAppearanceModal, setShowAppearanceModal] = useState(false);
+
+  // Fetch creators on mount
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+
+    fetchRecommendedCreators(interests, 10).then((data) => {
+      if (!cancelled) {
+        setCreators(data);
+        setLoading(false);
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [interests]); // interests is stable (derived once from localStorage)
+
+  const handleConnect = useCallback(async (creatorId) => {
+    if (connectedIds.has(creatorId) || connectingId) return;
+
+    setConnectingId(creatorId);
+    try {
+      await connectToCreator(creatorId);
+      setConnectedIds((prev) => new Set([...prev, creatorId]));
+    } catch {
+      // Silently fail — a toast/error system can be wired here later
+    } finally {
+      setConnectingId(null);
+    }
+  }, [connectedIds, connectingId]);
+
+  const SKELETON_COUNT = interests.length > 0 ? 9 : 6;
+
+  return (
+    <main className="eg-page" role="main">
+      <section className="eg-frame" aria-label="Explore The Gems">
+
+        {/* Reuse existing EVOLV navbar */}
+        <HeroHeader />
+
+        {/* ─── Hero section ─────────────────────────────────────────────── */}
+        <div className="eg-hero">
+          <div className="eg-hero-left">
+            <span className="eg-eyebrow">DISCOVER PEOPLE</span>
+            <h1 className="eg-hero-heading">
+              EXPLORE THE GEMS
+            </h1>
+            <p className="eg-hero-sub">
+              Discover people who share your interests, skills, and passion.
+            </p>
+          </div>
+
+          <div className="eg-hero-right">
+            <button
+              className="eg-profile-appearance-btn"
+              onClick={() => setShowAppearanceModal(true)}
+              aria-label="Open profile appearance settings"
+            >
+              Profile Appearance <span className="eg-btn-arrow">→</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ─── Interests strip ──────────────────────────────────────────── */}
+        {interests.length > 0 && (
+          <div className="eg-interests-strip">
+            <span className="eg-interests-label">Based on your interests</span>
+            <div className="eg-interests-pills" role="list" aria-label="Your selected interests">
+              {interests.map((interest) => (
+                <span key={interest} className="eg-interest-pill" role="listitem">
+                  {interest}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ─── White content card ────────────────────────────────────────── */}
+        <div className="eg-content-card">
+
+          {/* Section heading */}
+          <div className="eg-section-header">
+            <h2 className="eg-section-title">People You Might Connect With</h2>
+            <p className="eg-section-sub">
+              Creators selected based on your interests and skills.
+            </p>
+          </div>
+
+          {/* Creator grid */}
+          {loading ? (
+            <div className="eg-grid" aria-busy="true" aria-label="Loading creators">
+              {Array.from({ length: SKELETON_COUNT }, (_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+          ) : creators.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <div className="eg-grid">
+              {creators.map((creator, index) => (
+                <CreatorCard
+                  key={creator.id}
+                  creator={creator}
+                  isConnected={connectedIds.has(creator.id)}
+                  onConnect={handleConnect}
+                  connectingId={connectingId}
+                  style={{ '--card-index': index }}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Explore more footer */}
+          {!loading && creators.length > 0 && (
+            <div className="eg-explore-more">
+              <button
+                className="eg-explore-more-btn"
+                onClick={() => {
+                  // Future: load next page of creators
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+              >
+                Explore More →
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Profile Appearance Modal */}
+      {showAppearanceModal && (
+        <ProfileAppearanceModal
+          profile={profile}
+          onClose={() => setShowAppearanceModal(false)}
+        />
+      )}
+    </main>
+  );
+}

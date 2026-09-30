@@ -1,0 +1,313 @@
+/* ===================================================
+   DESIGN TOKENS
+=================================================== */
+:root {
+  /* Requested standard CSS variables */
+  --purple: #AA45F5;
+  --purple-dark: #8B2FD8;
+  --purple-light: #C084FC;
+  --purple-glow: rgba(170, 69, 245, 0.22);
+  --dark: #09030F;
+  --white: #FFFFFF;
+  --border: #09030F;
+  --text-muted: rgba(255, 255, 255, 0.75);
+
+  /* Semantic aliases */
+  --color-purple: var(--purple);
+  --color-purple-dark: var(--purple-dark);
+  --color-dark: var(--dark);
+  --color-white: var(--white);
+  --color-outer-bg: #F4F3FA;
+  --color-border: var(--border);
+  --color-yellow: #F5C842;
+  --color-card-bg: #0E0820;
+
+  --border-width: 2.5px;
+  --border-radius-hero: 32px;
+  --border-radius-navbar: 18px;
+  --border-radius-card: 18px;
+  --border-radius-btn: 12px;
+
+  --font-heading: 'Anton', sans-serif;
+  --font-body: 'Inter', sans-serif;
+
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-medium: 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ===================================================
+   RESET & BASE
+=================================================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-outer-bg);
+  color: var(--color-dark);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+
+img, svg {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+ul, ol {
+  list-style: none;
+}
+
+/* ===================================================
+   KEYFRAME ANIMATIONS
+=================================================== */
+
+/* Entrance animations */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(25px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-15px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideFromLeft {
+  from { opacity: 0; transform: translateX(-30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideFromRight {
+  from { opacity: 0; transform: translateX(30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.94) translateY(15px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Continuous floating animations */
+@keyframes floatY {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+@keyframes floatYSm {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-5px); }
+}
+
+@keyframes floatRotate {
+  0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
+  50%       { transform: translateY(-8px) rotate(-1deg) scale(1.015); }
+}
+
+@keyframes charFloat1 {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
+
+@keyframes charFloat2 {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+
+@keyframes charFloat3 {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-4px); }
+}
+
+@keyframes charFloat4 {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50%       { transform: translateY(-5px) rotate(1.5deg); }
+}
+
+@keyframes bubbleFloat {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50%       { transform: translateY(-6px) rotate(2deg); }
+}
+
+@keyframes pulseBeat {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.12); }
+}
+
+@keyframes starSpin {
+  0%   { transform: rotate(0deg) scale(1); opacity: 1; }
+  50%  { transform: rotate(180deg) scale(1.1); opacity: 0.7; }
+  100% { transform: rotate(360deg) scale(1); opacity: 1; }
+}
+
+@keyframes starFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+  50%       { transform: translateY(-5px) rotate(15deg) scale(1.1); opacity: 0.8; }
+}
+
+@keyframes lineSwayX {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(8px); }
+}
+
+@keyframes mobileMenuOpen {
+  from { opacity: 0; max-height: 0; }
+  to   { opacity: 1; max-height: 400px; }
+}
+
+/* ===================================================
+   UTILITY CLASSES
+=================================================== */
+
+/* Entrance utility classes applied via JS/React */
+.anim-slide-down {
+  animation: slideDown 0.6s ease both;
+}
+
+.anim-fade-up-1 {
+  animation: fadeUp 0.8s ease both;
+  animation-delay: 0.2s;
+}
+
+.anim-fade-up-2 {
+  animation: fadeUp 0.7s ease both;
+  animation-delay: 0.4s;
+}
+
+.anim-fade-up-3 {
+  animation: fadeUp 0.6s ease both;
+  animation-delay: 0.55s;
+}
+
+.anim-scale-in {
+  animation: scaleIn 1s ease both;
+  animation-delay: 0.6s;
+}
+
+.anim-slide-left {
+  animation: slideFromLeft 0.8s ease both;
+  animation-delay: 0.7s;
+}
+
+.anim-slide-right {
+  animation: slideFromRight 0.8s ease both;
+  animation-delay: 0.75s;
+}
+
+/* Continuous float animations */
+.float-main {
+  animation: floatRotate 4.5s ease-in-out infinite;
+}
+
+.float-char1 {
+  animation: charFloat1 3.2s ease-in-out infinite;
+}
+
+.float-char2 {
+  animation: charFloat2 3.8s ease-in-out infinite;
+  animation-delay: 0.4s;
+}
+
+.float-char3 {
+  animation: charFloat3 4.2s ease-in-out infinite;
+  animation-delay: 0.8s;
+}
+
+.float-char4 {
+  animation: charFloat4 3.6s ease-in-out infinite;
+  animation-delay: 0.2s;
+}
+
+.float-bubble1 {
+  animation: bubbleFloat 3.5s ease-in-out infinite;
+  animation-delay: 0s;
+}
+
+.float-bubble2 {
+  animation: bubbleFloat 4s ease-in-out infinite;
+  animation-delay: 0.8s;
+}
+
+.float-bubble3 {
+  animation: pulseBeat 2.8s ease-in-out infinite;
+  animation-delay: 1.4s;
+}
+
+.float-bubble4 {
+  animation: bubbleFloat 3.8s ease-in-out infinite;
+  animation-delay: 2s;
+}
+
+.float-star1 {
+  animation: starFloat 3s ease-in-out infinite;
+  animation-delay: 0s;
+}
+
+.float-star2 {
+  animation: starFloat 2.7s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
+.float-star3 {
+  animation: starSpin 4s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+.float-star4 {
+  animation: starFloat 3.2s ease-in-out infinite;
+  animation-delay: 1.5s;
+}
+
+.float-line {
+  animation: lineSwayX 5s ease-in-out infinite;
+}
+
+.float-review {
+  animation: floatYSm 4s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
+.float-trust {
+  animation: floatYSm 4.5s ease-in-out infinite;
+  animation-delay: 1s;
+}
+
+/* ===================================================
+   REDUCED MOTION
+=================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
