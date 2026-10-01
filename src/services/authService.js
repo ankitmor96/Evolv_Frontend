@@ -6,6 +6,11 @@
 
 const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL || null;
 
+// The Forgot Password APIs are already live on the NestJS backend,
+// so these two always talk to the real server (no simulated/mock mode).
+const FORGOT_PASSWORD_BASE_URL =
+  import.meta.env?.VITE_API_BASE_URL || "http://localhost:3000";
+
 // Helper to simulate API call delay when backend is not connected
 const mockApiCall = (data, shouldFail = false, errorMessage = "Authentication failed", delay = 1000) => {
   return new Promise((resolve, reject) => {
@@ -271,6 +276,49 @@ export const authService = {
     localStorage.setItem("evolv_user", JSON.stringify(mockUser));
 
     return mockApiCall({ user: mockUser, token }, false, "", 1200);
+  },
+
+  /**
+   * Forgot Password – Step 1
+   * Asks the backend to generate a 6-digit OTP and email it to this address.
+   * The backend verifies the email exists, so no extra check is done here.
+   */
+  async forgotPassword(email) {
+    const response = await fetch(`${FORGOT_PASSWORD_BASE_URL}/api/auth/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to send password reset OTP.");
+    }
+
+    return data;
+  },
+
+  /**
+   * Forgot Password – Step 2
+   * Verifies the OTP and stores the new password.
+   * The backend handles OTP validity, expiry and hashing, so nothing is
+   * duplicated on the frontend.
+   */
+  async resetPasswordWithOtp(email, otp, newPassword) {
+    const response = await fetch(`${FORGOT_PASSWORD_BASE_URL}/api/auth/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, otp, newPassword }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to reset password.");
+    }
+
+    return data;
   },
 
   /**

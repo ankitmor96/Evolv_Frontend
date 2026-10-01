@@ -167,6 +167,13 @@ const LoginPage = () => {
   const [otpSent, setOtpSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
+  // Forgot Password state (email is reused from the login form above)
+  const [forgotStep, setForgotStep] = useState("email"); // "email" -> "otp"
+  const [forgotOtp, setForgotOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
   // Status & Auth User State
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -252,6 +259,31 @@ const LoginPage = () => {
     return Object.values(errors).every((msg) => !msg);
   };
 
+  // Forgot Password validation
+  const validateForgotEmail = () => {
+    const errors = { forgotEmail: emailError(email) };
+    setFieldErrors(errors);
+    return Object.values(errors).every((msg) => !msg);
+  };
+
+  const validateResetForm = () => {
+    const errors = {
+      forgotOtp: !forgotOtp.trim()
+        ? "OTP is required."
+        : !/^\d{6}$/.test(forgotOtp.trim())
+          ? "OTP must be exactly 6 digits."
+          : "",
+      newPassword: passwordError(newPassword),
+      forgotConfirmPassword: !forgotConfirmPassword
+        ? "Confirm your new password."
+        : forgotConfirmPassword !== newPassword
+          ? "Passwords do not match."
+          : "",
+    };
+    setFieldErrors(errors);
+    return Object.values(errors).every((msg) => !msg);
+  };
+
   const getPasswordStrength = (value) => {
     if (!value) return { score: 0, label: "" };
     let score = 0;
@@ -272,6 +304,14 @@ const LoginPage = () => {
     setSuccessMessage("");
     setOtpSent(false);
     setOtpCode("");
+
+    // Leaving Forgot Password clears its temporary OTP / password fields
+    if (method !== "forgot_password") {
+      setForgotStep("email");
+      setForgotOtp("");
+      setNewPassword("");
+      setForgotConfirmPassword("");
+    }
   };
 
   const switchTab = (tab) => {
@@ -371,17 +411,54 @@ const LoginPage = () => {
     }
   };
 
-  const handleForgotPasswordSubmit = async (e) => {
+  // Forgot Password – Step 1: ask the backend to email the OTP
+  const handleSendForgotOtp = async (e) => {
     e.preventDefault();
     setErrorMessage("");
     setSuccessMessage("");
+
+    if (!validateForgotEmail()) return;
+
     setIsLoading(true);
 
     try {
-      const res = await authService.resetPassword(email);
-      setSuccessMessage(res.message || "Password reset instructions sent.");
+      const res = await authService.forgotPassword(email.trim());
+      setSuccessMessage(res.message || "Password reset OTP sent successfully.");
+      setForgotStep("otp"); // show the OTP + new password inputs
+      setCountdown(30);
     } catch (err) {
-      setErrorMessage(err.message || "Failed to request password reset.");
+      setErrorMessage(err.message || "Failed to send password reset OTP.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Forgot Password – Step 2: verify the OTP and set the new password
+  const handleResetPasswordSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    // confirmPassword is frontend-only, so it is checked before the API call
+    if (!validateResetForm()) return;
+
+    setIsLoading(true);
+
+    try {
+      const res = await authService.resetPasswordWithOtp(
+        email.trim(),
+        forgotOtp.trim(),
+        newPassword
+      );
+      setSuccessMessage(res.message || "Password reset successfully.");
+      setForgotStep("email");
+      setForgotOtp("");
+      setNewPassword("");
+      setForgotConfirmPassword("");
+      setFieldErrors({});
+      switchMethod("email"); // back to the normal login screen
+    } catch (err) {
+      setErrorMessage(err.message || "Failed to reset password.");
     } finally {
       setIsLoading(false);
     }
@@ -881,28 +958,135 @@ const LoginPage = () => {
                     </form>
                   )}
 
-                  {/* METHOD 4: Forgot Password Flow */}
+                  {/* METHOD 4: Forgot Password Flow – Step 1: email, Step 2: OTP + new password */}
                   {authMethod === "forgot_password" && (
-                    <form onSubmit={handleForgotPasswordSubmit}>
-                      <div className="input-group">
-                        <span className="input-icon"><MailEnvelopeIcon /></span>
+                    <form
+                      onSubmit={forgotStep === "email" ? handleSendForgotOtp : handleResetPasswordSubmit}
+                      noValidate
+                    >
+                      {forgotStep === "email" ? (
+                        <>
+                          <div className="input-group">
+                            <span className="input-icon"><MailEnvelopeIcon /></span>
 
-                        <input
-                          type="email"
-                          placeholder="Enter registered email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          required
-                        />
-                      </div>
+                            <input
+                              type="email"
+                              aria-label="Email"
+                              placeholder="Enter registered email"
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              onBlur={() =>
+                                setFieldErrors((prev) => ({ ...prev, forgotEmail: emailError(email) }))
+                              }
+                            />
+                          </div>
+                          {fieldErrors.forgotEmail && (
+                            <span className="field-error">{fieldErrors.forgotEmail}</span>
+                          )}
 
-                      <button type="submit" className="main-login-btn" disabled={isLoading}>
-                        {isLoading ? (
-                          <span className="loader-spinner"></span>
-                        ) : (
-                          <>Send Reset Link <span><ArrowRightIcon /></span></>
-                        )}
-                      </button>
+                          <button type="submit" className="main-login-btn" disabled={isLoading}>
+                            {isLoading ? (
+                              <span className="loader-spinner"></span>
+                            ) : (
+                              <>Send OTP <span><ArrowRightIcon /></span></>
+                            )}
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          {/* OTP received on email – no API call until Reset Password */}
+                          <div className="input-group">
+                            <span className="input-icon">🔑</span>
+
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              aria-label="OTP"
+                              placeholder="Enter 6-digit OTP"
+                              value={forgotOtp}
+                              onChange={(e) => setForgotOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                              maxLength={6}
+                            />
+                          </div>
+                          {fieldErrors.forgotOtp && (
+                            <span className="field-error">{fieldErrors.forgotOtp}</span>
+                          )}
+
+                          <div className="input-group confirm-password-group">
+                            <span className="input-icon"><LockOutlineIcon /></span>
+
+                            <input
+                              type={showForgotPassword ? "text" : "password"}
+                              aria-label="New Password"
+                              placeholder="Enter new password"
+                              value={newPassword}
+                              onChange={(e) => setNewPassword(e.target.value)}
+                            />
+
+                            <button
+                              type="button"
+                              className="password-toggle"
+                              onClick={() => setShowForgotPassword(!showForgotPassword)}
+                              aria-label="Toggle password visibility"
+                            >
+                              <EyeToggleIcon visible={showForgotPassword} />
+                            </button>
+                          </div>
+                          {fieldErrors.newPassword && (
+                            <span className="field-error">{fieldErrors.newPassword}</span>
+                          )}
+
+                          <div className="input-group confirm-password-group">
+                            <span className="input-icon"><LockOutlineIcon /></span>
+
+                            <input
+                              type={showForgotPassword ? "text" : "password"}
+                              aria-label="Confirm Password"
+                              placeholder="Confirm new password"
+                              value={forgotConfirmPassword}
+                              onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                            />
+                          </div>
+                          {fieldErrors.forgotConfirmPassword && (
+                            <span className="field-error">{fieldErrors.forgotConfirmPassword}</span>
+                          )}
+
+                          <button type="submit" className="main-login-btn" disabled={isLoading}>
+                            {isLoading ? (
+                              <span className="loader-spinner"></span>
+                            ) : (
+                              <>Reset Password <span><ArrowRightIcon /></span></>
+                            )}
+                          </button>
+
+                          <div className="otp-resend-row">
+                            <button
+                              type="button"
+                              className="forgot-btn"
+                              disabled={countdown > 0 || isLoading}
+                              onClick={handleSendForgotOtp}
+                            >
+                              {countdown > 0 ? `Resend OTP in ${countdown}s` : "Resend OTP"}
+                            </button>
+
+                            <button
+                              type="button"
+                              className="forgot-btn change-num-btn"
+                              onClick={() => {
+                                setForgotStep("email");
+                                setForgotOtp("");
+                                setNewPassword("");
+                                setForgotConfirmPassword("");
+                                setFieldErrors({});
+                                setErrorMessage("");
+                                setSuccessMessage("");
+                              }}
+                            >
+                              Change Email
+                            </button>
+                          </div>
+                        </>
+                      )}
 
                       <div className="back-login-row">
                         <button
