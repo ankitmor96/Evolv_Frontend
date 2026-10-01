@@ -174,11 +174,54 @@ const LoginPage = () => {
   const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
+  // Google OAuth sends the user back to /login with the session (or an error)
+  // in the query string. Read it once on mount, then clean the URL so a reload
+  // never replays it.
+  const GOOGLE_ERRORS = {
+    google_cancelled: "Google sign-in was cancelled.",
+    google_code_reused:
+      "That Google sign-in link was already used. Please try again.",
+    google_unauthorized: "Google sign-in failed. Please try again.",
+    google_failed: "Google sign-in failed. Please try again.",
+  };
+
+  const [googleRedirect] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authError = params.get("authError");
+    const token = params.get("token");
+    if (!authError && !token) return null;
+    return {
+      authError,
+      token,
+      email: params.get("email"),
+      name: params.get("name"),
+    };
+  });
+
+  const [googleUser] = useState(() => {
+    if (!googleRedirect || googleRedirect.authError || !googleRedirect.token)
+      return null;
+    try {
+      return authService.completeGoogleRedirect(googleRedirect);
+    } catch {
+      return null;
+    }
+  });
+
   // Status & Auth User State
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-  const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser());
+  const [errorMessage, setErrorMessage] = useState(() => {
+    if (!googleRedirect) return "";
+    if (googleRedirect.authError)
+      return GOOGLE_ERRORS[googleRedirect.authError] || GOOGLE_ERRORS.google_failed;
+    return googleUser ? "" : GOOGLE_ERRORS.google_failed;
+  });
+  const [successMessage, setSuccessMessage] = useState(() =>
+    googleUser ? "Logged in with Google successfully!" : "",
+  );
+  const [currentUser, setCurrentUser] = useState(
+    () => googleUser ?? authService.getCurrentUser(),
+  );
 
   // Countdown timer for OTP resend
   useEffect(() => {
@@ -200,6 +243,12 @@ const LoginPage = () => {
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
+
+  // Strip the OAuth query params so a reload does not replay them
+  useEffect(() => {
+    if (googleRedirect)
+      window.history.replaceState({}, "", window.location.pathname);
+  }, [googleRedirect]);
 
   const navigate = (path) => {
     if (window.location.pathname !== path) {
@@ -311,6 +360,7 @@ const LoginPage = () => {
       setForgotOtp("");
       setNewPassword("");
       setForgotConfirmPassword("");
+      setCountdown(0);
     }
   };
 
@@ -344,12 +394,13 @@ const LoginPage = () => {
     try {
       if (activeTab === "signup") {
         const result = await authService.signup(fullName, email, password);
-        setSuccessMessage("Account created successfully!");
-        setCurrentUser(result.user);
+        // Register returns no access token, so the session stays unauthenticated
+        // and the account has to be logged into.
+        setSuccessMessage(result.message || "Account created successfully! Please log in.");
       } else {
         const result = await authService.loginWithEmail(email, password, rememberMe);
-        setSuccessMessage(`Welcome back, ${result.user.name || result.user.email}!`);
         setCurrentUser(result.user);
+        setSuccessMessage(`Welcome back, ${result.user.name || result.user.email}!`);
       }
     } catch (err) {
       setErrorMessage(err.message || "Authentication failed.");
@@ -368,7 +419,7 @@ const LoginPage = () => {
       const res = await authService.sendEmailOTP(email);
       setOtpSent(true);
       setCountdown(30);
-      setSuccessMessage(res.message || "OTP code sent to your email! Use 123456 to test.");
+      setSuccessMessage(res.message || "OTP code sent to your email!");
     } catch (err) {
       setErrorMessage(err.message || "Failed to send OTP.");
     } finally {
@@ -383,9 +434,10 @@ const LoginPage = () => {
     setIsLoading(true);
 
     try {
-      const result = await authService.verifyEmailOTP(email, otpCode);
-      setSuccessMessage(`Logged in successfully with Email OTP!`);
+      const result = await authService.verifyEmailOTP(email, otpCode, rememberMe);
+      // A valid OTP is a full sign-in on this backend.
       setCurrentUser(result.user);
+      setSuccessMessage(result.message || "Logged in successfully with Email OTP!");
     } catch (err) {
       setErrorMessage(err.message || "Invalid OTP code.");
     } finally {
@@ -450,13 +502,17 @@ const LoginPage = () => {
         forgotOtp.trim(),
         newPassword
       );
-      setSuccessMessage(res.message || "Password reset successfully.");
+      // switchMethod clears messages and the temporary reset fields, so the
+      // success notice has to be set afterwards to survive the hand-off.
+      switchMethod("email");
       setForgotStep("email");
       setForgotOtp("");
       setNewPassword("");
       setForgotConfirmPassword("");
       setFieldErrors({});
-      switchMethod("email"); // back to the normal login screen
+      setSuccessMessage(
+        res.message || "Password reset successfully! Please log in with your new password."
+      );
     } catch (err) {
       setErrorMessage(err.message || "Failed to reset password.");
     } finally {
@@ -467,7 +523,32 @@ const LoginPage = () => {
   const handleLogout = () => {
     authService.logout();
     setCurrentUser(null);
+    setAuthMethod("email");
+    setEmail("");
+    setPassword("");
+    setOtpCode("");
+    setOtpSent(false);
+    setForgotStep("email");
+    setForgotOtp("");
+    setNewPassword("");
+    setForgotConfirmPassword("");
+    setCountdown(0);
+    setFieldErrors({});
     setSuccessMessage("Logged out successfully.");
+    setErrorMessage("");
+  };
+
+  // The × button in the top-right of the form. It signs the user out when a
+  // session is active, otherwise it just clears whatever step they were on.
+  const handleClose = () => {
+    if (currentUser) {
+      handleLogout();
+      return;
+    }
+    switchMethod("email");
+    setFieldErrors({});
+    setErrorMessage("");
+    setSuccessMessage("");
   };
 
   return (
@@ -580,7 +661,7 @@ const LoginPage = () => {
 
             {/* Right Form Area */}
             <div className="login-form-area">
-              <button className="close-btn" aria-label="Close" onClick={() => switchMethod("email")}>
+              <button className="close-btn" aria-label="Close" onClick={handleClose}>
                 ×
               </button>
 
@@ -1109,30 +1190,26 @@ const LoginPage = () => {
 
                   {/* Social Login Buttons matching Reference Image */}
                   {isAuthRoute ? (
-                    <>
-                      <div className="social-buttons">
-                        <button
-                          type="button"
-                          onClick={handleGoogleLogin}
-                          className="google-wide"
-                          disabled={isLoading}
-                        >
-                          <strong className="google"><GoogleIcon /></strong>
-                          <span>Continue with Google</span>
-                        </button>
-                      </div>
+                    <div className="social-buttons social-buttons-two">
+                      <button
+                        type="button"
+                        onClick={handleGoogleLogin}
+                        className={authMethod === "google" ? "active-social" : ""}
+                        disabled={isLoading}
+                      >
+                        <strong className="google"><GoogleIcon /></strong>
+                        <span>Continue with Google</span>
+                      </button>
 
-                      <div className="social-buttons social-buttons-two">
-                        <button
-                          type="button"
-                          onClick={() => switchMethod("email_otp")}
-                          className={authMethod === "email_otp" ? "active-social" : ""}
-                        >
-                          <strong className="email"><MailEnvelopeIcon /></strong>
-                          <span>Email OTP</span>
-                        </button>
-                      </div>
-                    </>
+                      <button
+                        type="button"
+                        onClick={() => switchMethod("email_otp")}
+                        className={authMethod === "email_otp" ? "active-social" : ""}
+                      >
+                        <strong className="email"><MailEnvelopeIcon /></strong>
+                        <span>Email OTP</span>
+                      </button>
+                    </div>
                   ) : (
                     <div className="social-buttons social-buttons-two">
                       <button
