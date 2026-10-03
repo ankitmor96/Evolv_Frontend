@@ -23,10 +23,10 @@ const EvolvLogo = () => (
 
 const GoogleIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24">
-    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
-    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.28v3.13C3.25 21.3 7.31 24 12 24z"/>
-    <path fill="#FBBC05" d="M5.28 14.27A7.2 7.2 0 0 1 4.9 12c0-.79.13-1.57.38-2.27V6.6H1.28A11.96 11.96 0 0 0 0 12c0 1.92.45 3.74 1.28 5.4l4-3.13z"/>
-    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.7 1.28 6.6l4 3.13c.95-2.83 3.6-4.98 6.72-4.98z"/>
+    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" />
+    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.28v3.13C3.25 21.3 7.31 24 12 24z" />
+    <path fill="#FBBC05" d="M5.28 14.27A7.2 7.2 0 0 1 4.9 12c0-.79.13-1.57.38-2.27V6.6H1.28A11.96 11.96 0 0 0 0 12c0 1.92.45 3.74 1.28 5.4l4-3.13z" />
+    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.7 1.28 6.6l4 3.13c.95-2.83 3.6-4.98 6.72-4.98z" />
   </svg>
 );
 
@@ -111,8 +111,8 @@ const ArtSceneIllustration = () => (
 
       {/* Cloud Character on Laptop */}
       <g transform="translate(170, 90)">
-        <path d="M20 50 C5 50 0 35 15 25 C10 10 30 0 45 10 C55 -2 75 -2 85 10 C100 0 115 15 105 30 C120 40 110 55 95 55 C95 62 30 62 20 50 Z" 
-              fill="#ffffff" stroke="#222222" strokeWidth="2.5" strokeLinejoin="round" />
+        <path d="M20 50 C5 50 0 35 15 25 C10 10 30 0 45 10 C55 -2 75 -2 85 10 C100 0 115 15 105 30 C120 40 110 55 95 55 C95 62 30 62 20 50 Z"
+          fill="#ffffff" stroke="#222222" strokeWidth="2.5" strokeLinejoin="round" />
 
         <rect x="35" y="20" width="22" height="14" rx="3" fill="#111827" stroke="#222" strokeWidth="1.5" />
         <rect x="62" y="20" width="22" height="14" rx="3" fill="#111827" stroke="#222" strokeWidth="1.5" />
@@ -155,10 +155,9 @@ const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [username, setUsername] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [rememberMe, setRememberMe] = useState(true);
   const [fieldErrors, setFieldErrors] = useState({});
 
@@ -289,21 +288,10 @@ const LoginPage = () => {
         : fullName.trim().length < 2
           ? "Full name must be at least 2 characters."
           : "",
-      username: !username.trim()
-        ? "Username is required."
-        : username.trim().length < 3
-          ? "Username must be at least 3 characters."
-          : !/^[a-zA-Z0-9_]+$/.test(username.trim())
-            ? "Use only letters, numbers and underscore."
-            : "",
       email: emailError(email),
       password: passwordError(password),
-      confirmPassword: !confirmPassword
-        ? "Confirm your password."
-        : confirmPassword !== password
-          ? "Passwords do not match."
-          : "",
     };
+
     setFieldErrors(errors);
     return Object.values(errors).every((msg) => !msg);
   };
@@ -748,23 +736,6 @@ const LoginPage = () => {
                             </div>
                             {fieldErrors.fullName && <span className="field-error">{fieldErrors.fullName}</span>}
                           </div>
-
-                          <div className="field-group field-animate" style={{ "--i": 1 }}>
-                            <div className={`input-group${fieldErrors.username ? " has-error" : ""}`}>
-                              <span className="input-icon"><AtSignIcon /></span>
-                              <input
-                                type="text"
-                                aria-label="Username"
-                                placeholder="Choose a username"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                onBlur={() =>
-                                  setFieldErrors((prev) => ({ ...prev, username: !username.trim() ? "Username is required." : username.trim().length < 3 ? "Username must be at least 3 characters." : !/^[a-zA-Z0-9_]+$/.test(username.trim()) ? "Use only letters, numbers and underscore." : "" }))
-                                }
-                              />
-                            </div>
-                            {fieldErrors.username && <span className="field-error">{fieldErrors.username}</span>}
-                          </div>
                         </>
                       )}
 
@@ -821,39 +792,6 @@ const LoginPage = () => {
                                 {passwordStrength.label}
                               </span>
                             </div>
-
-                            <div className="input-group confirm-password-group">
-                              <span className="input-icon"><LockOutlineIcon /></span>
-                              <input
-                                type={showConfirmPassword ? "text" : "password"}
-                                aria-label="Confirm Password"
-                                placeholder="Confirm your password"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                onBlur={() =>
-                                  setFieldErrors((prev) => ({
-                                    ...prev,
-                                    confirmPassword: !confirmPassword
-                                      ? "Confirm your password."
-                                      : confirmPassword !== password
-                                        ? "Passwords do not match."
-                                        : "",
-                                  }))
-                                }
-                              />
-
-                              <button
-                                type="button"
-                                className="password-toggle"
-                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                aria-label="Toggle confirm password visibility"
-                              >
-                                <EyeToggleIcon visible={showConfirmPassword} />
-                              </button>
-                            </div>
-                            {fieldErrors.confirmPassword && (
-                              <span className="field-error">{fieldErrors.confirmPassword}</span>
-                            )}
                           </>
                         )}
                       </div>
