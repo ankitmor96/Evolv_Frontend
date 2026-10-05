@@ -8,7 +8,7 @@ import ProfilePreview from './ProfilePreview';
 import StepIdentity from './StepIdentity';
 import StepCuriosity from './StepCuriosity';
 import StepSkills from './StepSkills';
-import StepFocus from './StepFocus';
+
 import CompletionScreen from './CompletionScreen';
 import {
   initialProfile,
@@ -18,7 +18,7 @@ import {
   validateUsername,
 } from './onboardingData';
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 3;
 const DRAFT_KEY = 'evolve-onboarding-draft';
 
 /**
@@ -51,7 +51,8 @@ function loadDraft() {
           },
           focusDomains: list(saved.focusDomains),
           focusSkills: list(saved.focusSkills),
-          focusGoal: text(saved.focusGoal),
+          focusGoal: text(saved.focusGoal || saved.bio),
+          bio: text(saved.bio || saved.focusGoal),
         };
       }
     }
@@ -65,7 +66,6 @@ const STEP_COMPONENTS = {
   1: StepIdentity,
   2: StepCuriosity,
   3: StepSkills,
-  4: StepFocus,
 };
 
 /** Calm, inline reason why Continue is locked. No browser alerts. */
@@ -86,15 +86,13 @@ function getGateReason(step, draft) {
       return `Choose at least ${MIN_CURIOSITIES} to continue.`;
     case 3:
       return 'Add at least one skill to continue.';
-    case 4:
-      return 'Choose at least one area to focus on.';
     default:
       return null;
   }
 }
 
 export default function Onboarding() {
-  const [step, setStep] = useState(1); // 1–4; 5 = completion
+  const [step, setStep] = useState(1); // 1–3; 4 = completion
   const [draft, setDraft] = useState(loadDraft);
   const [showErrors, setShowErrors] = useState(false);
 
@@ -238,17 +236,12 @@ export default function Onboarding() {
           </div>
 
           {/* ─── Bottom navigation ─── */}
+          {/* ─── Bottom navigation ─── */}
           {!isComplete && (
             <div className="ob-footer">
-              {step > 1 ? (
-                <motion.button type="button" className="ob-back-btn" onClick={goBack} whileTap={{ scale: 0.98 }}>
-                  ← Back
-                </motion.button>
-              ) : (
-                <span className="ob-footer-spacer" />
+              {gateReason && !canContinue && (
+                <span className="ob-gate-reason">{gateReason}</span>
               )}
-
-              {gateReason && !canContinue && <span className="ob-gate-reason">{gateReason}</span>}
 
               <motion.button
                 type="button"

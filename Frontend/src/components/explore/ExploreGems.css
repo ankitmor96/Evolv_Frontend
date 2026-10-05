@@ -223,11 +223,98 @@
   margin: 0;
 }
 
-/* ─── Creator grid ──────────────────────────────────────────── */
-.eg-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 20px;
+/* ─── Creator slider shell ───────────────────────────────────── */
+.eg-slider-shell {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Clipping window — only the current 5 (or 3 / 1) cards are visible */
+.eg-slider-viewport {
+  flex: 1;
+  overflow: hidden;
+  /* CSS custom property read by JS to know cards-per-view at any breakpoint */
+  --eg-cards-per-view: 5;
+}
+
+/* Sliding track — all cards in one row */
+.eg-slider-track {
+  display: flex;
+  /* transition injected inline by JS when animating */
+  will-change: transform;
+}
+
+/* Each card slot occupies exactly 1/N of the viewport */
+.eg-slider-item {
+  flex: 0 0 calc(100% / var(--eg-cards-per-view, 5));
+  min-width: 0;
+  padding: 0 8px;
+  box-sizing: border-box;
+}
+
+/* The card inside each slot fills its slot fully */
+.eg-slider-item .eg-creator-card {
+  width: 100%;
+  height: 100%;
+}
+
+/* ─── Slider nav buttons ─────────────────────────────────────── */
+.eg-slider-nav {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 2.5px solid #07040D;
+  background: #FFFFFF;
+  color: #07040D;
+  font-size: 1.1rem;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 160ms ease,
+    box-shadow 180ms ease;
+  box-shadow: 2px 3px 0 rgba(9, 3, 15, 0.12);
+  user-select: none;
+  line-height: 1;
+}
+
+.eg-slider-nav:hover:not(.disabled):not(:disabled) {
+  background: #A943F5;
+  border-color: #A943F5;
+  color: #FFFFFF;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(169, 67, 245, 0.28);
+}
+
+.eg-slider-nav:active:not(.disabled):not(:disabled) {
+  transform: scale(0.94);
+}
+
+.eg-slider-nav.disabled,
+.eg-slider-nav:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+  box-shadow: none;
+}
+
+/* ─── Skeleton row (loading state) ──────────────────────────── */
+.eg-slider-skeleton {
+  display: flex;
+  gap: 16px;
+}
+
+.eg-slider-skeleton .eg-creator-card {
+  flex: 1;
+  min-width: 0;
 }
 
 /* ─── Creator card ──────────────────────────────────────────── */
@@ -245,7 +332,6 @@
     transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
     border-color 220ms ease,
     box-shadow 220ms ease;
-  animation: egCardIn 0.45s calc(var(--card-index, 0) * 55ms) cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes egCardIn {
@@ -781,8 +867,13 @@
 
 /* ─── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 1024px) {
-  .eg-grid {
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  /* Tablet: 3 cards visible */
+  .eg-slider-viewport {
+    --eg-cards-per-view: 3;
+  }
+
+  .eg-slider-item {
+    flex-basis: calc(100% / 3);
   }
 }
 
@@ -825,12 +916,47 @@
   .eg-interests-strip {
     padding: 0 8px 14px;
   }
+
+  /* Tablet: 3 cards */
+  .eg-slider-viewport {
+    --eg-cards-per-view: 3;
+  }
+
+  .eg-slider-item {
+    flex-basis: calc(100% / 3);
+  }
+
+  .eg-slider-nav {
+    width: 38px;
+    height: 38px;
+    font-size: 1rem;
+  }
 }
 
 @media (max-width: 480px) {
-  .eg-grid {
-    grid-template-columns: 1fr;
-    gap: 14px;
+  /* Mobile: 1 card */
+  .eg-slider-viewport {
+    --eg-cards-per-view: 1;
+  }
+
+  .eg-slider-item {
+    flex-basis: 100%;
+  }
+
+  .eg-slider-shell {
+    gap: 10px;
+  }
+
+  .eg-slider-nav {
+    width: 36px;
+    height: 36px;
+    font-size: 0.95rem;
+    border-radius: 10px;
+  }
+
+  /* Remove padding so single card fills width */
+  .eg-slider-item {
+    padding: 0 4px;
   }
 
   .eg-frame {

@@ -13,7 +13,15 @@ const SUMMARY_ROWS = [
     label: 'YOUR SKILLS',
     values: (d) => [...d.skills.canDo, ...d.skills.learning, ...d.skills.wantToImprove],
   },
-  { label: 'YOUR FOCUS', values: (d) => d.focusDomains },
+  {
+    label: 'YOUR BIO',
+    values: (d) => {
+      const bio = (d.bio || d.focusGoal || '').trim();
+      if (bio) return [bio];
+      if (d.focusDomains && d.focusDomains.length > 0) return d.focusDomains;
+      return [];
+    },
+  },
 ];
 
 const STAGGER = (i) => ({

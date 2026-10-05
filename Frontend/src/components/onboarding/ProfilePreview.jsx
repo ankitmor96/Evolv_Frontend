@@ -33,6 +33,7 @@ function Row({ label, values, quote }) {
 export default function ProfilePreview({ draft }) {
   const role = resolvedRole(draft);
   const hasIdentity = Boolean(draft.username.trim() || draft.name.trim());
+  const bioText = (draft.bio ?? draft.focusGoal ?? '').trim();
   const hasContent =
     Boolean(role) ||
     Boolean(draft.country) ||
@@ -40,12 +41,12 @@ export default function ProfilePreview({ draft }) {
     draft.skills.canDo.length > 0 ||
     draft.skills.learning.length > 0 ||
     draft.focusDomains.length > 0 ||
-    draft.focusGoal.trim().length > 0;
+    bioText.length > 0;
 
   return (
     <div className="pp-card">
       <div className="pp-head">
-        <span className="pp-eyebrow">EVOLV PROFILE</span>
+        <span className="pp-eyebrow">EVOLVE PROFILE</span>
         <span className="pp-live">
           <span className="pp-live-dot" aria-hidden="true" />
           LIVE
@@ -88,7 +89,7 @@ export default function ProfilePreview({ draft }) {
             </div>
           </motion.div>
         )}
-        <Row label="WORKING TOWARD" values={draft.focusGoal.trim() ? [draft.focusGoal.trim()] : []} quote />
+        {bioText && <Row label="BIO" values={[bioText]} />}
 
         {!hasContent && (
           <p className="pp-placeholder">

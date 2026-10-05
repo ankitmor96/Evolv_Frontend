@@ -31,6 +31,7 @@ export const initialProfile = {
   focusDomains: [], // 1–3 domain names the user is prioritising right now
   focusSkills: [], // optional skills inside those domains (subset)
   focusGoal: '',
+  bio: '',
 };
 
 /** WHAT DESCRIBES YOU RIGHT NOW? — single select. */
@@ -374,10 +375,11 @@ export const SKILL_SECTIONS = [
 ];
 
 export const FOCUS_HINTS = [
-  'I want to become a better developer.',
-  'I want to build my first product.',
-  'I want to improve my design skills.',
-  'I want to create better content.',
+  'Building. Learning. Growing.',
+  'Code, create, and keep learning.',
+  'Turning ideas into digital experiences.',
+  'Learning to build, building to learn.',
+  'Developer in progress 🚀',
 ];
 
 export const AGE_RANGES = ['Under 18', '18–24', '25–34', '35–44', '45+'];
@@ -621,7 +623,7 @@ export function isStepComplete(step, draft) {
     case 3:
       return totalSkills(draft) > 0;
     case 4:
-      return draft.focusDomains.length > 0;
+      return true;
     default:
       return false;
   }

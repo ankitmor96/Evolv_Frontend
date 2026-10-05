@@ -1,9 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { authService } from "../../services/authService.js";
-import "./LoginPage.css";
+import evolvLogo from "/bg-remove.png";
 
-// The project ships one EVOLV logo asset (the same one the homepage navbar uses).
-const evolvLogo = "/logo.jpeg";
+import "./LoginPage.css";
 
 // SVG Icons matching Reference Image exactly
 const WhoIAmIcon = () => (
@@ -20,21 +20,14 @@ const EvolvLogo = () => (
     alt="EVOLV – A Human Growth Network"
     className="evolv-logo-image"
   />
-  // <img src="/logo.jpeg" alt="Logo" className="evolv-logo-image" />
 );
 
 const GoogleIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24">
-    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
-    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.28v3.13C3.25 21.3 7.31 24 12 24z"/>
-    <path fill="#FBBC05" d="M5.28 14.27A7.2 7.2 0 0 1 4.9 12c0-.79.13-1.57.38-2.27V6.6H1.28A11.96 11.96 0 0 0 0 12c0 1.92.45 3.74 1.28 5.4l4-3.13z"/>
-    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.7 1.28 6.6l4 3.13c.95-2.83 3.6-4.98 6.72-4.98z"/>
-  </svg>
-);
-
-const PhoneHandsetIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#111111" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z" />
+    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.28v3.13C3.25 21.3 7.31 24 12 24z" />
+    <path fill="#FBBC05" d="M5.28 14.27A7.2 7.2 0 0 1 4.9 12c0-.79.13-1.57.38-2.27V6.6H1.28A11.96 11.96 0 0 0 0 12c0 1.92.45 3.74 1.28 5.4l4-3.13z" />
+    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.25 2.7 1.28 6.6l4 3.13c.95-2.83 3.6-4.98 6.72-4.98z" />
   </svg>
 );
 
@@ -119,8 +112,8 @@ const ArtSceneIllustration = () => (
 
       {/* Cloud Character on Laptop */}
       <g transform="translate(170, 90)">
-        <path d="M20 50 C5 50 0 35 15 25 C10 10 30 0 45 10 C55 -2 75 -2 85 10 C100 0 115 15 105 30 C120 40 110 55 95 55 C95 62 30 62 20 50 Z" 
-              fill="#ffffff" stroke="#222222" strokeWidth="2.5" strokeLinejoin="round" />
+        <path d="M20 50 C5 50 0 35 15 25 C10 10 30 0 45 10 C55 -2 75 -2 85 10 C100 0 115 15 105 30 C120 40 110 55 95 55 C95 62 30 62 20 50 Z"
+          fill="#ffffff" stroke="#222222" strokeWidth="2.5" strokeLinejoin="round" />
 
         <rect x="35" y="20" width="22" height="14" rx="3" fill="#111827" stroke="#222" strokeWidth="1.5" />
         <rect x="62" y="20" width="22" height="14" rx="3" fill="#111827" stroke="#222" strokeWidth="1.5" />
@@ -148,10 +141,6 @@ const AtSignIcon = () => (
   </svg>
 );
 
-// Frontend-only validators (no browser popups, no alert())
-const OTP_RE = /^\d{6}$/;
-const isValidPhone = (value) => String(value).replace(/\D/g, "").length >= 7;
-
 const LoginPage = () => {
   const isAuthPath = () =>
     window.location.pathname === "/login" || window.location.pathname === "/signup";
@@ -167,25 +156,80 @@ const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [username, setUsername] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [rememberMe, setRememberMe] = useState(true);
   const [fieldErrors, setFieldErrors] = useState({});
 
-  // Phone + OTP state
-  const [countryCode, setCountryCode] = useState("+1");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  // OTP state (Email OTP)
   const [otpCode, setOtpCode] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
 
+  // Forgot Password state (email is reused from the login form above)
+  const [forgotStep, setForgotStep] = useState("email"); // "email" -> "otp"
+  const [forgotOtp, setForgotOtp] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
+  // Google OAuth sends the user back to /login with the session (or an error)
+  // in the query string. Read it once on mount, then clean the URL so a reload
+  // never replays it.
+  const GOOGLE_ERRORS = {
+    google_cancelled: "Google sign-in was cancelled.",
+    google_code_reused:
+      "That Google sign-in link was already used. Please try again.",
+    google_unauthorized: "Google sign-in failed. Please try again.",
+    google_failed: "Google sign-in failed. Please try again.",
+  };
+
+  const [googleRedirect] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authError = params.get("authError");
+    const token = params.get("token");
+    if (!authError && !token) return null;
+    return {
+      authError,
+      token,
+      email: params.get("email"),
+      name: params.get("name"),
+    };
+  });
+
+  const [googleUser] = useState(() => {
+    if (!googleRedirect || googleRedirect.authError || !googleRedirect.token)
+      return null;
+    try {
+      return authService.completeGoogleRedirect(googleRedirect);
+    } catch {
+      return null;
+    }
+  });
+
   // Status & Auth User State
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-  const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser());
+  const [errorMessage, setErrorMessage] = useState(() => {
+    if (!googleRedirect) return "";
+    if (googleRedirect.authError)
+      return GOOGLE_ERRORS[googleRedirect.authError] || GOOGLE_ERRORS.google_failed;
+    return googleUser ? "" : GOOGLE_ERRORS.google_failed;
+  });
+  const [successMessage, setSuccessMessage] = useState(() =>
+    googleUser ? "Logged in with Google successfully!" : "",
+  );
+  const [currentUser, setCurrentUser] = useState(
+    () => googleUser ?? authService.getCurrentUser(),
+  );
+
+  // Navigate to #/home after Google redirect success (runs once on mount)
+  useEffect(() => {
+    if (googleUser) {
+      window.location.href = "/#/onboarding";
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Countdown timer for OTP resend
   useEffect(() => {
@@ -208,12 +252,15 @@ const LoginPage = () => {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
+  // Strip the OAuth query params so a reload does not replay them
+  useEffect(() => {
+    if (googleRedirect)
+      window.history.replaceState({}, "", window.location.pathname);
+  }, [googleRedirect]);
+
   const navigate = (path) => {
     if (window.location.pathname !== path) {
       window.history.pushState({}, "", path);
-      // pushState does not fire 'popstate', so dispatch a custom event
-      // that App.jsx listens to in order to re-render the correct page.
-      window.dispatchEvent(new Event("navigated"));
     }
     setActiveTab(path === "/signup" ? "signup" : "login");
     setIsAuthRoute(true);
@@ -250,18 +297,32 @@ const LoginPage = () => {
         : fullName.trim().length < 2
           ? "Full name must be at least 2 characters."
           : "",
-      username: !username.trim()
-        ? "Username is required."
-        : username.trim().length < 3
-          ? "Username must be at least 3 characters."
-          : !/^[a-zA-Z0-9_]+$/.test(username.trim())
-            ? "Use only letters, numbers and underscore."
-            : "",
       email: emailError(email),
       password: passwordError(password),
-      confirmPassword: !confirmPassword
-        ? "Confirm your password."
-        : confirmPassword !== password
+    };
+
+    setFieldErrors(errors);
+    return Object.values(errors).every((msg) => !msg);
+  };
+
+  // Forgot Password validation
+  const validateForgotEmail = () => {
+    const errors = { forgotEmail: emailError(email) };
+    setFieldErrors(errors);
+    return Object.values(errors).every((msg) => !msg);
+  };
+
+  const validateResetForm = () => {
+    const errors = {
+      forgotOtp: !forgotOtp.trim()
+        ? "OTP is required."
+        : !/^\d{6}$/.test(forgotOtp.trim())
+          ? "OTP must be exactly 6 digits."
+          : "",
+      newPassword: passwordError(newPassword),
+      forgotConfirmPassword: !forgotConfirmPassword
+        ? "Confirm your new password."
+        : forgotConfirmPassword !== newPassword
           ? "Passwords do not match."
           : "",
     };
@@ -289,21 +350,24 @@ const LoginPage = () => {
     setSuccessMessage("");
     setOtpSent(false);
     setOtpCode("");
-  };
 
-  const handleClose = () => {
-    if (authMethod !== "email") {
-      switchMethod("email");
-    } else if (isAuthRoute) {
-      navigate("/");
+    // Leaving Forgot Password clears its temporary OTP / password fields
+    if (method !== "forgot_password") {
+      setForgotStep("email");
+      setForgotOtp("");
+      setNewPassword("");
+      setForgotConfirmPassword("");
+      setCountdown(0);
     }
   };
 
   const switchTab = (tab) => {
-    // Always navigate to the dedicated /login or /signup route.
-    // This ensures that clicking "Login" or "Sign Up" from any context
-    // (main hero page modal OR within the auth pages) opens the full page.
-    navigate(tab === "signup" ? "/signup" : "/login");
+    // Main page keeps its original in-place tab switch; /login + /signup use routes
+    if (isAuthRoute) {
+      navigate(tab === "signup" ? "/signup" : "/login");
+    } else {
+      setActiveTab(tab);
+    }
     setAuthMethod("email");
     setErrorMessage("");
     setSuccessMessage("");
@@ -313,7 +377,6 @@ const LoginPage = () => {
   // Form Submit Handlers
   const handleEmailPasswordSubmit = async (e) => {
     e.preventDefault();
-    if (isLoading) return; // prevent duplicate submissions
     setErrorMessage("");
     setSuccessMessage("");
 
@@ -328,12 +391,21 @@ const LoginPage = () => {
     try {
       if (activeTab === "signup") {
         const result = await authService.signup(fullName, email, password);
-        setSuccessMessage("Account created successfully!");
-        setCurrentUser(result.user);
+        // Register returns no access token – show success then redirect to /login
+        setSuccessMessage(result.message || "Account created successfully! Please log in.");
+        setTimeout(() => {
+          window.history.pushState({}, "", "/login");
+          window.dispatchEvent(new Event("navigated"));
+          setActiveTab("login");
+        }, 1500);
       } else {
         const result = await authService.loginWithEmail(email, password, rememberMe);
-        setSuccessMessage(`Welcome back, ${result.user.name || result.user.email}!`);
         setCurrentUser(result.user);
+        setSuccessMessage(`Welcome back, ${result.user.name || result.user.email}!`);
+        // Navigate to #/home so App.jsx renders HomePage
+        setTimeout(() => {
+         window.location.href = "/#/onboarding";
+        }, 500);
       }
     } catch (err) {
       setErrorMessage(err.message || "Authentication failed.");
@@ -342,71 +414,14 @@ const LoginPage = () => {
     }
   };
 
-  const handleSendPhoneOTP = async (e) => {
-    e?.preventDefault();
-    if (isLoading) return; // prevent duplicate submissions
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    if (!isValidPhone(phoneNumber)) {
-      setErrorMessage("Please enter a valid phone number.");
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const res = await authService.sendPhoneOTP(countryCode, phoneNumber);
-      setOtpSent(true);
-      setCountdown(30);
-      setSuccessMessage(res.message || "OTP code sent to your phone!");
-    } catch (err) {
-      setErrorMessage(err.message || "Failed to send OTP.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyPhoneOTP = async (e) => {
-    e.preventDefault();
-    if (isLoading) return; // prevent duplicate submissions
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    if (!OTP_RE.test(otpCode.trim())) {
-      setErrorMessage("Please enter the complete 6-digit OTP.");
-      return;
-    }
-
-    setIsLoading(true);
-
-    try {
-      const result = await authService.verifyPhoneOTP(countryCode, phoneNumber, otpCode.trim());
-      setSuccessMessage(`Logged in successfully with phone!`);
-      setCurrentUser(result.user);
-    } catch (err) {
-      setErrorMessage(err.message || "Invalid OTP code.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleSendEmailOTP = async (e) => {
     e?.preventDefault();
-    if (isLoading) return; // prevent duplicate submissions
     setErrorMessage("");
     setSuccessMessage("");
-
-    const invalidEmail = emailError(email);
-    if (invalidEmail) {
-      setErrorMessage(invalidEmail);
-      return;
-    }
-
     setIsLoading(true);
 
     try {
-      const res = await authService.sendEmailOTP(email.trim());
+      const res = await authService.sendEmailOTP(email);
       setOtpSent(true);
       setCountdown(30);
       setSuccessMessage(res.message || "OTP code sent to your email!");
@@ -419,21 +434,26 @@ const LoginPage = () => {
 
   const handleVerifyEmailOTP = async (e) => {
     e.preventDefault();
-    if (isLoading) return; // prevent duplicate submissions
     setErrorMessage("");
     setSuccessMessage("");
-
-    if (!OTP_RE.test(otpCode.trim())) {
-      setErrorMessage("Please enter the complete 6-digit OTP.");
-      return;
-    }
-
     setIsLoading(true);
 
     try {
-      const result = await authService.verifyEmailOTP(email.trim(), otpCode.trim());
-      setSuccessMessage(`Logged in successfully with Email OTP!`);
+      const result = await authService.loginWithEmail(
+        email,
+        password,
+        rememberMe
+      );
+
       setCurrentUser(result.user);
+
+      setSuccessMessage(
+        `Welcome back, ${result.user.name || result.user.email}!`
+      );
+
+      setTimeout(() => {
+        window.location.href = "/#/onboarding";
+      }, 500);
     } catch (err) {
       setErrorMessage(err.message || "Invalid OTP code.");
     } finally {
@@ -442,7 +462,6 @@ const LoginPage = () => {
   };
 
   const handleGoogleLogin = async () => {
-    if (isLoading) return; // prevent duplicate submissions
     setErrorMessage("");
     setSuccessMessage("");
     setIsLoading(true);
@@ -460,25 +479,58 @@ const LoginPage = () => {
     }
   };
 
-  const handleForgotPasswordSubmit = async (e) => {
+  // Forgot Password – Step 1: ask the backend to email the OTP
+  const handleSendForgotOtp = async (e) => {
     e.preventDefault();
-    if (isLoading) return; // prevent duplicate submissions
     setErrorMessage("");
     setSuccessMessage("");
 
-    const invalidEmail = emailError(email);
-    if (invalidEmail) {
-      setErrorMessage(invalidEmail);
-      return;
-    }
+    if (!validateForgotEmail()) return;
 
     setIsLoading(true);
 
     try {
-      const res = await authService.resetPassword(email.trim());
-      setSuccessMessage(res.message || "Password reset instructions sent.");
+      const res = await authService.forgotPassword(email.trim());
+      setSuccessMessage(res.message || "Password reset OTP sent successfully.");
+      setForgotStep("otp"); // show the OTP + new password inputs
+      setCountdown(30);
     } catch (err) {
-      setErrorMessage(err.message || "Failed to request password reset.");
+      setErrorMessage(err.message || "Failed to send password reset OTP.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Forgot Password – Step 2: verify the OTP and set the new password
+  const handleResetPasswordSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    // confirmPassword is frontend-only, so it is checked before the API call
+    if (!validateResetForm()) return;
+
+    setIsLoading(true);
+
+    try {
+      const res = await authService.resetPasswordWithOtp(
+        email.trim(),
+        forgotOtp.trim(),
+        newPassword
+      );
+      // switchMethod clears messages and the temporary reset fields, so the
+      // success notice has to be set afterwards to survive the hand-off.
+      switchMethod("email");
+      setForgotStep("email");
+      setForgotOtp("");
+      setNewPassword("");
+      setForgotConfirmPassword("");
+      setFieldErrors({});
+      setSuccessMessage(
+        res.message || "Password reset successfully! Please log in with your new password."
+      );
+    } catch (err) {
+      setErrorMessage(err.message || "Failed to reset password.");
     } finally {
       setIsLoading(false);
     }
@@ -487,11 +539,32 @@ const LoginPage = () => {
   const handleLogout = () => {
     authService.logout();
     setCurrentUser(null);
-    setOtpSent(false);
+    setAuthMethod("email");
+    setEmail("");
+    setPassword("");
     setOtpCode("");
+    setOtpSent(false);
+    setForgotStep("email");
+    setForgotOtp("");
+    setNewPassword("");
+    setForgotConfirmPassword("");
+    setCountdown(0);
+    setFieldErrors({});
+    setSuccessMessage("Logged out successfully.");
+    setErrorMessage("");
+  };
+
+  // The × button in the top-right of the form. It signs the user out when a
+  // session is active, otherwise it just clears whatever step they were on.
+  const handleClose = () => {
+    if (currentUser) {
+      handleLogout();
+      return;
+    }
+    switchMethod("email");
     setFieldErrors({});
     setErrorMessage("");
-    setSuccessMessage("Logged out successfully.");
+    setSuccessMessage("");
   };
 
   return (
@@ -532,7 +605,7 @@ const LoginPage = () => {
         {/* Hero Section matching Reference Image */}
         <main className="hero">
           <h1>
-            Don't Just Scroll. EVOLVE.
+            Don't Just Scroll. EVOLV.
           </h1>
 
           <p className="hero-description">
@@ -544,7 +617,7 @@ const LoginPage = () => {
           <div className="podium podium-right"></div>
 
           {/* Floating Background Cards - Skill Discovery Bubbles */}
-          {/* <div className="floating-card card-left">
+          <div className="floating-card card-left">
             <span className="small-avatar-circle">📸</span>
             <div>
               <b>Photography</b>
@@ -568,15 +641,17 @@ const LoginPage = () => {
             <b>✦ +1 SKILL</b>
             <span>✦ +1 CONNECTION</span>
             <span>✦ +1 IDEA</span>
-          </div> */}
+          </div>
 
           {/* Login Modal Card */}
-          <section className="login-modal auth-modal">
+          <section className="login-modal">
 
             {/* Left Art Illustration Panel */}
-            <div className="login-art auth-welcome">
-              {/* <div className="art-logo"></div> */}
-              <img src="/bg-remove.png" alt="" style={{width:"110px"}} />
+            <div className="login-art">
+              <div className="art-logo">
+                <EvolvLogo />
+              </div>
+
               <h2>
                 WELCOME
               </h2>
@@ -601,12 +676,7 @@ const LoginPage = () => {
             </div>
 
             {/* Right Form Area */}
-            <div className="login-form-area auth-form-wrapper">
-              <button className="close-btn" aria-label="Close" onClick={handleClose}>
-                ×
-              </button>
-
-              <div className="auth-form-content auth-modal-content">
+            <div className="login-form-area">
 
               {/* Logged In Overlay State */}
               {currentUser ? (
@@ -620,56 +690,10 @@ const LoginPage = () => {
                 </div>
               ) : (
                 <>
-                  <div className="form-heading">
-                    <h2>
-                      {activeTab === "signup" ? (
-                        isAuthRoute ? (
-                          <>Create Your <span>Account</span></>
-                        ) : (
-                          <>Create an account on <span>evolv</span></>
-                        )
-                      ) : authMethod === "forgot_password" ? (
-                        <>Reset <span>Password</span></>
-                      ) : authMethod === "phone" ? (
-                        <>Phone <span>Login</span></>
-                      ) : authMethod === "email_otp" ? (
-                        <>Email OTP <span>Login</span></>
-                      ) : isAuthRoute ? (
-                        <>Welcome <span>Back</span></>
-                      ) : (
-                        <>Login to <span>evolv</span></>
-                      )}
-                    </h2>
-
-                    <p>
-                      {!isAuthRoute
-                        ? activeTab === "signup"
-                          ? "Join EVOLV and start your journey of learning and discovery."
-                          : "Access your account and continue your growth journey."
-                        : activeTab === "signup"
-                          ? "Join the community and start growing your skills."
-                          : authMethod === "email"
-                            ? "Sign in to continue your journey."
-                            : "Access your account and continue your growth journey."}
-                    </p>
-                  </div>
-
                   {/* Feedback Alerts */}
                   {errorMessage && <div className="alert-banner alert-error">{errorMessage}</div>}
                   {successMessage && <div className="alert-banner alert-success">{successMessage}</div>}
 
-                  {/* Login Tab Only
-                  {authMethod !== "forgot_password" && (
-                    <div className="auth-tabs auth-tabs-single">
-                      <button
-                        className="active-tab"
-                        onClick={() => switchTab("login")}
-                        type="button"
-                      >
-                        Login
-                      </button>
-                    </div>
-                  )} */}
 
                   {/* METHOD 1: Email + Password Login OR Sign Up
                       Main page keeps the original form; /login and /signup use the auth form */}
@@ -692,23 +716,6 @@ const LoginPage = () => {
                               />
                             </div>
                             {fieldErrors.fullName && <span className="field-error">{fieldErrors.fullName}</span>}
-                          </div>
-
-                          <div className="field-group field-animate" style={{ "--i": 1 }}>
-                            <div className={`input-group${fieldErrors.username ? " has-error" : ""}`}>
-                              <span className="input-icon"><AtSignIcon /></span>
-                              <input
-                                type="text"
-                                aria-label="Username"
-                                placeholder="Choose a username"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                onBlur={() =>
-                                  setFieldErrors((prev) => ({ ...prev, username: !username.trim() ? "Username is required." : username.trim().length < 3 ? "Username must be at least 3 characters." : !/^[a-zA-Z0-9_]+$/.test(username.trim()) ? "Use only letters, numbers and underscore." : "" }))
-                                }
-                              />
-                            </div>
-                            {fieldErrors.username && <span className="field-error">{fieldErrors.username}</span>}
                           </div>
                         </>
                       )}
@@ -766,39 +773,6 @@ const LoginPage = () => {
                                 {passwordStrength.label}
                               </span>
                             </div>
-
-                            <div className="input-group confirm-password-group">
-                              <span className="input-icon"><LockOutlineIcon /></span>
-                              <input
-                                type={showConfirmPassword ? "text" : "password"}
-                                aria-label="Confirm Password"
-                                placeholder="Confirm your password"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                onBlur={() =>
-                                  setFieldErrors((prev) => ({
-                                    ...prev,
-                                    confirmPassword: !confirmPassword
-                                      ? "Confirm your password."
-                                      : confirmPassword !== password
-                                        ? "Passwords do not match."
-                                        : "",
-                                  }))
-                                }
-                              />
-
-                              <button
-                                type="button"
-                                className="password-toggle"
-                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                aria-label="Toggle confirm password visibility"
-                              >
-                                <EyeToggleIcon visible={showConfirmPassword} />
-                              </button>
-                            </div>
-                            {fieldErrors.confirmPassword && (
-                              <span className="field-error">{fieldErrors.confirmPassword}</span>
-                            )}
                           </>
                         )}
                       </div>
@@ -920,82 +894,9 @@ const LoginPage = () => {
                     </form>
                   )}
 
-                  {/* METHOD 2: Phone + OTP Login */}
-                  {authMethod === "phone" && (
-                    <form onSubmit={otpSent ? handleVerifyPhoneOTP : handleSendPhoneOTP} noValidate>
-                      <div className="input-group">
-                        <select
-                          className="country-select"
-                          value={countryCode}
-                          onChange={(e) => setCountryCode(e.target.value)}
-                          disabled={otpSent}
-                        >
-                          <option value="+1">🇺🇸 +1</option>
-                          <option value="+91">🇮🇳 +91</option>
-                          <option value="+44">🇬🇧 +44</option>
-                          <option value="+61">🇦🇺 +61</option>
-                          <option value="+81">🇯🇵 +81</option>
-                        </select>
-
-                        <input
-                          type="tel"
-                          placeholder="Phone Number"
-                          value={phoneNumber}
-                          onChange={(e) => setPhoneNumber(e.target.value)}
-                          disabled={otpSent}
-                        />
-                      </div>
-
-                      {otpSent && (
-                        <div className="input-group">
-                          <span className="input-icon">🔑</span>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="Enter 6-digit OTP (e.g. 123456)"
-                            value={otpCode}
-                            onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                            maxLength={6}
-                          />
-                        </div>
-                      )}
-
-                      <button type="submit" className="main-login-btn" disabled={isLoading}>
-                        {isLoading ? (
-                          <span className="loader-spinner"></span>
-                        ) : otpSent ? (
-                          <>Verify & Login <span><ArrowRightIcon /></span></>
-                        ) : (
-                          <>Send OTP <span><ArrowRightIcon /></span></>
-                        )}
-                      </button>
-
-                      {otpSent && (
-                        <div className="otp-resend-row">
-                          <button
-                            type="button"
-                            className="forgot-btn"
-                            disabled={countdown > 0 || isLoading}
-                            onClick={handleSendPhoneOTP}
-                          >
-                            {countdown > 0 ? `Resend OTP in ${countdown}s` : "Resend OTP"}
-                          </button>
-
-                          <button
-                            type="button"
-                            className="forgot-btn change-num-btn"
-                            onClick={() => setOtpSent(false)}
-                          >
-                            Edit Number
-                          </button>
-                        </div>
-                      )}
-                    </form>
-                  )}
-
-                  {/* METHOD 3: Email OTP Login */}
+                  {/* METHOD 2: Email OTP Login */}
                   {authMethod === "email_otp" && (
-                    <form onSubmit={otpSent ? handleVerifyEmailOTP : handleSendEmailOTP} noValidate>
+                    <form onSubmit={otpSent ? handleVerifyEmailOTP : handleSendEmailOTP}>
                       <div className="input-group">
                         <span className="input-icon"><MailEnvelopeIcon /></span>
 
@@ -1005,6 +906,7 @@ const LoginPage = () => {
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           disabled={otpSent}
+                          required
                         />
                       </div>
 
@@ -1014,11 +916,11 @@ const LoginPage = () => {
 
                           <input
                             type="text"
-                            inputMode="numeric"
                             placeholder="Enter 6-digit OTP (e.g. 123456)"
                             value={otpCode}
-                            onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                            onChange={(e) => setOtpCode(e.target.value)}
                             maxLength={6}
+                            required
                           />
                         </div>
                       )}
@@ -1056,27 +958,135 @@ const LoginPage = () => {
                     </form>
                   )}
 
-                  {/* METHOD 4: Forgot Password Flow */}
+                  {/* METHOD 4: Forgot Password Flow – Step 1: email, Step 2: OTP + new password */}
                   {authMethod === "forgot_password" && (
-                    <form onSubmit={handleForgotPasswordSubmit} noValidate>
-                      <div className="input-group">
-                        <span className="input-icon"><MailEnvelopeIcon /></span>
+                    <form
+                      onSubmit={forgotStep === "email" ? handleSendForgotOtp : handleResetPasswordSubmit}
+                      noValidate
+                    >
+                      {forgotStep === "email" ? (
+                        <>
+                          <div className="input-group">
+                            <span className="input-icon"><MailEnvelopeIcon /></span>
 
-                        <input
-                          type="email"
-                          placeholder="Enter registered email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                        />
-                      </div>
+                            <input
+                              type="email"
+                              aria-label="Email"
+                              placeholder="Enter registered email"
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              onBlur={() =>
+                                setFieldErrors((prev) => ({ ...prev, forgotEmail: emailError(email) }))
+                              }
+                            />
+                          </div>
+                          {fieldErrors.forgotEmail && (
+                            <span className="field-error">{fieldErrors.forgotEmail}</span>
+                          )}
 
-                      <button type="submit" className="main-login-btn" disabled={isLoading}>
-                        {isLoading ? (
-                          <span className="loader-spinner"></span>
-                        ) : (
-                          <>Send Reset Link <span><ArrowRightIcon /></span></>
-                        )}
-                      </button>
+                          <button type="submit" className="main-login-btn" disabled={isLoading}>
+                            {isLoading ? (
+                              <span className="loader-spinner"></span>
+                            ) : (
+                              <>Send OTP <span><ArrowRightIcon /></span></>
+                            )}
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          {/* OTP received on email – no API call until Reset Password */}
+                          <div className="input-group">
+                            <span className="input-icon">🔑</span>
+
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              aria-label="OTP"
+                              placeholder="Enter 6-digit OTP"
+                              value={forgotOtp}
+                              onChange={(e) => setForgotOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                              maxLength={6}
+                            />
+                          </div>
+                          {fieldErrors.forgotOtp && (
+                            <span className="field-error">{fieldErrors.forgotOtp}</span>
+                          )}
+
+                          <div className="input-group confirm-password-group">
+                            <span className="input-icon"><LockOutlineIcon /></span>
+
+                            <input
+                              type={showForgotPassword ? "text" : "password"}
+                              aria-label="New Password"
+                              placeholder="Enter new password"
+                              value={newPassword}
+                              onChange={(e) => setNewPassword(e.target.value)}
+                            />
+
+                            <button
+                              type="button"
+                              className="password-toggle"
+                              onClick={() => setShowForgotPassword(!showForgotPassword)}
+                              aria-label="Toggle password visibility"
+                            >
+                              <EyeToggleIcon visible={showForgotPassword} />
+                            </button>
+                          </div>
+                          {fieldErrors.newPassword && (
+                            <span className="field-error">{fieldErrors.newPassword}</span>
+                          )}
+
+                          <div className="input-group confirm-password-group">
+                            <span className="input-icon"><LockOutlineIcon /></span>
+
+                            <input
+                              type={showForgotPassword ? "text" : "password"}
+                              aria-label="Confirm Password"
+                              placeholder="Confirm new password"
+                              value={forgotConfirmPassword}
+                              onChange={(e) => setForgotConfirmPassword(e.target.value)}
+                            />
+                          </div>
+                          {fieldErrors.forgotConfirmPassword && (
+                            <span className="field-error">{fieldErrors.forgotConfirmPassword}</span>
+                          )}
+
+                          <button type="submit" className="main-login-btn" disabled={isLoading}>
+                            {isLoading ? (
+                              <span className="loader-spinner"></span>
+                            ) : (
+                              <>Reset Password <span><ArrowRightIcon /></span></>
+                            )}
+                          </button>
+
+                          <div className="otp-resend-row">
+                            <button
+                              type="button"
+                              className="forgot-btn"
+                              disabled={countdown > 0 || isLoading}
+                              onClick={handleSendForgotOtp}
+                            >
+                              {countdown > 0 ? `Resend OTP in ${countdown}s` : "Resend OTP"}
+                            </button>
+
+                            <button
+                              type="button"
+                              className="forgot-btn change-num-btn"
+                              onClick={() => {
+                                setForgotStep("email");
+                                setForgotOtp("");
+                                setNewPassword("");
+                                setForgotConfirmPassword("");
+                                setFieldErrors({});
+                                setErrorMessage("");
+                                setSuccessMessage("");
+                              }}
+                            >
+                              Change Email
+                            </button>
+                          </div>
+                        </>
+                      )}
 
                       <div className="back-login-row">
                         <button
@@ -1099,41 +1109,28 @@ const LoginPage = () => {
 
                   {/* Social Login Buttons matching Reference Image */}
                   {isAuthRoute ? (
-                    <>
-                      <div className="social-buttons">
-                        <button
-                          type="button"
-                          onClick={handleGoogleLogin}
-                          className="google-wide"
-                          disabled={isLoading}
-                        >
-                          <strong className="google"><GoogleIcon /></strong>
-                          <span>Continue with Google</span>
-                        </button>
-                      </div>
+                    <div className="social-buttons social-buttons-two">
+                      <button
+                        type="button"
+                        onClick={handleGoogleLogin}
+                        className={authMethod === "google" ? "active-social" : ""}
+                        disabled={isLoading}
+                      >
+                        <strong className="google"><GoogleIcon /></strong>
+                        <span>Continue with Google</span>
+                      </button>
 
-                      <div className="social-buttons social-buttons-two">
-                        <button
-                          type="button"
-                          onClick={() => switchMethod("phone")}
-                          className={authMethod === "phone" ? "active-social" : ""}
-                        >
-                          <strong className="phone"><PhoneHandsetIcon /></strong>
-                          <span>Phone</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => switchMethod("email_otp")}
-                          className={authMethod === "email_otp" ? "active-social" : ""}
-                        >
-                          <strong className="email"><MailEnvelopeIcon /></strong>
-                          <span>Email OTP</span>
-                        </button>
-                      </div>
-                    </>
+                      <button
+                        type="button"
+                        onClick={() => switchMethod("email_otp")}
+                        className={authMethod === "email_otp" ? "active-social" : ""}
+                      >
+                        <strong className="email"><MailEnvelopeIcon /></strong>
+                        <span>Email OTP</span>
+                      </button>
+                    </div>
                   ) : (
-                    <div className="social-buttons">
+                    <div className="social-buttons social-buttons-two">
                       <button
                         type="button"
                         onClick={handleGoogleLogin}
@@ -1142,15 +1139,6 @@ const LoginPage = () => {
                       >
                         <strong className="google"><GoogleIcon /></strong>
                         <span>Google</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => switchMethod("phone")}
-                        className={authMethod === "phone" ? "active-social" : ""}
-                      >
-                        <strong className="phone"><PhoneHandsetIcon /></strong>
-                        <span>Phone</span>
                       </button>
 
                       <button
@@ -1169,7 +1157,7 @@ const LoginPage = () => {
                     {activeTab === "signup" ? (
                       <>
                         Already have an account?{" "}
-                        <button type="button" onClick={() => switchTab("login")}>
+                        <button type="button" onClick={() => isAuthRoute ? switchTab("login") : switchTab("signup")}>
                           Login
                         </button>
                       </>
@@ -1184,7 +1172,6 @@ const LoginPage = () => {
                   </p>
                 </>
               )}
-              </div>
             </div>
           </section>
 

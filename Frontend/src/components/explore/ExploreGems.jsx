@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import HeroHeader from '../HeroHeader';
 import { fetchRecommendedCreators, connectToCreator } from '../../services/creatorService';
 import './ExploreGems.css';
@@ -201,6 +201,109 @@ function EmptyState() {
   );
 }
 
+// ─── How many cards are visible per breakpoint ────────────────────────────────
+// These must stay in sync with the CSS --eg-cards-per-view custom property.
+const CARDS_DESKTOP  = 5;
+const CARDS_TABLET   = 3;  // ≤ 900px
+const CARDS_MOBILE   = 1;  // ≤ 540px
+
+/** Read the current cards-per-view from a CSS custom property set on the
+ *  slider viewport — this keeps JS and CSS breakpoints in one place. */
+function getCardsPerView(viewportEl) {
+  if (!viewportEl) return CARDS_DESKTOP;
+  const val = parseInt(
+    getComputedStyle(viewportEl).getPropertyValue('--eg-cards-per-view').trim(),
+    10
+  );
+  return isNaN(val) ? CARDS_DESKTOP : val;
+}
+
+// ─── Horizontal Creator Slider ─────────────────────────────────────────────────
+function CreatorSlider({ creators, connectedIds, onConnect, connectingId }) {
+  const [startIndex, setStartIndex] = useState(0);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const viewportRef = useRef(null);
+
+  // Derive cards-per-view reactively on resize
+  const [cardsPerView, setCardsPerView] = useState(CARDS_DESKTOP);
+  useEffect(() => {
+    const update = () => setCardsPerView(getCardsPerView(viewportRef.current));
+    update();
+    const ro = new ResizeObserver(update);
+    if (viewportRef.current) ro.observe(viewportRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  const totalCreators = creators.length;
+  const maxStart = Math.max(0, totalCreators - cardsPerView);
+  const atStart = startIndex === 0;
+  const atEnd   = startIndex >= maxStart;
+
+  const slide = useCallback((direction) => {
+    if (isAnimating) return;
+    setIsAnimating(true);
+    setStartIndex((prev) => {
+      if (direction === 'next') return Math.min(prev + cardsPerView, maxStart);
+      return Math.max(prev - cardsPerView, 0);
+    });
+    setTimeout(() => setIsAnimating(false), 420);
+  }, [isAnimating, cardsPerView, maxStart]);
+
+  // The translateX offset: each card occupies (100% / cardsPerView) of the track
+  const translateX = -(startIndex * (100 / cardsPerView));
+
+  return (
+    <div className="eg-slider-shell">
+      {/* ← Previous */}
+      <button
+        className={`eg-slider-nav eg-slider-prev ${atStart ? 'disabled' : ''}`}
+        onClick={() => slide('prev')}
+        disabled={atStart}
+        aria-label="Previous creators"
+      >
+        ←
+      </button>
+
+      {/* Clipping viewport */}
+      <div className="eg-slider-viewport" ref={viewportRef}>
+        {/* Sliding track — all cards live here */}
+        <div
+          className="eg-slider-track"
+          style={{
+            transform: `translateX(${translateX}%)`,
+            transition: isAnimating ? 'transform 400ms cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
+          }}
+        >
+          {creators.map((creator, index) => (
+            <div
+              key={creator.id}
+              className="eg-slider-item"
+              style={{ '--eg-cards-per-view-item': cardsPerView }}
+            >
+              <CreatorCard
+                creator={creator}
+                isConnected={connectedIds.has(creator.id)}
+                onConnect={onConnect}
+                connectingId={connectingId}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Next → */}
+      <button
+        className={`eg-slider-nav eg-slider-next ${atEnd ? 'disabled' : ''}`}
+        onClick={() => slide('next')}
+        disabled={atEnd}
+        aria-label="Next creators"
+      >
+        →
+      </button>
+    </div>
+  );
+}
+
 // ─── Main ExploreGems Page ─────────────────────────────────────────────────────
 export default function ExploreGems() {
   const [profile] = useState(loadProfile);
@@ -240,7 +343,7 @@ export default function ExploreGems() {
     }
   }, [connectedIds, connectingId]);
 
-  const SKELETON_COUNT = interests.length > 0 ? 9 : 6;
+  const SKELETON_COUNT = 5;
 
   return (
     <main className="eg-page" role="main">
@@ -297,9 +400,9 @@ export default function ExploreGems() {
             </p>
           </div>
 
-          {/* Creator grid */}
+          {/* Creator slider */}
           {loading ? (
-            <div className="eg-grid" aria-busy="true" aria-label="Loading creators">
+            <div className="eg-slider-skeleton" aria-busy="true" aria-label="Loading creators">
               {Array.from({ length: SKELETON_COUNT }, (_, i) => (
                 <SkeletonCard key={i} />
               ))}
@@ -307,33 +410,12 @@ export default function ExploreGems() {
           ) : creators.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="eg-grid">
-              {creators.map((creator, index) => (
-                <CreatorCard
-                  key={creator.id}
-                  creator={creator}
-                  isConnected={connectedIds.has(creator.id)}
-                  onConnect={handleConnect}
-                  connectingId={connectingId}
-                  style={{ '--card-index': index }}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Explore more footer */}
-          {!loading && creators.length > 0 && (
-            <div className="eg-explore-more">
-              <button
-                className="eg-explore-more-btn"
-                onClick={() => {
-                  // Future: load next page of creators
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-              >
-                Explore More →
-              </button>
-            </div>
+            <CreatorSlider
+              creators={creators}
+              connectedIds={connectedIds}
+              onConnect={handleConnect}
+              connectingId={connectingId}
+            />
           )}
         </div>
       </section>

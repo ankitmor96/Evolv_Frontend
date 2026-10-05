@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-const STEP_LABELS = ['IDENTITY', 'CURIOSITY', 'SKILLS', 'FOCUS'];
+const STEP_LABELS = ['IDENTITY', 'CURIOSITY', 'SKILLS'];
 
 /**
  * EVOLV step system: four compact rounded step tiles on the purple frame.

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
 import { EASE_SMOOTH } from '../motionVariants';
-import { AGE_RANGES, COUNTRIES, ROLES, ROLE_OTHER, validateUsername } from './onboardingData';
+import { AGE_RANGES, COUNTRIES, GOAL_MAX, ROLES, ROLE_OTHER, validateUsername } from './onboardingData';
 
 function InlineError({ show, message }) {
   if (!show || !message) return null;
@@ -290,6 +290,30 @@ export default function StepIdentity({ draft, setDraft, showErrors }) {
               ))}
             </div>
           </div>
+        </div>
+
+        {/* ─── BIO (moved from Step 04) ─── */}
+        <div className="goal-block">
+          <label className="ob-field">
+            <span className="ob-field-label">
+              BIO<span className="ob-field-optional">OPTIONAL</span>
+            </span>
+            <span className="ob-hint">Tell us about yourself</span>
+            <textarea
+              className="ob-input ob-textarea"
+              placeholder="my name is..."
+              rows={3}
+              maxLength={GOAL_MAX}
+              value={draft.bio ?? draft.focusGoal ?? ''}
+              onChange={(e) => {
+                const value = e.target.value;
+                setDraft((d) => ({ ...d, bio: value, focusGoal: value }));
+              }}
+            />
+            <span className="char-count">
+              {(draft.bio ?? draft.focusGoal ?? '').length} / {GOAL_MAX}
+            </span>
+          </label>
         </div>
       </div>
     </div>

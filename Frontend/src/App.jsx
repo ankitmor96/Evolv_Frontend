@@ -3,6 +3,8 @@ import Hero from './components/Hero';
 import Onboarding from './components/onboarding/Onboarding';
 import LoginPage from './components/auth/LoginPage';
 import ExploreGems from './components/explore/ExploreGems';
+import HomePage from './components/home/HomePage';
+import MessagesPage from './components/messages/MessagesPage';
 
 // Auth pages are plain browser paths (/login, /signup) — no router dependency.
 const AUTH_PATHS = ['/login', '/signup'];
@@ -47,6 +49,14 @@ export default function App() {
 
   if (route === '/explore-gems') {
     return <ExploreGems />;
+  }
+
+  if (route === '/home') {
+    return <HomePage />;
+  }
+
+  if (route === '/messages') {
+    return <MessagesPage />;
   }
 
   return <Hero />;
