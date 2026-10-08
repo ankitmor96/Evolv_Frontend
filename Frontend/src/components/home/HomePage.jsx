@@ -68,7 +68,7 @@ function Avatar({ src, name, size = 40, className = '' }) {
 // ─────────────────────────────────────────────────────────────────────────────
 const MAIN_NAV = [
   { id: 'home', label: 'Home', icon: Home, href: '#/home' },
-  { id: 'discover', label: 'Discover', icon: Compass, href: '#/explore-gems' },
+  { id: 'discover', label: 'Discover', icon: Compass, href: '#/discover' },
   { id: 'mylearning', label: 'My Learning', icon: BookOpen, href: '#/learning' },
   { id: 'saved', label: 'Saved', icon: Bookmark, href: '#/saved' },
 ];

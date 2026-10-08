@@ -83,6 +83,7 @@ export default function TrustCard() {
           gap: 12px;
           min-width: 250px;
           max-width: 285px;
+          margin-left: auto;
           margin-top: 15px;
           box-shadow: 4px 4px 0 rgba(9, 3, 15, 0.4);
           transition: border-color 200ms ease, box-shadow 200ms ease;

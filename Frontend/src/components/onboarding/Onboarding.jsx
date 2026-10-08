@@ -17,6 +17,7 @@ import {
   ROLE_OTHER,
   validateUsername,
 } from './onboardingData';
+import { profileService } from '../../services/profileService';
 
 const TOTAL_STEPS = 3;
 const DRAFT_KEY = 'evolve-onboarding-draft';
@@ -101,6 +102,9 @@ export default function Onboarding() {
   const [phase, setPhase] = useState('idle'); // idle | leaving | entering
   const pendingStepRef = useRef(null);
 
+  // Prevents duplicate submissions if the user taps "Enter EVOLV" more than once.
+  const isSubmitting = useRef(false);
+
   // ─── Draft autosave ────────────────────────────────────────────────────────
   const persistTimer = useRef(null);
   useEffect(() => {
@@ -157,16 +161,32 @@ export default function Onboarding() {
     return () => clearTimeout(id);
   }, [phase]);
 
-  const handleEnter = useCallback(() => {
-    // NOTE: we intentionally keep the draft in localStorage so ExploreGems
-    // can read the user's interests. The backend POST should happen here once
-    // the API is live; after saving, clear the draft.
-    // TODO(backend): POST the profile draft, then clear DRAFT_KEY.
+  const handleEnter = useCallback(async () => {
+    // Prevent duplicate submissions on rapid double-click.
+    if (isSubmitting.current) return;
+    isSubmitting.current = true;
+
+    // Submit the completed onboarding draft to the real backend.
+    // Each section (profile, curiosity, skills, bio) is submitted
+    // independently. Errors are logged to the console but never block
+    // navigation — the user is always moved forward.
+    try {
+      await profileService.submitOnboardingDraft(draft);
+    } catch (err) {
+      console.error('[Onboarding] Unexpected submission error:', err);
+    }
+
+    isSubmitting.current = false;
+
+    // Clear the local draft now that it has been sent to the backend.
+    try {
+      window.localStorage.removeItem(DRAFT_KEY);
+    } catch { /* storage unavailable — ignore */ }
 
     // Navigate to the Explore Gems discovery page.
     window.location.hash = '/explore-gems';
     window.dispatchEvent(new Event('navigated'));
-  }, []);
+  }, [draft]);
 
   return (
     <main className="ob-page" role="main">

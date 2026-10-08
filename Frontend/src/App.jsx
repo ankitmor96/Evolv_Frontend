@@ -5,6 +5,7 @@ import LoginPage from './components/auth/LoginPage';
 import ExploreGems from './components/explore/ExploreGems';
 import HomePage from './components/home/HomePage';
 import MessagesPage from './components/messages/MessagesPage';
+import DiscoverPage from './components/discover/DiscoverPage';
 
 // Auth pages are plain browser paths (/login, /signup) — no router dependency.
 const AUTH_PATHS = ['/login', '/signup'];
@@ -58,6 +59,10 @@ export default function App() {
   if (route === '/messages') {
     return <MessagesPage />;
   }
+
+  if (route === '/discover') {
+  return <DiscoverPage />;
+}
 
   return <Hero />;
 }
