@@ -29,9 +29,11 @@ export default function ReviewCard() {
           display: flex;
           flex-direction: column;
           gap: 8px;
-          min-width: 210px;
+          min-width: 0;
+          width: 100%;
           max-width: 250px;
           margin-top: 15px;
+          box-sizing: border-box;
           box-shadow: 4px 4px 0 rgba(9, 3, 15, 0.4);
           transition: border-color 200ms ease, box-shadow 200ms ease;
           user-select: none;
@@ -78,16 +80,29 @@ export default function ReviewCard() {
         }
 
         @media (max-width: 768px) {
-          .feed-interests-card {
-            max-width: 100%;
-            width: 100%;
-            margin-top: 0;
-          }
+  .feed-interests-card {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+  }
 
-          .card-description {
-            max-width: 100%;
-          }
-        }
+  .card-description {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 360px) {
+  .feed-interests-card {
+    padding: 14px;
+  }
+
+  .card-heading {
+    font-size: 13px;
+  }
+}
       `}</style>
     </motion.div>
   );

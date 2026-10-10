@@ -122,22 +122,27 @@ export default function Hero() {
         }
 
         /* ─── Cards row ─── */
-        .hero-cards-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-end;
-          gap: 16px;
-          width: 100%;
-          padding: 0 12px;
-          margin-top: -65px;
-          position: relative;
-          z-index: 40;
-          pointer-events: none;
-        }
+        /* Cards row */
+.hero-cards-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  padding: 0 12px;
+  margin-top: -65px;
+  position: relative;
+  z-index: 40;
+  box-sizing: border-box;
+  pointer-events: none;
+}
 
-        .hero-cards-row > * {
-          pointer-events: auto;
-        }
+.hero-cards-row > * {
+  pointer-events: auto;
+  box-sizing: border-box;
+  min-width: 0;
+} 
 
         /* ─── Responsive Adjustments ─── */
         @media (max-width: 1024px) {
@@ -174,18 +179,29 @@ export default function Hero() {
           }
 
           .hero-cards-row {
-            flex-direction: column;
-            align-items: center;
-            margin-top: 20px;
-            gap: 12px;
-          }
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 12px;
+    width: 100%;
+    padding: 0;
+    margin-top: 20px;
+    position: relative;
+  }
 
-          .hero-cards-row .review-card,
-          .hero-cards-row .trust-card {
-            max-width: 100%;
-            min-width: unset;
-            width: 100%;
-          }
+  .hero-cards-row > .review-card,
+  .hero-cards-row > .trust-card {
+    position: relative;
+    inset: auto;
+    transform: none;
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+    box-sizing: border-box;
+  }
         }
 
         @media (max-width: 480px) {

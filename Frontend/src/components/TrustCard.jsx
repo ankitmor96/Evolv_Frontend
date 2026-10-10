@@ -81,10 +81,12 @@ export default function TrustCard() {
           display: flex;
           flex-direction: column;
           gap: 12px;
-          min-width: 250px;
+          min-width: 0;
+          width: 100%;
           max-width: 285px;
           margin-left: auto;
           margin-top: 15px;
+          box-sizing: border-box;
           box-shadow: 4px 4px 0 rgba(9, 3, 15, 0.4);
           transition: border-color 200ms ease, box-shadow 200ms ease;
           user-select: none;
@@ -212,12 +214,22 @@ export default function TrustCard() {
           }
         }
 
-        @media (max-width: 768px) {
-          .evolv-loop-card {
-            max-width: 100%;
-            width: 100%;
-            margin-top: 0;
-          }
+       @media (max-width: 768px) {
+  .evolv-loop-card {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 360px) {
+  .evolv-loop-card {
+    padding: 12px;
+    gap: 10px;
+  }
+}
         }
       `}</style>
     </motion.div>

@@ -142,12 +142,13 @@ const AtSignIcon = () => (
 );
 
 const LoginPage = () => {
+  // /#/login and /#/signup are the hash-based auth routes.
   const isAuthPath = () =>
-    window.location.pathname === "/login" || window.location.pathname === "/signup";
+    window.location.hash === '#/login' || window.location.hash === '#/signup';
 
   // Navigation / Modal Tabs & Method States
   const [activeTab, setActiveTab] = useState(() =>
-    window.location.pathname === "/signup" ? "signup" : "login"
+    window.location.hash === '#/signup' ? 'signup' : 'login'
   );
   const [isAuthRoute, setIsAuthRoute] = useState(isAuthPath);
   const [authMethod, setAuthMethod] = useState("email");
@@ -242,14 +243,18 @@ const LoginPage = () => {
     return () => clearInterval(timer);
   }, [countdown]);
 
-  // Route syncing (/login and /signup) – no router dependency needed
+  // Route syncing (/#/login and /#/signup) – listens to both popstate and hashchange
   useEffect(() => {
-    const onPopState = () => {
-      setActiveTab(window.location.pathname === "/signup" ? "signup" : "login");
+    const onRouteChange = () => {
+      setActiveTab(window.location.hash === '#/signup' ? 'signup' : 'login');
       setIsAuthRoute(isAuthPath());
     };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
+    window.addEventListener('hashchange', onRouteChange);
+    window.addEventListener('popstate', onRouteChange);
+    return () => {
+      window.removeEventListener('hashchange', onRouteChange);
+      window.removeEventListener('popstate', onRouteChange);
+    };
   }, []);
 
   // Strip the OAuth query params so a reload does not replay them
@@ -258,11 +263,14 @@ const LoginPage = () => {
       window.history.replaceState({}, "", window.location.pathname);
   }, [googleRedirect]);
 
+  // Navigate to /#/login or /#/signup by updating the hash.
+  // Assigning window.location.hash triggers a hashchange event that App.jsx listens to.
   const navigate = (path) => {
-    if (window.location.pathname !== path) {
-      window.history.pushState({}, "", path);
+    const targetHash = '#' + path;
+    if (window.location.hash !== targetHash) {
+      window.location.hash = path;
     }
-    setActiveTab(path === "/signup" ? "signup" : "login");
+    setActiveTab(path === '/signup' ? 'signup' : 'login');
     setIsAuthRoute(true);
   };
 
@@ -391,12 +399,11 @@ const LoginPage = () => {
     try {
       if (activeTab === "signup") {
         const result = await authService.signup(fullName, email, password);
-        // Register returns no access token – show success then redirect to /login
-        setSuccessMessage(result.message || "Account created successfully! Please log in.");
+        // Register returns no access token – show success then redirect to /#/login
+        setSuccessMessage(result.message || 'Account created successfully! Please log in.');
         setTimeout(() => {
-          window.history.pushState({}, "", "/login");
-          window.dispatchEvent(new Event("navigated"));
-          setActiveTab("login");
+          window.location.hash = '/login';
+          setActiveTab('login');
         }, 1500);
       } else {
         const result = await authService.loginWithEmail(email, password, rememberMe);

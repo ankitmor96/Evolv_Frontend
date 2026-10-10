@@ -7,29 +7,19 @@ import HomePage from './components/home/HomePage';
 import MessagesPage from './components/messages/MessagesPage';
 import DiscoverPage from './components/discover/DiscoverPage';
 
-// Auth pages are plain browser paths (/login, /signup) — no router dependency.
-const AUTH_PATHS = ['/login', '/signup'];
-
 function getRoute() {
   return window.location.hash.replace(/^#/, '') || '/';
 }
 
-function getPathname() {
-  return window.location.pathname;
-}
-
 export default function App() {
   const [route, setRoute] = useState(getRoute);
-  const [pathname, setPathname] = useState(getPathname);
 
   useEffect(() => {
-    const sync = () => {
-      setRoute(getRoute());
-      setPathname(getPathname());
-    };
-    // 'popstate' fires on browser back/forward.
-    // 'navigated' is a custom event dispatched by LoginPage.navigate()
-    //  after pushState, since pushState alone does NOT fire 'popstate'.
+    const sync = () => setRoute(getRoute());
+    // hashchange fires when the fragment changes (e.g. /#/login → /#/home).
+    // popstate fires on browser back/forward.
+    // 'navigated' is a custom event dispatched after history.pushState() calls
+    // inside LoginPage, since pushState alone does NOT fire 'popstate'.
     window.addEventListener('hashchange', sync);
     window.addEventListener('popstate', sync);
     window.addEventListener('navigated', sync);
@@ -40,7 +30,10 @@ export default function App() {
     };
   }, []);
 
-  if (AUTH_PATHS.includes(pathname)) {
+  // Hash-based routing — consistent with all other routes.
+  // /#/login and /#/signup are the auth routes (previously bare /login /signup,
+  // which caused Vercel 404s because no server-side rewrite was configured).
+  if (route === '/login' || route === '/signup') {
     return <LoginPage />;
   }
 
@@ -61,8 +54,8 @@ export default function App() {
   }
 
   if (route === '/discover') {
-  return <DiscoverPage />;
-}
+    return <DiscoverPage />;
+  }
 
   return <Hero />;
 }

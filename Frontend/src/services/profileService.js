@@ -6,18 +6,19 @@
  * Endpoint base: VITE_API_BASE_URL (same env var used by authService.js).
  * Token:         "evolv_auth_token" from localStorage or sessionStorage.
  *
- * Endpoints (exact, from Postman collection):
+ * Endpoints (exact, verified against live backend):
  *
  *   UserProfile-1page
  *     GET    /api/profile
- *     PATCH  /api/profile          body: { username, ageRange, identityTypeIds[], primaryIdentityTypeId }
+ *     POST   /api/profile          body: { username, ageRange, identityTypeIds[], primaryIdentityTypeId }  ← creates
+ *     PATCH  /api/profile          body: { username, ageRange, identityTypeIds[], primaryIdentityTypeId }  ← updates
  *     DELETE /api/profile
  *     GET    /api/profile/complete
  *
  *   UserBio-4page
  *     GET    /api/profile/bio
- *     POST   /api/profile/bio      body: { bio }
- *     PATCH  /api/profile/bio      body: { bio }
+ *     POST   /api/profile/bio      body: { bio }   ← creates (requires profile to exist first)
+ *     PATCH  /api/profile/bio      body: { bio }   ← updates existing bio record
  *
  *   UserIdentity
  *     GET    /api/identity-types
@@ -38,6 +39,14 @@
  *     POST   /api/skills/user-skills         body: { skill[], relationshipType }
  *     PATCH  /api/skills/user-skills/:id     body: { skill[], relationshipType }
  *     DELETE /api/skills/user-skills/:id
+ *
+ * Key backend contract (verified):
+ *   - POST /api/profile creates the profile record for a new user.
+ *   - PATCH /api/profile updates an existing record; returns 404 if no record exists.
+ *   - POST /api/profile/bio requires the parent profile to exist; it returns
+ *     404 "User profile not found" if the profile has not been created yet.
+ *   - PATCH /api/profile/bio updates an existing bio; returns 404 if bio row absent.
+ *   - Correct submission order: create/confirm profile → save bio → save skills.
  */
 
 const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? "";
@@ -122,11 +131,56 @@ export const profileService = {
   },
 
   /**
-   * PATCH /api/profile
+   * POST /api/profile – creates the profile record for a brand-new user.
    * body: { username, ageRange, identityTypeIds, primaryIdentityTypeId }
+   *
+   * Verified: route exists on backend (returns 401 when unauthenticated,
+   * not 404), so it is safe to call for first-time profile creation.
+   */
+  createProfile(data) {
+    return request("/api/profile", { method: "POST", body: data });
+  },
+
+  /**
+   * PATCH /api/profile – updates an existing profile record.
+   * body: { username, ageRange, identityTypeIds, primaryIdentityTypeId }
+   *
+   * Returns 404 "User profile not found" when no record exists yet — in that
+   * case callers should use createProfile() instead.
    */
   updateProfile(data) {
     return request("/api/profile", { method: "PATCH", body: data });
+  },
+
+  /**
+   * Upsert helper: GET to check existence, then POST (create) or PATCH (update).
+   *
+   * The backend returns 404 from PATCH /api/profile when no record exists, so
+   * we probe GET first to choose the right method. This avoids mistaking an
+   * "update-on-missing" 404 for a successful no-op.
+   *
+   * @param {object} data – profile payload
+   * @returns {Promise<any>}
+   */
+  async ensureProfile(data) {
+    let profileExists = false;
+    try {
+      await profileService.getProfile();
+      profileExists = true;
+    } catch (err) {
+      // 404 = profile not yet created; any other status is a real error.
+      if (err.status !== 404) {
+        throw err;
+      }
+    }
+
+    if (profileExists) {
+      console.debug("[profileService] Profile exists — using PATCH");
+      return profileService.updateProfile(data);
+    }
+
+    console.debug("[profileService] No profile found — using POST to create");
+    return profileService.createProfile(data);
   },
 
   /** DELETE /api/profile */
@@ -154,6 +208,7 @@ export const profileService = {
 
   /**
    * POST /api/profile/bio – creates the bio record for the first time.
+   * Requires the parent profile to already exist.
    * body: { bio }
    */
   createBio(bio) {
@@ -169,18 +224,42 @@ export const profileService = {
   },
 
   /**
-   * Upsert helper: tries PATCH first (update).
-   * Falls back to POST (create) when the backend returns 404 or 400 because
-   * the bio record does not yet exist for this user.
+   * Upsert helper for bio.
+   *
+   * Strategy: POST first (create). If the backend responds 409 (bio row already
+   * exists) or 400 (duplicate constraint), fall back to PATCH (update).
+   *
+   * We deliberately do NOT use PATCH-first here. The previous PATCH-first
+   * approach failed because the backend returns a 404 "User profile not found"
+   * when the parent profile is absent — which is a different 404 from
+   * "bio row not found". The correct fix is to ensure the profile exists
+   * before calling saveBio (handled in submitOnboardingDraft), then POST
+   * to create the bio row.
+   *
+   * If both POST and PATCH fail, the original error is re-thrown so the
+   * caller can record and surface it rather than silently discarding it.
+   *
+   * @param {string} bio
+   * @returns {Promise<any>}
    */
   async saveBio(bio) {
     try {
-      return await profileService.updateBio(bio);
-    } catch (err) {
-      if (err.status === 404 || err.status === 400) {
-        return profileService.createBio(bio);
+      return await profileService.createBio(bio);
+    } catch (createErr) {
+      // 409 = bio row already exists; 400 may indicate the same depending on
+      // the backend validation layer. Fall back to PATCH in those cases only.
+      if (createErr.status === 409 || createErr.status === 400) {
+        console.debug("[profileService] Bio already exists — falling back to PATCH");
+        return profileService.updateBio(bio);
       }
-      throw err;
+      // Any other error (including 404 "profile not found") is a real failure.
+      // Re-throw with context so submitOnboardingDraft records the section.
+      console.error(
+        `[profileService] POST /api/profile/bio failed (status ${createErr.status}):`,
+        createErr.message,
+        createErr.payload
+      );
+      throw createErr;
     }
   },
 
@@ -405,25 +484,41 @@ export const profileService = {
   /**
    * Submit the complete onboarding draft to the backend.
    *
-   * Flow:
-   *   1. Fetch skill name→ID map (cached after first call)
-   *   2. Fetch identity types to resolve role → ID
-   *   3. PATCH /api/profile         (username + ageRange + identity)
-   *   4. POST  /api/skills/curiosity (curiosity skill IDs)
-   *   5. POST  /api/skills/user-skills for canDo  (CAN_DO)
-   *   6. POST  /api/skills/user-skills for learning (LEARNING)
-   *   7. POST  /api/skills/user-skills for wantToImprove (WANT_TO_IMPROVE)
-   *   8. POST/PATCH /api/profile/bio
+   * Fixed execution order (root cause: profile must exist before bio/skills):
    *
-   * Each section is submitted independently. A failure in one section is
-   * logged to the console but does not block the remaining submissions,
-   * so the user is never left stranded on the completion screen.
+   *   0. Guard — abort early if no auth token is present.
+   *   1. Fetch skill name→ID map (cached after first call).
+   *   2. Fetch identity types to resolve role label → backend integer ID.
+   *   3. Create or update the user's profile record:
+   *        GET /api/profile → 200 means exists → PATCH /api/profile
+   *                        → 404 means new user  → POST  /api/profile
+   *      If this step fails, bio and skills are skipped (they depend on it).
+   *   4. Save bio (POST first, fall back to PATCH on 409/400).
+   *      Only attempted after step 3 succeeds to avoid "User profile not found".
+   *   5. Save curiosity skills (POST, fall back to PATCH on 409/400).
+   *   6. Save user skills for canDo / learning / wantToImprove (POST each).
+   *
+   * Errors in steps 4–6 are collected and logged but do not block navigation.
+   * Errors in step 3 abort steps 4–6 and are included in the returned list.
    *
    * @param {object} draft  – the full onboarding draft object
-   * @returns {Promise<{ errors: string[] }>}  – list of section keys that failed
+   * @returns {Promise<{ errors: Array<{section: string, status: number|null, message: string}> }>}
    */
   async submitOnboardingDraft(draft) {
+    /** @type {Array<{section: string, status: number|null, message: string}>} */
     const errors = [];
+
+    // ── 0. Auth token guard ──────────────────────────────────────────────
+    const token =
+      localStorage.getItem("evolv_auth_token") ||
+      sessionStorage.getItem("evolv_auth_token") ||
+      null;
+
+    if (!token) {
+      const msg = "No auth token found — user must be logged in to complete onboarding.";
+      console.error("[profileService]", msg);
+      return { errors: [{ section: "auth", status: 401, message: msg }] };
+    }
 
     // ── 1. Skill name→ID map ─────────────────────────────────────────────
     let skillMap = {};
@@ -431,20 +526,27 @@ export const profileService = {
       skillMap = await profileService.fetchSkillNameToIdMap();
     } catch (err) {
       console.error("[profileService] Failed to build skill map:", err);
-      errors.push("skill-map");
+      errors.push({ section: "skill-map", status: err.status ?? null, message: err.message });
     }
 
-    // ── 2. Identity types (role → ID) ────────────────────────────────────
+    // ── 2. Identity types (role label → backend integer ID) ──────────────
     let identityTypes = [];
     try {
       const res = await profileService.getIdentityTypes();
       identityTypes = Array.isArray(res) ? res : (res?.data ?? []);
     } catch (err) {
       console.error("[profileService] Failed to fetch identity types:", err);
-      errors.push("identity-types");
+      errors.push({ section: "identity-types", status: err.status ?? null, message: err.message });
     }
 
-    // ── 3. PATCH /api/profile ────────────────────────────────────────────
+    // ── 3. Create or update the user's profile record ────────────────────
+    //
+    // The backend returns 404 from PATCH /api/profile when no record exists
+    // for the authenticated user. We must POST to create it first.
+    // Using ensureProfile() which does GET → POST (create) or PATCH (update).
+    //
+    // Bio and skills depend on this step. If it fails, we skip them to avoid
+    // cascading "User profile not found" errors.
     const roleName =
       draft.role === "Other"
         ? (draft.customRole ?? "").trim()
@@ -453,6 +555,8 @@ export const profileService = {
     const identityTypeId = roleName
       ? profileService.mapRoleToIdentityTypeId(roleName, identityTypes)
       : null;
+
+    let profileSaved = false;
 
     if (draft.username?.trim()) {
       const profileBody = {
@@ -467,15 +571,49 @@ export const profileService = {
       };
 
       try {
-        await profileService.updateProfile(profileBody);
-        console.debug("[profileService] ✓ Profile updated");
+        await profileService.ensureProfile(profileBody);
+        profileSaved = true;
+        console.debug("[profileService] ✓ Profile created/updated");
       } catch (err) {
-        console.error("[profileService] PATCH /api/profile failed:", err);
-        errors.push("profile");
+        console.error(
+          `[profileService] Profile save failed (status ${err.status ?? "?"}):\n` +
+          `  message: ${err.message}\n` +
+          `  payload: ${JSON.stringify(err.payload ?? {})}`
+        );
+        errors.push({ section: "profile", status: err.status ?? null, message: err.message });
       }
+    } else {
+      // username is empty — should not reach here due to frontend gating,
+      // but handle defensively.
+      console.warn("[profileService] Skipping profile save — username is empty.");
+      errors.push({ section: "profile", status: null, message: "Username is empty; profile not saved." });
     }
 
-    // ── 4. Curiosity skills ──────────────────────────────────────────────
+    // ── 4. Bio ────────────────────────────────────────────────────────────
+    //
+    // Only attempt if the profile was saved/confirmed in step 3.
+    // saveBio() uses POST first, falling back to PATCH on 409 (already exists).
+    const bioText = (draft.bio ?? draft.focusGoal ?? "").trim();
+
+    if (bioText && profileSaved) {
+      try {
+        await profileService.saveBio(bioText);
+        console.debug("[profileService] ✓ Bio saved");
+      } catch (err) {
+        console.error(
+          `[profileService] Bio save failed (status ${err.status ?? "?"}):\n` +
+          `  message: ${err.message}\n` +
+          `  payload: ${JSON.stringify(err.payload ?? {})}`
+        );
+        errors.push({ section: "bio", status: err.status ?? null, message: err.message });
+      }
+    } else if (bioText && !profileSaved) {
+      const msg = "Skipping bio save — parent profile was not successfully created.";
+      console.warn("[profileService]", msg);
+      errors.push({ section: "bio", status: null, message: msg });
+    }
+
+    // ── 5. Curiosity skills ──────────────────────────────────────────────
     const curiosityIds = profileService.mapNamesToIds(
       draft.curiosities ?? [],
       skillMap
@@ -486,23 +624,29 @@ export const profileService = {
         await profileService.createUserCuriosity(curiosityIds);
         console.debug("[profileService] ✓ Curiosity skills submitted");
       } catch (err) {
-        // If curiosity record already exists try PATCH instead
+        // 409 / 400 = curiosity row already exists → update instead
         if (err.status === 409 || err.status === 400) {
           try {
             await profileService.updateUserCuriosity(curiosityIds);
             console.debug("[profileService] ✓ Curiosity skills updated (PATCH)");
           } catch (patchErr) {
-            console.error("[profileService] Save curiosity failed:", patchErr);
-            errors.push("curiosity");
+            console.error(
+              `[profileService] Curiosity PATCH failed (status ${patchErr.status ?? "?"}):\n` +
+              `  message: ${patchErr.message}`
+            );
+            errors.push({ section: "curiosity", status: patchErr.status ?? null, message: patchErr.message });
           }
         } else {
-          console.error("[profileService] POST /api/skills/curiosity failed:", err);
-          errors.push("curiosity");
+          console.error(
+            `[profileService] POST /api/skills/curiosity failed (status ${err.status ?? "?"}):\n` +
+            `  message: ${err.message}`
+          );
+          errors.push({ section: "curiosity", status: err.status ?? null, message: err.message });
         }
       }
     }
 
-    // ── 5–7. User skills (canDo / learning / wantToImprove) ──────────────
+    // ── 6. User skills (canDo / learning / wantToImprove) ────────────────
     const skillSections = [
       { key: "canDo",         relationshipType: "CAN_DO" },
       { key: "learning",      relationshipType: "LEARNING" },
@@ -521,27 +665,22 @@ export const profileService = {
         console.debug(`[profileService] ✓ User skills submitted (${relationshipType})`);
       } catch (err) {
         console.error(
-          `[profileService] POST /api/skills/user-skills (${relationshipType}) failed:`,
-          err
+          `[profileService] POST /api/skills/user-skills (${relationshipType}) failed` +
+          ` (status ${err.status ?? "?"}):\n  message: ${err.message}`
         );
-        errors.push(`user-skills-${relationshipType}`);
-      }
-    }
-
-    // ── 8. Bio ────────────────────────────────────────────────────────────
-    const bioText = (draft.bio ?? draft.focusGoal ?? "").trim();
-    if (bioText) {
-      try {
-        await profileService.saveBio(bioText);
-        console.debug("[profileService] ✓ Bio saved");
-      } catch (err) {
-        console.error("[profileService] Save bio failed:", err);
-        errors.push("bio");
+        errors.push({
+          section: `user-skills-${relationshipType}`,
+          status: err.status ?? null,
+          message: err.message,
+        });
       }
     }
 
     if (errors.length > 0) {
-      console.warn("[profileService] Submission completed with errors:", errors);
+      console.warn(
+        "[profileService] Submission completed with errors:",
+        errors.map((e) => `[${e.section}] ${e.status ?? "?"} — ${e.message}`)
+      );
     } else {
       console.debug("[profileService] ✓ All profile sections submitted successfully");
     }

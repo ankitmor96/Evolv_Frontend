@@ -168,11 +168,11 @@ export default function HeroHeader() {
 
         {/* DESKTOP RIGHT: Login & Sign Up */}
         <div className="navbar-grid-right">
-          <a href="/login" className="nav-login-link" id="nav-login-btn">
+          <a href="/#/login" className="nav-login-link" id="nav-login-btn">
             <LogIn size={15} aria-hidden="true" />
             <span>Login</span>
           </a>
-          <a href="/signup" className="nav-signup-action" id="nav-signup-btn">
+          <a href="/#/signup" className="nav-signup-action" id="nav-signup-btn">
             <UserPlus size={15} aria-hidden="true" />
             <span>Sign Up</span>
           </a>
@@ -180,7 +180,7 @@ export default function HeroHeader() {
 
         {/* MOBILE RIGHT: Compact Login */}
         <div className="navbar-mobile-right">
-          <a href="/login" className="mobile-login-icon" aria-label="Login">
+          <a href="/#/login" className="mobile-login-icon" aria-label="Login">
             <LogIn size={18} />
           </a>
         </div>
@@ -233,7 +233,7 @@ export default function HeroHeader() {
                 transition={{ delay: 0.12, duration: 0.2 }}
               >
                 <a
-                  href="/login"
+                  href="/#/login"
                   className="mobile-action-login"
                   onClick={() => setMobileMenuOpen(false)}
                 >
@@ -241,7 +241,7 @@ export default function HeroHeader() {
                   <span>Login</span>
                 </a>
                 <a
-                  href="/signup"
+                  href="/#/signup"
                   className="mobile-action-signup"
                   onClick={() => setMobileMenuOpen(false)}
                 >
