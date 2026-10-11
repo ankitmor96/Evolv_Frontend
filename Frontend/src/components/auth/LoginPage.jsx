@@ -227,10 +227,9 @@ const LoginPage = () => {
   // Navigate to #/home after Google redirect success (runs once on mount)
   useEffect(() => {
     if (googleUser) {
-      window.location.href = "/#/onboarding";
+      window.location.replace("/#/onboarding");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [googleUser]);
 
   // Countdown timer for OTP resend
   useEffect(() => {
@@ -257,11 +256,19 @@ const LoginPage = () => {
     };
   }, []);
 
-  // Strip the OAuth query params so a reload does not replay them
+  // Strip the OAuth query params so a reload does not replay them.
+  // Keep the hash fragment so the router stays on /#/login during cleanup;
+  // the /#/onboarding redirect (above) fires in the same mount cycle and takes
+  // the user to the correct destination without a visible flash.
   useEffect(() => {
-    if (googleRedirect)
-      window.history.replaceState({}, "", window.location.pathname);
-  }, [googleRedirect]);
+    if (googleRedirect) {
+      window.history.replaceState(
+        {},
+        "",
+        window.location.pathname + window.location.hash,
+      );
+    }
+  }, []);
 
   // Navigate to /#/login or /#/signup by updating the hash.
   // Assigning window.location.hash triggers a hashchange event that App.jsx listens to.

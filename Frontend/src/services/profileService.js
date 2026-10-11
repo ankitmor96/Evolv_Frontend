@@ -49,6 +49,8 @@
  *   - Correct submission order: create/confirm profile → save bio → save skills.
  */
 
+import { getCountryCode } from "../components/onboarding/onboardingData.js";
+
 const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? "";
 
 /** Token key matches authService.js exactly. */
@@ -559,8 +561,13 @@ export const profileService = {
     let profileSaved = false;
 
     if (draft.username?.trim()) {
+      const countryCode = getCountryCode(draft.country);
       const profileBody = {
         username: draft.username.trim(),
+        // Only include countryCode when it resolves to a valid 2-letter ISO code.
+        // getCountryCode() returns "" for unknown/unset countries; omitting
+        // the key avoids the backend's "must be a 2-letter uppercase code" 400.
+        ...(countryCode ? { countryCode } : {}),
         ...(draft.ageRange ? { ageRange: draft.ageRange } : {}),
         ...(identityTypeId != null
           ? {
