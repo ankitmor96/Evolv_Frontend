@@ -31,6 +31,9 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { authService } from '../../services/authService.js';
+import { homePostService } from "../../services/homePostService.js";
+import { fetchHomeTabs, mapTabsToLabels } from '../../services/homeTabService.js';
+import { getUserSkills } from '../../services/userSkillService.js';
 import { CREATORS, FEED_POSTS, TRENDING_REELS, INTEREST_TABS, DOMAIN_TABS } from '../../data/homeData.js';
 import { avatarUrl } from '../../data/avatarUtils.js';
 import './HomePage.css';
@@ -78,11 +81,48 @@ const COMMUNITY_NAV = [
   { id: 'messages', label: 'Messages', icon: MessageCircle, href: '#/messages' },
 ];
 
-// ── DEV-ONLY sidebar skill / goal data (replace with user profile API) ────────
+// ── Sidebar skill fallback (used until real user-skills API responds) ─────────
 const DEV_SKILLS = ['Python', 'AI / LLMs', 'System Design', 'Economics', 'Psychology'];
 const DEV_LEARNING_GOALS = ['Deep Learning', 'Behavioral Psychology', 'Sustainable Energy'];
 
 function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen }) {
+  // ── Real user skills from GET /api/skills/user-skills ─────────────────
+  const [sidebarSkills, setSidebarSkills] = useState(null);   // null = loading
+  const [sidebarGoals, setSidebarGoals] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getUserSkills()
+      .then((res) => {
+        if (cancelled) return;
+        // Backend may return array directly or wrapped in { data }
+        const records = Array.isArray(res) ? res
+          : Array.isArray(res?.data) ? res.data
+          : [];
+        const canDo = [];
+        const learning = [];
+        for (const rec of records) {
+          const names = Array.isArray(rec.skills)
+            ? rec.skills.map((s) => s.name || s).filter(Boolean)
+            : [];
+          if (rec.relationshipType === 'CAN_DO') canDo.push(...names);
+          else if (rec.relationshipType === 'LEARNING') learning.push(...names);
+          else if (rec.relationshipType === 'WANT_TO_IMPROVE') learning.push(...names);
+        }
+        setSidebarSkills(canDo.length > 0 ? canDo : null);
+        setSidebarGoals(learning.length > 0 ? learning : null);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn('[HomeSidebar] Could not load user skills:', err.message);
+        // Keep null → will show fallback dev data
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Display real data when loaded, fall back to dev placeholders while loading
+  const displaySkills = sidebarSkills ?? DEV_SKILLS;
+  const displayGoals = sidebarGoals ?? DEV_LEARNING_GOALS;
   // Scroll-lock: prevent background scroll when drawer is open on mobile
   useEffect(() => {
     if (isSidebarOpen) {
@@ -110,113 +150,318 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
 
   return (
     <>
-      <style>{`
-      .hp-post-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 10px 0 4px;
-  border-top: 1px solid rgba(9, 3, 15, 0.06);
+     
+<style>{`
+
+/* Keep the action tooltip above the post card */
+.hp-post {
+  overflow: visible !important;
+}
+
+.hp-post-actions {
+  position: relative;
+  overflow: visible !important;
+  z-index: 5;
 }
 
 .hp-post-actions-left {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  min-width: 0;
+  overflow: visible !important;
 }
 
 .hp-action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-
-  padding: 4px 0;
-  border: none;
-  background: transparent;
-
-  color: #27213a;
-  font-size: 14px;
-  font-weight: 400;
-
-  cursor: pointer;
-  white-space: nowrap;
-  transition: color 0.2s ease, transform 0.15s ease;
+  position: relative;
 }
 
-.hp-action-btn svg {
-  flex-shrink: 0;
+.hp-action-btn .hp-action-tooltip:not(:empty) {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 12px);
+  transform: translateX(-50%);
+  z-index: 9999 !important;
+  display: block !important;
 }
 
-.hp-action-btn:hover {
-  transform: translateY(-1px);
+/* Keep the tooltip above nearby media and cards */
+.hp-post-actions-left .hp-action-btn {
+  isolation: auto;
 }
 
-.hp-appreciate-btn:hover,
-.hp-appreciate-btn.active {
-  color: #ef476f;
+  .hp-post-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 0 4px;
+    border-top: 1px solid rgba(9, 3, 15, 0.06);
+    box-sizing: border-box;
+    gap: 8px;
+  }
+
+  .hp-post-actions-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    min-width: 0;
+  }
+
+  .hp-action-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 4px 0;
+    border: none;
+    background: transparent;
+    color: #27213a;
+    font-size: 14px;
+    font-weight: 400;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.2s ease, transform 0.15s ease;
+  }
+
+  .hp-action-btn svg {
+    flex-shrink: 0;
+  }
+
+  .hp-action-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .hp-appreciate-btn:hover,
+  .hp-appreciate-btn.active {
+    color: #ef476f;
+  }
+
+  .hp-helpful-btn:hover,
+  .hp-helpful-btn.active {
+    color: #5b5cf0;
+  }
+
+  .hp-learned-btn:hover,
+  .hp-learned-btn.active {
+    color: #16a05d;
+  }
+
+  .hp-discuss-btn:hover {
+    color: #263b62;
+  }
+
+  .hp-save-btn,
+  .hp-post-more-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    border: none;
+    background: transparent;
+    color: #17213a;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 0.2s ease, transform 0.15s ease;
+  }
+
+  .hp-save-btn:hover,
+  .hp-post-more-btn:hover {
+    color: #aa45f5;
+    transform: translateY(-1px);
+  }
+
+  .hp-save-btn.saved {
+    color: #aa45f5;
+  }
+
+  .hp-post-more-btn {
+    margin-left: 10px;
+  }
+
+  .hp-post-actions > .hp-save-btn {
+    margin-left: auto;
+  }
+
+  /* Action tooltip */
+  .hp-action-tooltip {
+    display: none !important;
+  }
+
+  .hp-action-btn .hp-action-tooltip:not(:empty) {
+    display: block !important;
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 10px);
+    transform: translateX(-50%);
+    z-index: 100;
+    width: max-content;
+    max-width: 150px;
+    padding: 7px 11px;
+    border-radius: 8px;
+    background: #1a0a2e;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.3;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .hp-action-btn:hover .hp-action-tooltip:not(:empty) {
+      display: block !important;
+    }
+  }
+
+  
+/* Mobile + iPad responsive action buttons */
+@media (max-width: 1024px) {
+  .hp-post-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .hp-post-actions-left {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .hp-post-actions-left .hp-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 1 auto;
+    gap: 0;
+    min-width: 0;
+    padding: 8px 0;
+    white-space: nowrap;
+  }
+
+  /* Hide only action names */
+  .hp-post-actions-left .hp-action-btn > span:nth-of-type(2) {
+    display: none !important;
+  }
+
+  /* Keep counts visible */
+  .hp-post-actions-left .hp-action-btn > span:nth-of-type(3) {
+    display: inline-block !important;
+    margin-left: 4px;
+  }
+
+  /* Keep icons visible */
+  .hp-post-actions-left .hp-action-btn > svg {
+    display: block;
+    width: 23px;
+    height: 23px;
+    flex-shrink: 0;
+  }
+
+  /* Preserve long-press tooltip */
+  .hp-post-actions-left .hp-action-btn > .hp-action-tooltip:not(:empty) {
+    display: block !important;
+  }
+
+  .hp-post-actions > .hp-save-btn {
+    margin-left: 0;
+    flex-shrink: 0;
+  }
+
+  .hp-post-actions > .hp-post-more-btn {
+    margin-left: 0;
+    padding: 6px 2px;
+    flex-shrink: 0;
+  }
 }
 
-.hp-helpful-btn:hover,
-.hp-helpful-btn.active {
-  color: #5b5cf0;
-}
+  
 
-.hp-learned-btn:hover,
-.hp-learned-btn.active {
-  color: #16a05d;
-}
+  .hp-sidebar-section {
+    padding: 0 16px 4px;
+  }
 
-.hp-discuss-btn:hover {
-  color: #263b62;
-}
+  .hp-sidebar-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
 
-.hp-save-btn,
-.hp-post-more-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  .hp-sidebar-edit-btn {
+    font-size: 11px;
+    color: #aa45f5;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    font-weight: 500;
+  }
 
-  padding: 4px;
-  border: none;
-  background: transparent;
+  .hp-sidebar-edit-btn:hover {
+    text-decoration: underline;
+  }
 
-  color: #17213a;
-  cursor: pointer;
+  .hp-skill-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
 
-  transition: color 0.2s ease, transform 0.15s ease;
-}
+  .hp-skill-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #2d1b4e;
+    padding: 2px 0;
+  }
 
-.hp-save-btn:hover,
-.hp-post-more-btn:hover {
-  color: #aa45f5;
-  transform: translateY(-1px);
-}
+  .hp-skill-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #aa45f5;
+    flex-shrink: 0;
+  }
 
-.hp-save-btn.saved {
-  color: #aa45f5;
-}
+  .hp-goal-icon {
+    color: #aa45f5;
+    flex-shrink: 0;
+  }
 
-.hp-post-more-btn {
-  margin-left: 10px;
-}
+  .hp-motivational-card {
+    margin: 8px 12px 12px;
+    padding: 14px;
+    background: #1a0a2e;
+    border-radius: 12px;
+  }
 
-.hp-post-actions > .hp-save-btn {
-  margin-left: auto;
-}
-        .hp-sidebar-section { padding: 0 16px 4px; }
-        .hp-sidebar-section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-        .hp-sidebar-edit-btn { font-size: 11px; color: #aa45f5; background: none; border: none; cursor: pointer; padding: 0; font-weight: 500; }
-        .hp-sidebar-edit-btn:hover { text-decoration: underline; }
-        .hp-skill-list { list-style: none; padding: 0; margin: 0 0 4px; display: flex; flex-direction: column; gap: 5px; }
-        .hp-skill-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #2d1b4e; padding: 2px 0; }
-        .hp-skill-dot { width: 8px; height: 8px; border-radius: 50%; background: #aa45f5; flex-shrink: 0; }
-        .hp-goal-icon { color: #aa45f5; flex-shrink: 0; }
-        .hp-motivational-card { margin: 8px 12px 12px; padding: 14px; background: #1a0a2e; border-radius: 12px; }
-        .hp-motivational-quote { font-size: 13px; font-weight: 700; margin: 0 0 5px; color: #fff; line-height: 1.4; }
-        .hp-motivational-sub { font-size: 12px; margin: 0; color: rgba(255,255,255,0.65); line-height: 1.4; }
-      `}</style>
+  .hp-motivational-quote {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0 0 5px;
+    color: #fff;
+    line-height: 1.4;
+  }
+
+  .hp-motivational-sub {
+    font-size: 12px;
+    margin: 0;
+    color: rgba(255,255,255,0.65);
+    line-height: 1.4;
+  }
+`}</style>
+
       {/* Backdrop — covers viewport behind the drawer */}
       <div
         className={`hp-sidebar-overlay ${isSidebarOpen ? 'visible' : ''}`}
@@ -300,7 +545,7 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
             <button className="hp-sidebar-edit-btn" aria-label="Edit skills">Edit</button>
           </div>
           <ul className="hp-skill-list">
-            {DEV_SKILLS.map((skill) => (
+            {displaySkills.map((skill) => (
               <li key={skill} className="hp-skill-item">
                 <span className="hp-skill-dot" aria-hidden="true" />
                 {skill}
@@ -316,7 +561,7 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
             <button className="hp-sidebar-edit-btn" aria-label="Edit learning goals">Edit</button>
           </div>
           <ul className="hp-skill-list">
-            {DEV_LEARNING_GOALS.map((goal) => (
+            {displayGoals.map((goal) => (
               <li key={goal} className="hp-skill-item">
                 <Target size={12} className="hp-goal-icon" aria-hidden="true" />
                 {goal}
@@ -465,20 +710,42 @@ function InterestTabs({ active, onChange, tabs = INTEREST_TABS }) {
 function FeedPost({ post, onLike, onSave, onFollow }) {
   const [showMenu, setShowMenu] = useState(false);
 
+  const [activeActionTooltip, setActiveActionTooltip] = useState('');
+  const longPressTimer = useRef(null);
+
+  const startLongPress = (label) => {
+    clearTimeout(longPressTimer.current);
+
+    longPressTimer.current = setTimeout(() => {
+      setActiveActionTooltip(label);
+    }, 400);
+  };
+
+  const endLongPress = () => {
+    clearTimeout(longPressTimer.current);
+    setActiveActionTooltip('');
+  };
+
   const formatCount = (n) => {
-    if (n >= 1000) return (n / 1000).toFixed(1).replace('.0', '') + 'K';
+    if (n >= 1000) {
+      return (n / 1000).toFixed(1).replace('.0', '') + 'K';
+    }
     return String(n);
   };
 
   const handleShare = async () => {
     const url = `${window.location.origin}/#/post/${post.id}`;
+
     if (navigator.share) {
-      try { await navigator.share({ title: post.caption, url }); } catch { /* dismissed */ }
+      try {
+        await navigator.share({ title: post.caption, url });
+      } catch {
+        /* dismissed */
+      }
     } else {
-      await navigator.clipboard.writeText(url).catch(() => { });
+      await navigator.clipboard.writeText(url).catch(() => {});
     }
   };
-
   return (
     <article className="hp-post" aria-label={`${post.type === 'reel' ? 'Reel' : 'Post'} by ${post.creator.name}`}>
       {/* Post header */}
@@ -510,24 +777,7 @@ function FeedPost({ post, onLike, onSave, onFollow }) {
               '+ Follow'
             )}
           </button>
-          <div className="hp-post-menu-wrap">
-            <button
-              className="hp-icon-btn"
-              onClick={() => setShowMenu(v => !v)}
-              aria-label="Post options"
-              aria-haspopup="true"
-              aria-expanded={showMenu}
-            >
-              <MoreHorizontal size={18} aria-hidden="true" />
-            </button>
-            {showMenu && (
-              <div className="hp-post-menu" role="menu">
-                <button role="menuitem" className="hp-post-menu-item" onClick={() => setShowMenu(false)}>Not interested</button>
-                <button role="menuitem" className="hp-post-menu-item" onClick={() => setShowMenu(false)}>Report</button>
-                <button role="menuitem" className="hp-post-menu-item" onClick={() => setShowMenu(false)}>Copy link</button>
-              </div>
-            )}
-          </div>
+         
         </div>
       </div>
 
@@ -570,30 +820,57 @@ function FeedPost({ post, onLike, onSave, onFollow }) {
         <div className="hp-post-actions-left">
 
           {/* Appreciate */}
+
           <button
+            type="button"
             className={`hp-action-btn hp-appreciate-btn ${post.appreciated ? 'active' : ''
               }`}
+            title="Appreciate"
+            onTouchStart={() => startLongPress('Appreciate')}
+            onTouchEnd={endLongPress}
+            onTouchMove={endLongPress}
+            onTouchCancel={endLongPress}
+            onMouseEnter={() => setActiveActionTooltip('Appreciate')}
+            onMouseLeave={endLongPress}
+            onContextMenu={(e) => e.preventDefault()}
             onClick={() => onAppreciate?.(post.id)}
             aria-label={post.appreciated ? 'Remove appreciation' : 'Appreciate post'}
             aria-pressed={post.appreciated}
           >
+            <span className="hp-action-tooltip" role="tooltip">
+              {activeActionTooltip === 'Appreciate' ? 'Appreciate' : ''}
+            </span>
+
             <Heart
               size={20}
               fill={post.appreciated ? 'currentColor' : 'none'}
               aria-hidden="true"
             />
+
             <span>Appreciate</span>
             <span>{formatCount(post.appreciations ?? 0)}</span>
           </button>
+
 
           {/* Helpful */}
           <button
             className={`hp-action-btn hp-helpful-btn ${post.helpful ? 'active' : ''
               }`}
             onClick={() => onHelpful?.(post.id)}
+            onTouchStart={() => startLongPress('Helpful')}
+            onTouchEnd={endLongPress}
+            onTouchMove={endLongPress}
+            onTouchCancel={endLongPress}
+            onMouseEnter={() => setActiveActionTooltip('Helpful')}
+            onMouseLeave={endLongPress}
+            onContextMenu={(e) => e.preventDefault()}
+            title="Helpful"
             aria-label={post.helpful ? 'Remove helpful reaction' : 'Mark as helpful'}
             aria-pressed={post.helpful}
           >
+            <span className="hp-action-tooltip" role="tooltip">
+              {activeActionTooltip === 'Helpful' ? 'Helpful' : ''}
+            </span>
             <Sparkles
               size={20}
               aria-hidden="true"
@@ -607,9 +884,20 @@ function FeedPost({ post, onLike, onSave, onFollow }) {
             className={`hp-action-btn hp-learned-btn ${post.learned ? 'active' : ''
               }`}
             onClick={() => onLearned?.(post.id)}
+            onTouchStart={() => startLongPress('Learned')}
+            onTouchEnd={endLongPress}
+            onTouchMove={endLongPress}
+            onTouchCancel={endLongPress}
+            onMouseEnter={() => setActiveActionTooltip('Learned')}
+            onMouseLeave={endLongPress}
+            onContextMenu={(e) => e.preventDefault()}
+            title="Learned"
             aria-label={post.learned ? 'Remove learned status' : 'Mark as learned'}
             aria-pressed={post.learned}
           >
+            <span className="hp-action-tooltip" role="tooltip">
+              {activeActionTooltip === 'Learned' ? 'Learned' : ''}
+            </span>
             <CheckCircle2
               size={20}
               aria-hidden="true"
@@ -622,8 +910,19 @@ function FeedPost({ post, onLike, onSave, onFollow }) {
           <button
             className="hp-action-btn hp-discuss-btn"
             onClick={() => onDiscuss?.(post.id)}
+            onTouchStart={() => startLongPress('Discuss')}
+            onTouchEnd={endLongPress}
+            onTouchMove={endLongPress}
+            onTouchCancel={endLongPress}
+            onMouseEnter={() => setActiveActionTooltip('Discuss')}
+            onMouseLeave={endLongPress}
+            onContextMenu={(e) => e.preventDefault()}
+            title="Discuss"
             aria-label="Discuss post"
           >
+            <span className="hp-action-tooltip" role="tooltip">
+              {activeActionTooltip === 'Discuss' ? 'Discuss' : ''}
+            </span>
             <MessageCircle
               size={20}
               aria-hidden="true"
@@ -638,9 +937,19 @@ function FeedPost({ post, onLike, onSave, onFollow }) {
         <button
           className={`hp-save-btn ${post.saved ? 'saved' : ''}`}
           onClick={() => onSave(post.id)}
+          onTouchStart={() => startLongPress('Bookmark')}
+          onTouchEnd={endLongPress}
+          onTouchMove={endLongPress}
+          onTouchCancel={endLongPress}
+          onMouseEnter={() => setActiveActionTooltip('Bookmark')}
+          onMouseLeave={endLongPress}
+          onContextMenu={(e) => e.preventDefault()}
           aria-label={post.saved ? 'Remove bookmark' : 'Bookmark post'}
           aria-pressed={post.saved}
         >
+          <span className="hp-action-tooltip" role="tooltip">
+              {activeActionTooltip === 'Bookmark' ? 'Bookmark' : ''}
+            </span>
           <Bookmark
             size={20}
             fill={post.saved ? 'currentColor' : 'none'}
@@ -652,10 +961,20 @@ function FeedPost({ post, onLike, onSave, onFollow }) {
         <button
           className="hp-post-more-btn"
           onClick={() => setShowMenu(v => !v)}
+          onTouchStart={() => startLongPress('More')}
+          onTouchEnd={endLongPress}
+          onTouchMove={endLongPress}
+          onTouchCancel={endLongPress}
+          onMouseEnter={() => setActiveActionTooltip('More')}
+          onMouseLeave={endLongPress}
+          onContextMenu={(e) => e.preventDefault()}
           aria-label="More post options"
           aria-haspopup="true"
           aria-expanded={showMenu}
         >
+          <span className="hp-action-tooltip" role="tooltip">
+              {activeActionTooltip === 'More' ? 'More' : ''}
+            </span>
           <MoreHorizontal
             size={21}
             aria-hidden="true"
@@ -1011,6 +1330,48 @@ function RightSidebar({ user }) {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Caption input */
+.hp-composer-caption {
+  width: 100%;
+  margin: 12px 0;
+}
+
+.hp-composer-caption-input {
+  width: 100%;
+  min-height: 90px;
+  padding: 14px 16px;
+  border: 1px solid #e5e1eb;
+  border-radius: 12px;
+  background: #fff;
+  color: #20152c;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease,
+              box-shadow 0.2s ease;
+}
+
+.hp-composer-caption-input::placeholder {
+  color: #a39aaa;
+}
+
+.hp-composer-caption-input:focus {
+  border-color: #a63df5;
+  box-shadow: 0 0 0 3px rgba(166, 61, 245, 0.1);
+}
+
+.hp-composer-caption-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 5px;
+  color: #9688a5;
+  font-size: 12px;
+}
+
 `}</style>
       <aside className="hp-right-sidebar" aria-label="Discovery panel">
 
@@ -1185,8 +1546,12 @@ const COMPOSER_TYPES = [
   { label: 'Achievement', type: 'achievement', icon: '🏆' },
 ];
 
-function PostComposer({ user }) {
+function PostComposer({ user, onPostCreated }) {
   const [selectedType, setSelectedType] = useState('text');
+  const isMediaType = ['short_video', 'photos', 'document'].includes(selectedType);
+  const [isPosting, setIsPosting] = useState(false);
+  const [postError, setPostError] = useState('');
+  const [caption, setCaption] = useState('');
 
   const [postData, setPostData] = useState({
     type: 'text',
@@ -1281,58 +1646,175 @@ function PostComposer({ user }) {
   // ─────────────────────────────────────
   // Post
   // ─────────────────────────────────────
-  const handlePost = () => {
+
+
+
+
+  const handlePost = async () => {
     if (
+      !caption.trim() &&
       !postData.content.trim() &&
       !postData.title.trim() &&
       postData.files.length === 0
     ) {
+      setPostError('Please add a caption, content, title, or media.');
       return;
     }
 
-    /*
-     * This object is ready for your backend.
-     *
-     * Later you can send it using FormData + Axios.
-     */
+    if (isPosting) return;
 
-    const dataForBackend = {
-      type: postData.type,
-      content: postData.content,
-      title: postData.title,
-      description: postData.description,
-      files: postData.files,
-    };
+    setIsPosting(true);
+    setPostError('');
 
-    console.log('POST DATA:', dataForBackend);
+    try {
+      const token =
+        localStorage.getItem('evolv_auth_token') ||
+        sessionStorage.getItem('evolv_auth_token');
 
-    // Later:
-    // const formData = new FormData();
-    // formData.append('type', postData.type);
-    // formData.append('content', postData.content);
-    // formData.append('title', postData.title);
-    // formData.append('description', postData.description);
+      if (!token) {
+        throw new Error('Please log in before creating a post.');
+      }
 
-    // postData.files.forEach((file) => {
-    //   formData.append('files', file);
-    // });
+      const formData = new FormData();
 
-    // await axios.post('/posts', formData);
+      formData.append('type', postData.type);
+      formData.append('caption', caption.trim());
+      formData.append('content', postData.content);
+      formData.append('title', postData.title);
+      formData.append('description', postData.description);
 
-    // Reset after posting
-    setPostData({
-      type: 'text',
-      content: '',
-      title: '',
-      description: '',
-      files: [],
-    });
+      postData.files.forEach((file) => {
+        formData.append('files', file);
+      });
 
-    setSelectedType('text');
-    setPreviewFiles([]);
+      const baseUrl = import.meta.env.VITE_API_BASE_URL;
 
-    console.log('Post created successfully');
+      if (!baseUrl) {
+        throw new Error('VITE_API_BASE_URL is not configured.');
+      }
+
+      const response = await fetch(`${baseUrl}/api/posts`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          result.message ||
+          result.error ||
+          'Failed to create post.'
+        );
+      }
+
+      const created =
+        result.post ??
+        result.data?.post ??
+        result.data ??
+        result;
+
+      const uploadedFiles = Array.isArray(created.files)
+        ? created.files
+        : [];
+
+      const mediaUrl =
+        created.media?.url ||
+        created.mediaUrl ||
+        created.imageUrl ||
+        uploadedFiles[0]?.url ||
+        (typeof uploadedFiles[0] === 'string'
+          ? uploadedFiles[0]
+          : '');
+
+      const isVideo =
+        postData.type === 'short_video' ||
+        created.media?.type === 'video' ||
+        created.type === 'short_video';
+
+      const newPost = {
+        id: created._id || created.id || `local-${Date.now()}`,
+
+        type: isVideo ? 'reel' : 'post',
+
+        caption: created.caption ?? caption.trim(),
+        tags: created.tags ?? [],
+        category: created.category ?? 'Discover',
+        timestamp: 'Just now',
+
+        creator: {
+          name: user?.name || user?.username || 'You',
+          avatar: user?.avatar || user?.profileImage || '',
+          field: user?.field || 'Community Member',
+        },
+
+        media: {
+          type: isVideo
+            ? 'video'
+            : mediaUrl
+              ? 'image'
+              : 'text',
+          src: mediaUrl,
+        },
+
+        // Reaction states and initial counts
+        appreciated: false,
+        appreciations: 0,
+
+        helpful: false,
+        helpfulCount: 0,
+
+        learned: false,
+        learnedCount: 0,
+
+        comments: 0,
+
+        liked: false,
+        saved: false,
+        followed: false,
+        likes: 0,
+      };
+
+      // Add the post to the feed after backend success.
+      onPostCreated?.(newPost);
+
+      // Reset the composer only after success.
+      setPostData({
+        type: 'text',
+        content: '',
+        title: '',
+        description: '',
+        files: [],
+      });
+
+      setCaption('');
+      setSelectedType('text');
+
+      previewFiles.forEach(({ url }) => {
+        URL.revokeObjectURL(url);
+      });
+
+      setPreviewFiles([]);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } catch (error) {
+      console.error('Create post error:', error);
+
+      setPostError(
+        error.message || 'Something went wrong. Please try again.'
+      );
+    } finally {
+      setIsPosting(false);
+    }
   };
+
+
+
 
   // ─────────────────────────────────────
   // File input configuration
@@ -1372,7 +1854,7 @@ function PostComposer({ user }) {
         <div className="hp-composer-body">
 
           {/* TEXT */}
-          {selectedType === 'text' && (
+          {!isMediaType && selectedType === 'text' && (
             <textarea
               name="content"
               value={postData.content}
@@ -1413,7 +1895,9 @@ function PostComposer({ user }) {
           )}
 
           {/* ARTICLE */}
-          {selectedType === 'article' && (
+
+          {/* ARTICLE TITLE AND CONTENT */}
+          {!isMediaType && selectedType === 'article' && (
             <>
               <input
                 type="text"
@@ -1435,6 +1919,7 @@ function PostComposer({ user }) {
             </>
           )}
 
+
           {/* DOCUMENT */}
           {selectedType === 'document' && (
             <div className="hp-composer-upload-area">
@@ -1452,7 +1937,7 @@ function PostComposer({ user }) {
           )}
 
           {/* QUESTION */}
-          {selectedType === 'question' && (
+          {!isMediaType && selectedType === 'question' && (
             <textarea
               name="content"
               value={postData.content}
@@ -1464,7 +1949,7 @@ function PostComposer({ user }) {
           )}
 
           {/* ACHIEVEMENT */}
-          {selectedType === 'achievement' && (
+          {!isMediaType && selectedType === 'achievement' && (
             <>
               <input
                 type="text"
@@ -1504,6 +1989,25 @@ function PostComposer({ user }) {
         hidden
         onChange={handleFileChange}
       />
+
+      {/* Caption Input - only for media posts */}
+      {['short_video', 'photos', 'document'].includes(selectedType) && (
+        <div className="hp-composer-caption">
+          <textarea
+            className="hp-composer-caption-input"
+            placeholder="Write a caption for your post..."
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            rows={3}
+            maxLength={2200}
+          />
+
+          <div className="hp-composer-caption-footer">
+            <span>{caption.length}/2200</span>
+          </div>
+        </div>
+      )}
+
 
       {/* ─────────────────────────────
           File Preview
@@ -1587,13 +2091,29 @@ function PostComposer({ user }) {
       ───────────────────────────── */}
       <div className="hp-composer-footer">
 
-        <button
-          type="button"
-          className="hp-composer-post-btn"
-          onClick={handlePost}
-        >
-          Post
-        </button>
+        {postError && (
+          <p
+            role="alert"
+            style={{
+              color: '#dc2626',
+              fontSize: 13,
+              marginTop: 8,
+            }}
+          >
+            {postError}
+          </p>
+        )}
+
+        <div className="hp-composer-footer">
+          <button
+            type="button"
+            className="hp-composer-post-btn"
+            onClick={handlePost}
+            disabled={isPosting}
+          >
+            {isPosting ? 'Posting...' : 'Post'}
+          </button>
+        </div>
 
       </div>
 
@@ -1610,9 +2130,100 @@ function HomeFeed({ user, onOpenSidebar }) {
   const [posts, setPosts] = useState(() =>
     FEED_POSTS.map(p => ({ ...p, liked: p.liked ?? false, saved: p.saved ?? false, followed: p.followed ?? false }))
   );
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [postsError, setPostsError] = useState(null);
 
-  // Feed tabs: primary 3 + existing domain tabs (preserves domain filter functionality)
-  const FEED_TABS = ['For You', 'Learning', 'Discover', ...INTEREST_TABS.slice(2)];
+  // ── Home Tabs from GET /api/home/tabs ──────────────────────────────────
+  const [apiTabs, setApiTabs] = useState(null); // null = loading / not yet resolved
+  const [tabsError, setTabsError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchHomeTabs()
+      .then((raw) => {
+        if (cancelled) return;
+        const labels = mapTabsToLabels(raw);
+        if (labels.length > 0) {
+          setApiTabs(['For You', 'Following', ...labels]);
+        } else {
+          // API returned an empty list — fall back to static tabs.
+          setApiTabs(null);
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn('[HomeFeed] Could not load home tabs from API:', err.message);
+        setTabsError(err.message);
+        setApiTabs(null); // use fallback
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── Feed Posts from GET /api/posts ─────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    setPostsLoading(true);
+    homePostService.getPosts()
+      .then((backendPosts) => {
+        if (cancelled) return;
+        if (backendPosts.length > 0) {
+          // Map backend posts into the FeedPost component's expected format.
+          const mapped = backendPosts.map((p) => ({
+            id: p._id || p.id || `bp-${Math.random()}`,
+            type: p.type === 'short_video' ? 'reel' : 'post',
+            creator: {
+              name: p.creator?.name || p.user?.name || p.author?.name || 'Unknown',
+              username: p.creator?.username || p.user?.username || '',
+              field: p.creator?.field || p.user?.field || 'Community Member',
+              avatar: p.creator?.avatar || p.creator?.profileImage || p.user?.avatar || '',
+            },
+            category: p.category || p.skillName || 'Discover',
+            tags: Array.isArray(p.tags) ? p.tags : [],
+            caption: p.caption || p.content || p.title || '',
+            media: {
+              type: p.type === 'short_video' ? 'video' : (p.mediaUrl || p.imageUrl || p.media?.url ? 'image' : 'text'),
+              src: p.mediaUrl || p.imageUrl || p.media?.url || p.media?.src || '',
+              poster: p.poster || p.thumbnail || '',
+            },
+            liked: false,
+            saved: false,
+            followed: false,
+            appreciated: false,
+            appreciations: p.appreciations ?? p.likes ?? 0,
+            helpful: false,
+            helpfulCount: p.helpfulCount ?? 0,
+            learned: false,
+            learnedCount: p.learnedCount ?? 0,
+            comments: p.comments ?? p.commentCount ?? 0,
+            likes: p.likes ?? 0,
+            timestamp: p.createdAt
+              ? new Date(p.createdAt).toLocaleDateString()
+              : 'Recently',
+          }));
+          setPosts(mapped);
+        }
+        // If empty (e.g. 404 gracefully returned []) keep the initial mock data.
+        setPostsLoading(false);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('[HomeFeed] Error fetching posts:', err);
+        setPostsError(
+          err.status === 401
+            ? 'Please log in to view your feed.'
+            : err.status === 403
+            ? 'You do not have permission to view this feed.'
+            : err.status >= 500
+            ? 'Server error loading feed. Check console for details.'
+            : err.message || 'Failed to load feed.'
+        );
+        setPostsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Use API tabs when available, fall back to static DOMAIN_TABS
+  const FEED_TABS = apiTabs ?? ['For You', 'Learning', 'Discover', ...INTEREST_TABS.slice(2)];
 
   const handleLike = useCallback((id) => {
     setPosts(prev => prev.map(p =>
@@ -1651,8 +2262,37 @@ function HomeFeed({ user, onOpenSidebar }) {
 
       {/* Middle Feed */}
       <main className="hp-feed" aria-label="Social feed" style={{ overflowX: "hidden", overflowY: "auto", }}>
-        <PostComposer user={user} />
-        {visiblePosts.length === 0 ? (
+        <PostComposer
+          user={user}
+          onPostCreated={(newPost) => {
+            setPosts((previousPosts) => [
+              newPost,
+              ...previousPosts,
+            ]);
+
+            setActiveTab('For You');
+          }}
+        />
+
+        {/* Tabs error banner (non-fatal, tabs fall back to static) */}
+        {tabsError && (
+          <p role="status" style={{ fontSize: 12, color: '#8b7aa3', padding: '0 16px 8px', margin: 0 }}>
+            ℹ️ Home tabs loaded from cached data ({tabsError})
+          </p>
+        )}
+
+        {/* Feed loading / error / posts */}
+        {postsLoading ? (
+          <div className="hp-feed-empty" role="status">
+            <span className="hp-feed-empty-icon" style={{ animation: 'pulse 1.2s infinite alternate' }}>⏳</span>
+            <p>Loading feed…</p>
+          </div>
+        ) : postsError ? (
+          <div className="hp-feed-empty" role="alert">
+            <span className="hp-feed-empty-icon">⚠️</span>
+            <p>{postsError}</p>
+          </div>
+        ) : visiblePosts.length === 0 ? (
           <div className="hp-feed-empty" role="status">
             <span className="hp-feed-empty-icon">💎</span>
             <p>
