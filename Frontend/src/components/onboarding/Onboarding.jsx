@@ -39,6 +39,9 @@ function loadDraft() {
           name: text(saved.name),
           username: text(saved.username),
           profilePhoto: typeof saved.profilePhoto === 'string' ? saved.profilePhoto : null,
+          // File objects cannot be serialised — always start with null on reload.
+          // The user must re-select a photo if they reload mid-onboarding.
+          profilePhotoFile: null,
           role: text(saved.role),
           customRole: text(saved.customRole),
           country: text(saved.country),

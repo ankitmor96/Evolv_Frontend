@@ -16,7 +16,8 @@ export const ROLE_OTHER = 'Other';
 export const initialProfile = {
   name: '',
   username: '',
-  profilePhoto: null, // dataURL (later: uploaded URL)
+  profilePhoto: null,     // data URL string — used for local preview and persisted to localStorage
+  profilePhotoFile: null, // actual File object — used for upload; NOT persisted (File cannot be serialised)
   role: '',
   customRole: '',
   country: '',

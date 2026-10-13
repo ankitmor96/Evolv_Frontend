@@ -14,7 +14,7 @@ export default function CTAButtons() {
         <ArrowUpRight size={18} aria-hidden="true" />
       </a>
       <a
-        href="/buy-now"
+         href="/#/signup"
         id="cta-buy-now"
         className="btn btn-secondary"
         aria-label="Buy followers, likes or views now"

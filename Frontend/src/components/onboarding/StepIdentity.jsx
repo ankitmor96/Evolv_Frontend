@@ -145,7 +145,12 @@ export default function StepIdentity({ draft, setDraft, showErrors }) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => setDraft((d) => ({ ...d, profilePhoto: reader.result }));
+    reader.onload = () =>
+      setDraft((d) => ({
+        ...d,
+        profilePhoto: reader.result, // data URL — local preview only
+        profilePhotoFile: file,       // actual File object — sent to backend on submit
+      }));
     reader.readAsDataURL(file);
   };
 

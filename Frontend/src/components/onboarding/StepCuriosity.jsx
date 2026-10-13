@@ -199,7 +199,7 @@ export default function StepCuriosity({ draft, setDraft, showErrors }) {
         </div>
       )}
 
-      <div className="custom-input-row">
+      {/* <div className="custom-input-row">
         <span className="ob-field-label">CAN&apos;T FIND YOUR SKILL?</span>
         <div className="custom-input-controls">
           <input
@@ -226,7 +226,7 @@ export default function StepCuriosity({ draft, setDraft, showErrors }) {
             <Plus size={12} strokeWidth={3} aria-hidden="true" /> Add
           </motion.button>
         </div>
-      </div>
+      </div> */}
 
       <div className="selection-panel">
         <div className="selection-head">

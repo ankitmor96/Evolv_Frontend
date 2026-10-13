@@ -14,6 +14,7 @@
  *     PATCH  /api/profile          body: { username, ageRange, identityTypeIds[], primaryIdentityTypeId }  ← updates
  *     DELETE /api/profile
  *     GET    /api/profile/complete
+ *     POST   /api/profile/avatar   multipart/form-data, field: "avatar", returns { avatarUrl }  ← upload avatar
  *
  *   UserBio-4page
  *     GET    /api/profile/bio
@@ -188,6 +189,51 @@ export const profileService = {
   /** DELETE /api/profile */
   deleteProfile() {
     return request("/api/profile", { method: "DELETE" });
+  },
+
+  /**
+   * POST /api/profile/avatar – uploads a profile photo to Cloudinary via the backend.
+   *
+   * IMPORTANT: Do NOT set Content-Type manually — the browser must set it so that
+   * the multipart boundary is included correctly.
+   *
+   * @param {File} file – the image File selected by the user
+   * @returns {Promise<any>} – parsed response; contains { avatarUrl } on success
+   */
+  async uploadAvatar(file) {
+    const url = `${API_BASE_URL}/api/profile/avatar`;
+    const token = getToken();
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    console.debug(`[profileService] POST ${url} (multipart avatar upload)`);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      // DO NOT set Content-Type here — the browser sets multipart/form-data
+      // with the correct boundary automatically when body is FormData.
+      body: formData,
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    console.debug(`[profileService] avatar upload ${response.status} ←`, payload);
+
+    if (!response.ok) {
+      const msg =
+        (Array.isArray(payload?.message)
+          ? payload.message.join(" ")
+          : payload?.message) ??
+        payload?.error ??
+        `Avatar upload failed with status ${response.status}.`;
+      const err = new Error(msg);
+      err.status = response.status;
+      err.payload = payload;
+      throw err;
+    }
+
+    return payload;
   },
 
   // ═══════════════════════════════════════════════
@@ -594,6 +640,47 @@ export const profileService = {
       // but handle defensively.
       console.warn("[profileService] Skipping profile save — username is empty.");
       errors.push({ section: "profile", status: null, message: "Username is empty; profile not saved." });
+    }
+
+    // ── 3.5. Avatar upload ───────────────────────────────────────────────
+    //
+    // Only runs when the user selected a new image (draft.profilePhotoFile is a
+    // File object). If no new file was picked, this step is skipped entirely so
+    // an existing Cloudinary avatar is never overwritten with null.
+    //
+    // The upload is attempted even if the profile save failed so that partial
+    // re-submissions can still sync the avatar. The endpoint is:
+    //   POST /api/profile/avatar  (multipart/form-data, field: "avatar")
+    //
+    if (draft.profilePhotoFile instanceof File) {
+      try {
+        const avatarResult = await profileService.uploadAvatar(draft.profilePhotoFile);
+        console.debug(
+          "[profileService] ✓ Avatar uploaded →",
+          avatarResult?.avatarUrl ??
+          avatarResult?.profile?.avatarUrl ??
+          "(url in payload above)"
+        );
+      } catch (err) {
+        // Avatar upload failure is recorded but never blocks profile navigation.
+        console.error(
+          `[profileService] Avatar upload failed (status ${err.status ?? "?"}):\n` +
+          `  message: ${err.message}\n` +
+          `  payload: ${JSON.stringify(err.payload ?? {})}`
+        );
+        errors.push({ section: "avatar", status: err.status ?? null, message: err.message });
+      }
+    } else if (draft.profilePhoto && !draft.profilePhoto.startsWith("data:")) {
+      // profilePhoto is already a remote URL (e.g. Cloudinary) from a previous
+      // session — no upload needed; the backend already has it.
+      console.debug("[profileService] Avatar is already a remote URL — skipping upload.");
+    } else if (draft.profilePhoto?.startsWith("data:")) {
+      // User selected a photo (data URL exists) but File was lost (e.g. page
+      // reload mid-onboarding). Log a warning so it is visible in the console.
+      console.warn(
+        "[profileService] profilePhoto is a data URL but profilePhotoFile is not a File. " +
+        "Avatar will not be uploaded. The user can re-select the photo after reload."
+      );
     }
 
     // ── 4. Bio ────────────────────────────────────────────────────────────

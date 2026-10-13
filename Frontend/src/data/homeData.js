@@ -151,6 +151,112 @@ export const FEED_POSTS = [
     followed: false,
     timestamp: '3d ago',
   },
+  // ── 8. POST: GUITAR & MUSIC ──
+  {
+    id: 'p8',
+    type: 'post',
+    creator: CREATORS[0],
+    category: 'Media & Content',
+    tags: ['#Music', '#Guitar', '#CreativeProcess'],
+    caption: 'Every great performance starts with hours of practice when nobody is watching. 🎸 What skill are you working on right now?',
+    media: {
+      type: 'image',
+      src: '/pexels-0ldpikes-32147406.jpg'
+    },
+    likes: 986,
+    comments: 124,
+    shares: 47,
+    saved: false,
+    liked: false,
+    followed: false,
+    timestamp: '5h ago',
+  },
+
+  // ── 9. POST: VIRTUAL REALITY ──
+  {
+    id: 'p9',
+    type: 'post',
+    creator: CREATORS[1],
+    category: 'Technology',
+    tags: ['#VirtualReality', '#VR', '#FutureTech'],
+    caption: 'What if learning meant stepping inside the experience instead of just reading about it? VR is changing how we explore, learn, and create. 🥽',
+    media: {
+      type: 'image',
+      src: '/pexels-darlene-alderson-4389462.jpg'
+    },
+    likes: 1840,
+    comments: 216,
+    shares: 98,
+    saved: false,
+    liked: false,
+    followed: false,
+    timestamp: '7h ago',
+  },
+
+  // ── 10. POST: GUITAR COMMUNITY ──
+  {
+    id: 'p10',
+    type: 'post',
+    creator: CREATORS[2],
+    category: 'Music & Arts',
+    tags: ['#Guitar', '#MusicCommunity', '#Creativity'],
+    caption: 'Different instruments, different sounds, one shared passion. 🎶 Creativity connects people in ways words sometimes cannot.',
+    media: {
+      type: 'image',
+      src: '/pexels-fotoinformator-37362851.jpg'
+    },
+    likes: 1320,
+    comments: 178,
+    shares: 65,
+    saved: false,
+    liked: false,
+    followed: false,
+    timestamp: '9h ago',
+  },
+
+  // ── 11. POST: AI & ROBOTICS ──
+  {
+    id: 'p11',
+    type: 'post',
+    creator: CREATORS[3],
+    category: 'Technology',
+    tags: ['#ArtificialIntelligence', '#Robotics', '#Innovation'],
+    caption: 'AI is no longer just a concept on a screen. Intelligent machines are reshaping how we interact with technology. 🤖 What real-world AI application excites you most?',
+    media: {
+      type: 'image',
+      src: '/pexels-tara-winstead-8386440.jpg'
+    },
+    likes: 2750,
+    comments: 342,
+    shares: 194,
+    saved: false,
+    liked: false,
+    followed: false,
+    timestamp: '12h ago',
+  },
+
+  // ── 12. POST: HARDWARE & ENGINEERING ──
+  {
+    id: 'p12',
+    type: 'post',
+    creator: CREATORS[4],
+    category: 'Technology',
+    tags: ['#Hardware', '#Engineering', '#Electronics'],
+    caption: 'Behind every powerful device is a world of carefully engineered components. 🔧 Understanding the hardware makes us better problem-solvers. Never stop exploring how things work.',
+    media: {
+      type: 'image',
+      src: '/pexels-tima-miroshnichenko-6754846.jpg'
+    },
+    likes: 1670,
+    comments: 203,
+    shares: 86,
+    saved: false,
+    liked: false,
+    followed: false,
+    timestamp: '1d ago',
+  },
+
+
 ];
 
 // ─── Trending Reels (Right Sidebar) ──────────────────────────────────────────
