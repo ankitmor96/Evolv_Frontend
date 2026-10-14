@@ -260,15 +260,18 @@ useEffect(() => {
 
       if (cancelled) return;
 
-      console.log("[LoginPage] Complete profile response:", result);
+      console.log(
+        "[LoginPage] Complete profile response:",
+        JSON.stringify(result, null, 2)
+      );
 
-      // Use the backend's completion status once its response
-      // structure is confirmed.
+      // Keep this check aligned with the actual backend response.
+      const profile = result?.data ?? result;
+
       const isComplete =
-        result?.isComplete === true ||
-        result?.completed === true ||
-        result?.data?.isComplete === true ||
-        result?.data?.completed === true;
+        profile?.isComplete === true ||
+        profile?.completed === true ||
+        profile?.onboardingCompleted === true;
 
       window.location.replace(
         isComplete ? "/#/home" : "/#/onboarding"
@@ -276,7 +279,6 @@ useEffect(() => {
     } catch (error) {
       if (cancelled) return;
 
-      // If the profile cannot be checked, do not assume it is complete.
       console.error(
         "[LoginPage] Could not check onboarding status:",
         error

@@ -144,9 +144,10 @@ export const profileService = {
   //   return request("/api/profile", { method: "POST", body: data });
   // },
 
-async createProfile(data) {
+async createProfile(data, file) {
   const url = `${API_BASE_URL}/api/profile`;
   const token = getToken();
+
   const formData = new FormData();
 
   Object.entries(data).forEach(([key, value]) => {
@@ -157,6 +158,11 @@ async createProfile(data) {
       Array.isArray(value) ? JSON.stringify(value) : String(value)
     );
   });
+
+  // Backend requires the avatar during initial profile creation.
+  if (file instanceof File) {
+    formData.append("file", file);
+  }
 
   const response = await fetch(url, {
     method: "POST",
@@ -169,14 +175,9 @@ async createProfile(data) {
   const payload = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const message = Array.isArray(payload.message)
-      ? payload.message.join(" ")
-      : payload.message || "Profile creation failed.";
-
-    const error = new Error(message);
-    error.status = response.status;
-    error.payload = payload;
-    throw error;
+    throw new Error(
+      payload.message || "Profile creation failed."
+    );
   }
 
   return payload;
@@ -203,26 +204,42 @@ async createProfile(data) {
    * @param {object} data – profile payload
    * @returns {Promise<any>}
    */
-  async ensureProfile(data) {
-    let profileExists = false;
-    try {
-      await profileService.getProfile();
-      profileExists = true;
-    } catch (err) {
-      // 404 = profile not yet created; any other status is a real error.
-      if (err.status !== 404) {
-        throw err;
-      }
-    }
+ async ensureProfile(data, file) {
+  let profileExists = false;
 
-    if (profileExists) {
-      console.debug("[profileService] Profile exists — using PATCH");
-      return profileService.updateProfile(data);
+  // 1. Check whether the profile already exists.
+  try {
+    await profileService.getProfile();
+    profileExists = true;
+  } catch (err) {
+    // Only create a profile when the backend confirms it doesn't exist.
+    if (err.status !== 404) {
+      throw err;
     }
+  }
 
-    console.debug("[profileService] No profile found — using POST to create");
-    return profileService.createProfile(data);
-  },
+  // 2. Update an existing profile.
+  if (profileExists) {
+    console.debug(
+      "[profileService] Profile exists — updating with PATCH"
+    );
+
+    return await profileService.updateProfile(data);
+  }
+
+  // 3. Create a new profile with its required avatar.
+  if (!(file instanceof File)) {
+    throw new Error(
+      "Avatar image is required. Please select a profile photo."
+    );
+  }
+
+  console.debug(
+    "[profileService] Profile does not exist — creating with POST"
+  );
+
+  return await profileService.createProfile(data, file);
+},
 
   /** DELETE /api/profile */
   deleteProfile() {
@@ -243,7 +260,7 @@ async createProfile(data) {
     const token = getToken();
 
     const formData = new FormData();
-    formData.append("avatar", file);
+    formData.append("file", file);
 
     console.debug(`[profileService] POST ${url} (multipart avatar upload)`);
 
@@ -662,7 +679,7 @@ async createProfile(data) {
       };
 
       try {
-        await profileService.ensureProfile(profileBody);
+        await profileService.ensureProfile(profileBody, draft.profilePhotoFile);
         profileSaved = true;
         console.debug("[profileService] ✓ Profile created/updated");
       } catch (err) {
