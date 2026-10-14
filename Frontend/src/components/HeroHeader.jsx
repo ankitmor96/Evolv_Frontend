@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, Menu, X, LogIn, UserPlus } from 'lucide-react';
+import { Menu, X, LogIn, UserPlus } from 'lucide-react';
 import AnimatedLogo from './AnimatedLogo';
-import { headerVariants, EASE_SMOOTH, EASE_FAST } from './motionVariants';
+import { headerVariants, EASE_SMOOTH } from './motionVariants';
 
 // Clean SVG Instagram Icon
 const InstagramIcon = ({ size = 18 }) => (
@@ -65,7 +65,14 @@ export default function HeroHeader() {
   const [openDropdown, setOpenDropdown] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navRef = useRef(null);
+  const currentRoute = window.location.hash
+    .split("?")[0]
+    .replace(/\/+$/, "");
 
+  const hideAuthButtons = [
+    "/onboarding",
+    "/explore-gems",
+  ].some((route) => currentRoute.endsWith(route));
   // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event) {
@@ -131,23 +138,28 @@ export default function HeroHeader() {
         </div>
 
         {/* DESKTOP RIGHT: Login & Sign Up */}
-        <div className="navbar-grid-right">
-          <a href="/#/login" className="nav-login-link" id="nav-login-btn">
-            <LogIn size={15} aria-hidden="true" />
-            <span>Login</span>
-          </a>
-          <a href="/#/signup" className="nav-signup-action" id="nav-signup-btn">
-            <UserPlus size={15} aria-hidden="true" />
-            <span>Sign Up</span>
-          </a>
-        </div>
+        {!hideAuthButtons && (
+          <div className="navbar-grid-right">
+            <a href="/#/login" className="nav-login-link" id="nav-login-btn">
+              <LogIn size={15} aria-hidden="true" />
+              <span>Login</span>
+            </a>
+
+            <a href="/#/signup" className="nav-signup-action" id="nav-signup-btn">
+              <UserPlus size={15} aria-hidden="true" />
+              <span>Sign Up</span>
+            </a>
+          </div>
+        )}
 
         {/* MOBILE RIGHT: Compact Login */}
-        <div className="navbar-mobile-right">
-          <a href="/#/login" className="mobile-login-icon" aria-label="Login">
-            <LogIn size={18} />
-          </a>
-        </div>
+        {!hideAuthButtons && (
+          <div className="navbar-mobile-right">
+            <a href="/#/login" className="mobile-login-icon" aria-label="Login">
+              <LogIn size={18} />
+            </a>
+          </div>
+        )}
       </nav>
 
       {/* MOBILE EXPANDED MENU */}
@@ -190,29 +202,11 @@ export default function HeroHeader() {
 
               <div className="mobile-divider" />
 
-              <motion.div
-                className="mobile-actions"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.12, duration: 0.2 }}
-              >
-                <a
-                  href="/#/login"
-                  className="mobile-action-login"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <LogIn size={16} />
-                  <span>Login</span>
-                </a>
-                <a
-                  href="/#/signup"
-                  className="mobile-action-signup"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <UserPlus size={16} />
-                  <span>Sign Up</span>
-                </a>
-              </motion.div>
+              {!hideAuthButtons && (
+                <motion.div className="mobile-actions">
+                  {/* Keep your existing mobile Login and Sign Up links here */}
+                </motion.div>
+              )}
             </div>
           </motion.div>
         )}
