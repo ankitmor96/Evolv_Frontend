@@ -241,7 +241,7 @@
  *  - set VITE_API_BASE_URL to call a different origin directly instead.
  */
 
-const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? "";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const TOKEN_KEY = "evolv_auth_token";
 const USER_KEY = "evolv_user";
@@ -390,6 +390,7 @@ export const authService = {
     return request("forgot-password", { email: normalizeEmail(email) });
   },
 
+
   /**
    * Forgot Password – Step 2
    * Verifies the OTP and stores the new password. The backend owns OTP
@@ -408,9 +409,28 @@ export const authService = {
    * Redirects to the backend OAuth entry point. No backend endpoint exists for
    * logging out, so logout is handled purely on the client.
    */
-  async loginWithGoogle() {
-    window.location.href = `${API_BASE_URL}/api/auth/google`;
-  },
+  // async loginWithGoogle() {
+  //   window.location.href = `${API_BASE_URL}/api/auth/google`;
+  // },
+
+
+loginWithGoogle() {
+  const backendUrl =
+    import.meta.env.VITE_API_BASE_URL ||
+    "https://evolve-backend-4lux.onrender.com";
+
+  const frontendUrl = window.location.origin;
+
+  const googleUrl = new URL(
+    `${backendUrl}/api/auth/google`
+  );
+
+  googleUrl.searchParams.set("returnUrl", frontendUrl);
+
+  window.location.href = googleUrl.toString();
+},
+
+
 
   /**
    * Finish a Google sign-in.
@@ -434,6 +454,48 @@ export const authService = {
 
     return user;
   },
+
+async getPostLoginRoute() {
+  const token =
+    localStorage.getItem(TOKEN_KEY) ||
+    sessionStorage.getItem(TOKEN_KEY);
+
+  if (!token) {
+    return "/login";
+  }
+
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/api/profile/complete`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      return "/onboarding";
+    }
+
+    const result = await response.json();
+    const profile = result?.data ?? result;
+
+    // Replace these checks with the actual completion
+    // field returned by your backend API.
+    const isComplete =
+      profile?.onboardingCompleted === true ||
+      profile?.isComplete === true ||
+      profile?.completed === true;
+
+    return isComplete ? "/home" : "/onboarding";
+  } catch (error) {
+    console.error("Failed to check onboarding status:", error);
+    return "/onboarding";
+  }
+},
 
   /**
    * Get Current Session User

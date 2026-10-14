@@ -140,9 +140,47 @@ export const profileService = {
    * Verified: route exists on backend (returns 401 when unauthenticated,
    * not 404), so it is safe to call for first-time profile creation.
    */
-  createProfile(data) {
-    return request("/api/profile", { method: "POST", body: data });
-  },
+  // createProfile(data) {
+  //   return request("/api/profile", { method: "POST", body: data });
+  // },
+
+async createProfile(data) {
+  const url = `${API_BASE_URL}/api/profile`;
+  const token = getToken();
+  const formData = new FormData();
+
+  Object.entries(data).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+
+    formData.append(
+      key,
+      Array.isArray(value) ? JSON.stringify(value) : String(value)
+    );
+  });
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: token
+      ? { Authorization: `Bearer ${token}` }
+      : {},
+    body: formData,
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message = Array.isArray(payload.message)
+      ? payload.message.join(" ")
+      : payload.message || "Profile creation failed.";
+
+    const error = new Error(message);
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
+  }
+
+  return payload;
+},
 
   /**
    * PATCH /api/profile – updates an existing profile record.
@@ -205,7 +243,7 @@ export const profileService = {
     const token = getToken();
 
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("avatar", file);
 
     console.debug(`[profileService] POST ${url} (multipart avatar upload)`);
 

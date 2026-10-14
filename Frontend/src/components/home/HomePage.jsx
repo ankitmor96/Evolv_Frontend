@@ -1667,118 +1667,103 @@ function PostComposer({ user, onPostCreated }) {
     setPostError('');
 
     try {
-      const token =
-        localStorage.getItem('evolv_auth_token') ||
-        sessionStorage.getItem('evolv_auth_token');
+      let newPost;
 
-      if (!token) {
-        throw new Error('Please log in before creating a post.');
-      }
-
-      const formData = new FormData();
-
-      formData.append('type', postData.type);
-      formData.append('caption', caption.trim());
-      formData.append('content', postData.content);
-      formData.append('title', postData.title);
-      formData.append('description', postData.description);
-
-      postData.files.forEach((file) => {
-        formData.append('files', file);
-      });
-
-      const baseUrl = import.meta.env.VITE_API_BASE_URL;
-
-      if (!baseUrl) {
-        throw new Error('VITE_API_BASE_URL is not configured.');
-      }
-
-      const response = await fetch(`${baseUrl}/api/posts`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      const result = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(
-          result.message ||
-          result.error ||
-          'Failed to create post.'
+      if (selectedType === 'photos') {
+        // ── Image post: POST /api/posts, field name "image" ──────────────────
+        const imageFile = postData.files[0];
+        if (!imageFile) {
+          throw new Error('Please select an image file before posting.');
+        }
+        newPost = await homePostService.createImagePost(
+          caption.trim(),
+          imageFile
         );
+        // Merge in local creator info if the backend omitted it
+        // (the service's _normalisePost already handles backend fields;
+        //  this only fills gaps when the backend returns no creator data).
+        if (!newPost.creator?.name) {
+          newPost = {
+            ...newPost,
+            creator: {
+              name: user?.name || user?.username || 'You',
+              username: user?.username || '',
+              field: user?.field || 'Community Member',
+              avatar: user?.avatar || user?.profileImage || '',
+            },
+          };
+        }
+
+      } else if (selectedType === 'short_video') {
+        // ── Video post: POST /api/posts/video, field name "video" ────────────
+        const videoFile = postData.files[0];
+        if (!videoFile) {
+          throw new Error('Please select a video file before posting.');
+        }
+        newPost = await homePostService.createVideoPost(
+          caption.trim(),
+          videoFile
+        );
+        if (!newPost.creator?.name) {
+          newPost = {
+            ...newPost,
+            creator: {
+              name: user?.name || user?.username || 'You',
+              username: user?.username || '',
+              field: user?.field || 'Community Member',
+              avatar: user?.avatar || user?.profileImage || '',
+            },
+          };
+        }
+
+      } else {
+        // ── Text / article / question / achievement / document ───────────────
+        // These types use the generic createPost path.
+        const raw = await homePostService.createPost({
+          type: postData.type,
+          caption: caption.trim(),
+          content: postData.content,
+          title: postData.title,
+          description: postData.description,
+          files: postData.files,
+        });
+
+        // Normalise the raw response into feed-post shape manually because
+        // these types may not return a mediaUrl or thumbnailUrl.
+        const created =
+          raw?.post ?? raw?.data?.post ?? raw?.data ?? raw ?? {};
+
+        newPost = {
+          id: created._id || created.id || `local-${Date.now()}`,
+          type: 'post',
+          caption: created.caption ?? caption.trim(),
+          tags: Array.isArray(created.tags) ? created.tags : [],
+          category: created.category ?? 'Discover',
+          timestamp: created.createdAt
+            ? new Date(created.createdAt).toLocaleDateString()
+            : 'Just now',
+          creator: {
+            name: user?.name || user?.username || 'You',
+            username: user?.username || '',
+            field: user?.field || 'Community Member',
+            avatar: user?.avatar || user?.profileImage || '',
+          },
+          media: { type: 'text', src: '' },
+          liked: false,
+          saved: false,
+          followed: false,
+          appreciated: false,
+          appreciations: 0,
+          helpful: false,
+          helpfulCount: 0,
+          learned: false,
+          learnedCount: 0,
+          comments: 0,
+          likes: 0,
+        };
       }
 
-      const created =
-        result.post ??
-        result.data?.post ??
-        result.data ??
-        result;
-
-      const uploadedFiles = Array.isArray(created.files)
-        ? created.files
-        : [];
-
-      const mediaUrl =
-        created.media?.url ||
-        created.mediaUrl ||
-        created.imageUrl ||
-        uploadedFiles[0]?.url ||
-        (typeof uploadedFiles[0] === 'string'
-          ? uploadedFiles[0]
-          : '');
-
-      const isVideo =
-        postData.type === 'short_video' ||
-        created.media?.type === 'video' ||
-        created.type === 'short_video';
-
-      const newPost = {
-        id: created._id || created.id || `local-${Date.now()}`,
-
-        type: isVideo ? 'reel' : 'post',
-
-        caption: created.caption ?? caption.trim(),
-        tags: created.tags ?? [],
-        category: created.category ?? 'Discover',
-        timestamp: 'Just now',
-
-        creator: {
-          name: user?.name || user?.username || 'You',
-          avatar: user?.avatar || user?.profileImage || '',
-          field: user?.field || 'Community Member',
-        },
-
-        media: {
-          type: isVideo
-            ? 'video'
-            : mediaUrl
-              ? 'image'
-              : 'text',
-          src: mediaUrl,
-        },
-
-        // Reaction states and initial counts
-        appreciated: false,
-        appreciations: 0,
-
-        helpful: false,
-        helpfulCount: 0,
-
-        learned: false,
-        learnedCount: 0,
-
-        comments: 0,
-
-        liked: false,
-        saved: false,
-        followed: false,
-        likes: 0,
-      };
-
-      // Add the post to the feed after backend success.
+      // Add the new post to the top of the feed.
       onPostCreated?.(newPost);
 
       // Reset the composer only after success.
@@ -2127,11 +2112,15 @@ function PostComposer({ user, onPostCreated }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function HomeFeed({ user, onOpenSidebar }) {
   const [activeTab, setActiveTab] = useState('For You');
+  // Static posts are set immediately as the initial value so the feed is
+  // never blank while the API request is in-flight or when it fails.
   const [posts, setPosts] = useState(() =>
     FEED_POSTS.map(p => ({ ...p, liked: p.liked ?? false, saved: p.saved ?? false, followed: p.followed ?? false }))
   );
-  const [postsLoading, setPostsLoading] = useState(true);
-  const [postsError, setPostsError] = useState(null);
+  // postsAuthError is only set for 401 responses that indicate the user
+  // must log in. All other errors (network, CORS, 404, 500) are handled
+  // by keeping static data visible and logging a console warning.
+  const [postsAuthError, setPostsAuthError] = useState(null);
 
   // ── Home Tabs from GET /api/home/tabs ──────────────────────────────────
   const [apiTabs, setApiTabs] = useState(null); // null = loading / not yet resolved
@@ -2160,64 +2149,78 @@ function HomeFeed({ user, onOpenSidebar }) {
   }, []);
 
   // ── Feed Posts from GET /api/posts ─────────────────────────────────────
+  // NOTE: homePostService.getPosts() now returns [] on ALL failures
+  // (network, CORS, 404, 500, auth) and logs a console warning per error
+  // type. This useEffect therefore never needs an error catch branch —
+  // any non-empty array from the backend replaces static data; an empty
+  // array leaves the existing static posts untouched.
   useEffect(() => {
     let cancelled = false;
-    setPostsLoading(true);
     homePostService.getPosts()
       .then((backendPosts) => {
         if (cancelled) return;
         if (backendPosts.length > 0) {
-          // Map backend posts into the FeedPost component's expected format.
-          const mapped = backendPosts.map((p) => ({
-            id: p._id || p.id || `bp-${Math.random()}`,
-            type: p.type === 'short_video' ? 'reel' : 'post',
-            creator: {
-              name: p.creator?.name || p.user?.name || p.author?.name || 'Unknown',
-              username: p.creator?.username || p.user?.username || '',
-              field: p.creator?.field || p.user?.field || 'Community Member',
-              avatar: p.creator?.avatar || p.creator?.profileImage || p.user?.avatar || '',
-            },
-            category: p.category || p.skillName || 'Discover',
-            tags: Array.isArray(p.tags) ? p.tags : [],
-            caption: p.caption || p.content || p.title || '',
-            media: {
-              type: p.type === 'short_video' ? 'video' : (p.mediaUrl || p.imageUrl || p.media?.url ? 'image' : 'text'),
-              src: p.mediaUrl || p.imageUrl || p.media?.url || p.media?.src || '',
-              poster: p.poster || p.thumbnail || '',
-            },
-            liked: false,
-            saved: false,
-            followed: false,
-            appreciated: false,
-            appreciations: p.appreciations ?? p.likes ?? 0,
-            helpful: false,
-            helpfulCount: p.helpfulCount ?? 0,
-            learned: false,
-            learnedCount: p.learnedCount ?? 0,
-            comments: p.comments ?? p.commentCount ?? 0,
-            likes: p.likes ?? 0,
-            timestamp: p.createdAt
-              ? new Date(p.createdAt).toLocaleDateString()
-              : 'Recently',
-          }));
-          setPosts(mapped);
+          // Backend returned real posts — normalise to FeedPost format.
+          // Deduplicate against the static set by stable post ID so the
+          // same content never appears twice if IDs overlap.
+          const staticIds = new Set(
+            FEED_POSTS.map((p) => String(p.id))
+          );
+          const mapped = backendPosts
+            .filter((p) => {
+              const pid = String(p._id || p.id || '');
+              return pid && !staticIds.has(pid);
+            })
+            .map((p) => ({
+              id: p._id || p.id || `bp-${Math.random()}`,
+              type: p.type === 'short_video' ? 'reel' : 'post',
+              creator: {
+                name: p.creator?.name || p.user?.name || p.author?.name || 'Unknown',
+                username: p.creator?.username || p.user?.username || '',
+                field: p.creator?.field || p.user?.field || 'Community Member',
+                avatar: p.creator?.avatar || p.creator?.profileImage || p.user?.avatar || '',
+              },
+              category: p.category || p.skillName || 'Discover',
+              tags: Array.isArray(p.tags) ? p.tags : [],
+              caption: p.caption || p.content || p.title || '',
+              media: {
+                type: p.type === 'short_video' ? 'video' : (p.mediaUrl || p.imageUrl || p.media?.url ? 'image' : 'text'),
+                src: p.mediaUrl || p.imageUrl || p.media?.url || p.media?.src || '',
+                poster: p.poster || p.thumbnail || '',
+              },
+              liked: false,
+              saved: false,
+              followed: false,
+              appreciated: false,
+              appreciations: p.appreciations ?? p.likes ?? 0,
+              helpful: false,
+              helpfulCount: p.helpfulCount ?? 0,
+              learned: false,
+              learnedCount: p.learnedCount ?? 0,
+              comments: p.comments ?? p.commentCount ?? 0,
+              likes: p.likes ?? 0,
+              timestamp: p.createdAt
+                ? new Date(p.createdAt).toLocaleDateString()
+                : 'Recently',
+            }));
+          if (mapped.length > 0) {
+            // Prepend new backend posts ahead of static posts in the feed.
+            setPosts((prev) => [
+              ...mapped,
+              ...prev,
+            ]);
+          }
+          // If every backend post ID matched a static ID, no update needed.
         }
-        // If empty (e.g. 404 gracefully returned []) keep the initial mock data.
-        setPostsLoading(false);
+        // backendPosts === [] means the API failed gracefully or the
+        // endpoint is not yet implemented — keep static posts as-is.
+        setPostsAuthError(null);
       })
-      .catch((err) => {
+      .catch(() => {
+        // homePostService.getPosts() should never throw — it handles all
+        // errors internally. This catch is a final safety net.
         if (cancelled) return;
-        console.error('[HomeFeed] Error fetching posts:', err);
-        setPostsError(
-          err.status === 401
-            ? 'Please log in to view your feed.'
-            : err.status === 403
-            ? 'You do not have permission to view this feed.'
-            : err.status >= 500
-            ? 'Server error loading feed. Check console for details.'
-            : err.message || 'Failed to load feed.'
-        );
-        setPostsLoading(false);
+        console.warn('[HomeFeed] Unexpected rejection from getPosts(); static feed retained.');
       });
     return () => { cancelled = true; };
   }, []);
@@ -2281,18 +2284,15 @@ function HomeFeed({ user, onOpenSidebar }) {
           </p>
         )}
 
-        {/* Feed loading / error / posts */}
-        {postsLoading ? (
-          <div className="hp-feed-empty" role="status">
-            <span className="hp-feed-empty-icon" style={{ animation: 'pulse 1.2s infinite alternate' }}>⏳</span>
-            <p>Loading feed…</p>
-          </div>
-        ) : postsError ? (
-          <div className="hp-feed-empty" role="alert">
-            <span className="hp-feed-empty-icon">⚠️</span>
-            <p>{postsError}</p>
-          </div>
-        ) : visiblePosts.length === 0 ? (
+        {/* Auth error: non-blocking inline note (does not hide posts) */}
+        {postsAuthError && (
+          <p role="alert" style={{ fontSize: 12, color: '#ef476f', padding: '4px 16px 8px', margin: 0 }}>
+            ⚠️ {postsAuthError}
+          </p>
+        )}
+
+        {/* Feed posts — always rendered when available */}
+        {visiblePosts.length === 0 ? (
           <div className="hp-feed-empty" role="status">
             <span className="hp-feed-empty-icon">💎</span>
             <p>

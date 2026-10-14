@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { authService } from "../../services/authService.js";
+import { profileService } from "../../services/profileService.js";
 import evolvLogo from "/bg-remove.png";
 
 import "./LoginPage.css";
@@ -198,16 +199,37 @@ const LoginPage = () => {
       name: params.get("name"),
     };
   });
+  const [googleUser, setGoogleUser] = useState(null);
 
-  const [googleUser] = useState(() => {
-    if (!googleRedirect || googleRedirect.authError || !googleRedirect.token)
-      return null;
-    try {
-      return authService.completeGoogleRedirect(googleRedirect);
-    } catch {
-      return null;
-    }
-  });
+
+useEffect(() => {
+  if (
+    !googleRedirect ||
+    googleRedirect.authError ||
+    !googleRedirect.token
+  ) {
+    return;
+  }
+
+  try {
+    const user = authService.completeGoogleRedirect(
+      googleRedirect
+    );
+
+    setGoogleUser(user);
+  } catch (error) {
+    console.error("Google login failed:", error);
+
+    window.location.replace(
+      `${window.location.origin}/#/login`
+    );
+  }
+}, [
+  googleRedirect?.token,
+  googleRedirect?.email,
+  googleRedirect?.name,
+  googleRedirect?.authError,
+]);
 
   // Status & Auth User State
   const [isLoading, setIsLoading] = useState(false);
@@ -225,11 +247,75 @@ const LoginPage = () => {
   );
 
   // Navigate to #/home after Google redirect success (runs once on mount)
-  useEffect(() => {
-    if (googleUser) {
+
+// Redirect existing users to home and new users to onboarding.
+useEffect(() => {
+  if (!googleUser) return;
+
+  let cancelled = false;
+
+  const redirectUser = async () => {
+    try {
+      const result = await profileService.getCompleteProfile();
+
+      if (cancelled) return;
+
+      console.log("[LoginPage] Complete profile response:", result);
+
+      // Use the backend's completion status once its response
+      // structure is confirmed.
+      const isComplete =
+        result?.isComplete === true ||
+        result?.completed === true ||
+        result?.data?.isComplete === true ||
+        result?.data?.completed === true;
+
+      window.location.replace(
+        isComplete ? "/#/home" : "/#/onboarding"
+      );
+    } catch (error) {
+      if (cancelled) return;
+
+      // If the profile cannot be checked, do not assume it is complete.
+      console.error(
+        "[LoginPage] Could not check onboarding status:",
+        error
+      );
+
       window.location.replace("/#/onboarding");
     }
-  }, [googleUser]);
+  };
+
+  redirectUser();
+
+  return () => {
+    cancelled = true;
+  };
+}, [googleUser]);
+
+  const redirectAfterLogin = async () => {
+  try {
+    const result = await profileService.getCompleteProfile();
+
+    console.log("Complete profile response:", result);
+
+    // Update these conditions according to your backend's actual response.
+    const isComplete =
+      result?.isComplete === true ||
+      result?.completed === true ||
+      result?.data?.isComplete === true ||
+      result?.data?.completed === true;
+
+    window.location.replace(
+      isComplete ? "/#/home" : "/#/onboarding"
+    );
+  } catch (error) {
+    console.error("Failed to check profile completion:", error);
+
+    // If the profile check fails, don't assume onboarding is complete.
+    window.location.replace("/#/onboarding");
+  }
+};
 
   // Countdown timer for OTP resend
   useEffect(() => {
@@ -417,9 +503,7 @@ const LoginPage = () => {
         setCurrentUser(result.user);
         setSuccessMessage(`Welcome back, ${result.user.name || result.user.email}!`);
         // Navigate to #/home so App.jsx renders HomePage
-        setTimeout(() => {
-         window.location.href = "/#/onboarding";
-        }, 500);
+        await redirectAfterLogin();
       }
     } catch (err) {
       setErrorMessage(err.message || "Authentication failed.");
@@ -465,9 +549,7 @@ const LoginPage = () => {
         `Welcome back, ${result.user.name || result.user.email}!`
       );
 
-      setTimeout(() => {
-        window.location.href = "/#/onboarding";
-      }, 500);
+      await redirectAfterLogin();
     } catch (err) {
       setErrorMessage(err.message || "Invalid OTP code.");
     } finally {
@@ -476,22 +558,24 @@ const LoginPage = () => {
   };
 
   const handleGoogleLogin = async () => {
-    setErrorMessage("");
-    setSuccessMessage("");
-    setIsLoading(true);
+  setErrorMessage("");
+  setSuccessMessage("");
+  setIsLoading(true);
 
-    try {
-      const result = await authService.loginWithGoogle();
-      if (result) {
-        setSuccessMessage("Logged in with Google successfully!");
-        setCurrentUser(result.user);
-      }
-    } catch (err) {
-      setErrorMessage(err.message || "Google login failed.");
-    } finally {
-      setIsLoading(false);
+  try {
+    const result = await authService.loginWithGoogle();
+
+    if (result) {
+      setSuccessMessage("Logged in with Google successfully!");
+      setCurrentUser(result.user);
+
     }
-  };
+  } catch (err) {
+    setErrorMessage(err.message || "Google login failed.");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   // Forgot Password – Step 1: ask the backend to email the OTP
   const handleSendForgotOtp = async (e) => {
@@ -568,18 +652,6 @@ const LoginPage = () => {
     setErrorMessage("");
   };
 
-  // The × button in the top-right of the form. It signs the user out when a
-  // session is active, otherwise it just clears whatever step they were on.
-  const handleClose = () => {
-    if (currentUser) {
-      handleLogout();
-      return;
-    }
-    switchMethod("email");
-    setFieldErrors({});
-    setErrorMessage("");
-    setSuccessMessage("");
-  };
 
   return (
     <div className={`login-page-container${isAuthRoute ? " auth-route" : ""}`}>

@@ -105,44 +105,8 @@ export default function HeroHeader() {
                 >
                   <span className="service-icon">{service.icon}</span>
                   <span className="service-label">{service.label}</span>
-                  <ChevronDown
-                    size={14}
-                    className={`dropdown-chevron ${isOpen ? 'open' : ''}`}
-                    aria-hidden="true"
-                  />
                 </button>
 
-                {/* Dropdown Menu */}
-                <AnimatePresence>
-                  {isOpen && (
-                    <motion.div
-                      className="nav-dropdown-menu"
-                      initial={{ opacity: 0, scale: 0.97, y: -5 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.97, y: -5 }}
-                      transition={{ duration: 0.2, ease: EASE_FAST }}
-                      role="menu"
-                    >
-                      <div className="dropdown-menu-header">
-                        <span>{service.label}</span>
-                      </div>
-                      <div className="dropdown-menu-list">
-                        {service.items.map((item) => (
-                          <a
-                            key={item.name}
-                            href={item.href}
-                            className="dropdown-menu-link"
-                            role="menuitem"
-                            onClick={() => setOpenDropdown(null)}
-                          >
-                            <span className="dot-bullet" />
-                            {item.name}
-                          </a>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
             );
           })}

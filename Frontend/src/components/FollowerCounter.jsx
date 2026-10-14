@@ -68,7 +68,7 @@ export default function FollowerCounter({ className = '', style = {} }) {
         <Users size={14} color="#AA45F5" />
       </div>
       <span className="follower-text">
-        +{count} followers
+        +{count} Connections
       </span>
 
       <style>{`
