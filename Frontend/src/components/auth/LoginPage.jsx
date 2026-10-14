@@ -256,35 +256,22 @@ useEffect(() => {
 
   const redirectUser = async () => {
     try {
-      const result = await profileService.getCompleteProfile();
+      const route = await authService.getPostLoginRoute();
 
       if (cancelled) return;
 
-      console.log(
-        "[LoginPage] Complete profile response:",
-        JSON.stringify(result, null, 2)
-      );
-
-      // Keep this check aligned with the actual backend response.
-      const profile = result?.data ?? result;
-
-      const isComplete =
-        profile?.isComplete === true ||
-        profile?.completed === true ||
-        profile?.onboardingCompleted === true;
+      console.log("[LoginPage] Google redirect to:", route);
 
       window.location.replace(
-        isComplete ? "/#/home" : "/#/onboarding"
+        `${window.location.origin}/#${route}`
       );
     } catch (error) {
       if (cancelled) return;
 
-      console.error(
-        "[LoginPage] Could not check onboarding status:",
-        error
+      console.error("Google profile check failed:", error);
+      setErrorMessage(
+        "Unable to check your profile. Please try again."
       );
-
-      window.location.replace("/#/onboarding");
     }
   };
 
@@ -295,27 +282,18 @@ useEffect(() => {
   };
 }, [googleUser]);
 
-  const redirectAfterLogin = async () => {
+const redirectAfterLogin = async () => {
   try {
-    const result = await profileService.getCompleteProfile();
+    const route = await authService.getPostLoginRoute();
 
-    console.log("Complete profile response:", result);
-
-    // Update these conditions according to your backend's actual response.
-    const isComplete =
-      result?.isComplete === true ||
-      result?.completed === true ||
-      result?.data?.isComplete === true ||
-      result?.data?.completed === true;
+    console.log("[LoginPage] Redirecting to:", route);
 
     window.location.replace(
-      isComplete ? "/#/home" : "/#/onboarding"
+      `${window.location.origin}/#${route}`
     );
   } catch (error) {
-    console.error("Failed to check profile completion:", error);
-
-    // If the profile check fails, don't assume onboarding is complete.
-    window.location.replace("/#/onboarding");
+    console.error("Failed to check profile:", error);
+    setErrorMessage("Unable to check your profile. Please try again.");
   }
 };
 
