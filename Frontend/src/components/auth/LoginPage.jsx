@@ -539,11 +539,8 @@ useEffect(() => {
     setIsLoading(true);
 
     try {
-      const result = await authService.loginWithEmail(
-        email,
-        password,
-        rememberMe
-      );
+      const route = await authService.getPostLoginRoute();
+      window.location.hash = route;
 
       setCurrentUser(result.user);
 

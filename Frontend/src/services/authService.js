@@ -1,247 +1,4 @@
-// /**
-//  * Authentication Service
-//  *
-//  * Every method talks to the real NestJS backend. There is no mock/simulated mode.
-//  *
-//  * The backend serves its routes under the global `/api` prefix, so each request
-//  * targets `<API_BASE_URL>/api/auth/<route>`.
-//  *
-//  * API_BASE_URL is the backend *origin* (no /api suffix):
-//  *  - set VITE_API_BASE_URL to call the backend directly.
-//  *  - left unset, requests use relative `/api/...` URLs.
-//  */
-// import axios from "axios";
-
-// const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? "";
-
-// const TOKEN_KEY = "evolv_auth_token";
-// const USER_KEY = "evolv_user";
-
-// /** The backend stores emails in mixed case on register/login but lowercases
-//  * them on the OTP routes, so the same address typed with different casing would
-//  * not match. Normalising here keeps every flow consistent. */
-// const normalizeEmail = (email) => String(email ?? "").trim().toLowerCase();
-
-// /** class-validator returns `message` as an array of strings on a 400. */
-// const extractErrorMessage = (payload, fallback) => {
-//   const { message } = payload ?? {};
-//   if (Array.isArray(message)) return message.join(" ");
-//   if (typeof message === "string" && message.trim()) return message;
-//   return payload?.error || fallback;
-// };
-
-
-// const request = async (route, body) => {
-//   try {
-//     const response = await axios.post(
-//       `${API_BASE_URL}/api/auth/${route}`,
-//       body,
-//       {
-//         headers: {
-//           "Content-Type": "application/json",
-//         },
-//       }
-//     );
-
-//     return response.data;
-//   } catch (error) {
-//     const payload = error.response?.data || {};
-
-//     throw new Error(
-//       extractErrorMessage(
-//         payload,
-//         `Request failed with status ${error.response?.status || 500}.`
-//       )
-//     );
-//   }
-// };
-// /** Maps the backend's `{ message, data }` envelope onto the flat shape the UI
-//  * already consumes. `token` is null when the backend issues no access token
-//  * (signup only confirms the address). */
-// const toAuthResult = (payload) => {
-//   const data = payload?.data ?? null;
-//   return {
-//     message: payload?.message ?? "",
-//     user: data
-//       ? {
-//           id: data.id,
-//           name: data.name ?? null,
-//           email: data.email ?? null,
-//           emailVerified: data.emailVerified ?? null,
-//         }
-//       : null,
-//     token: data?.accessToken ?? null,
-//   };
-// };
-
-// const persistSession = ({ user, token }, rememberMe) => {
-//   if (!token || !user) return;
-//   const target = rememberMe ? localStorage : sessionStorage;
-//   const stale = rememberMe ? sessionStorage : localStorage;
-
-//   stale.removeItem(TOKEN_KEY);
-//   stale.removeItem(USER_KEY);
-//   target.setItem(TOKEN_KEY, token);
-//   target.setItem(USER_KEY, JSON.stringify(user));
-// };
-
-// /** Reads the claims out of a JWT payload without verifying it. The backend has
-//  * already signed the token, so this is only used to read `sub`. */
-// const decodeJwt = (token) => {
-//   try {
-//     return JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
-//   } catch {
-//     return null;
-//   }
-// };
-
-// const api = axios.create({
-//   baseURL: `${API_BASE_URL}/api/auth`,
-//   headers: {
-//     "Content-Type": "application/json",
-//   },
-// });
-
-// /** Read the stored token from whichever storage it was saved in. */
-// const getStoredToken = () =>
-//   localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || null;
-  
-// export const authService = {
-//   getCurrentUser() {
-//   const user =
-//     localStorage.getItem(USER_KEY) ||
-//     sessionStorage.getItem(USER_KEY);
-
-//   try {
-//     return user ? JSON.parse(user) : null;
-//   } catch {
-//     return null;
-//   }
-// },
-//   // Signup
-//   async signup(name, email, password) {
-//   try {
-//     const response = await api.post("/register", {
-//       name: name.trim(),
-//       email: email.trim().toLowerCase(),
-//       password,
-//     });
-
-//     console.log("SIGNUP SUCCESS:", response.data);
-
-//     return response.data;
-//   } catch (error) {
-//     console.error(
-//       "SIGNUP ERROR:",
-//       error.response?.status,
-//       error.response?.data || error.message
-//     );
-
-//     throw new Error(
-//       error.response?.data?.message || "Signup failed"
-//     );
-//   }
-// },
-
-//   // Email + Password Login
-//   async loginWithEmail(email, password) {
-//     try {
-//       const response = await api.post("/login", {
-//         email: email.trim().toLowerCase(),
-//         password,
-//       });
-
-//       return response.data;
-//     } catch (error) {
-//       throw new Error(
-//         error.response?.data?.message || "Login failed"
-//       );
-//     }
-//   },
-
-//   // Send Email OTP
-//   async sendEmailOTP(email) {
-//     try {
-//       const response = await api.post("/email-otp/send", {
-//         email: email.trim().toLowerCase(),
-//       });
-
-//       return response.data;
-//     } catch (error) {
-//       throw new Error(
-//         error.response?.data?.message || "Failed to send email OTP"
-//       );
-//     }
-//   },
-
-//   // Verify Email OTP
-//   async verifyEmailOTP(email, otp) {
-//     try {
-//       const response = await api.post("/email-otp/verify", {
-//         email: email.trim().toLowerCase(),
-//         otp: otp.trim(),
-//       });
-
-//       return response.data;
-//     } catch (error) {
-//       throw new Error(
-//         error.response?.data?.message || "Invalid OTP"
-//       );
-//     }
-//   },
-
-//   // Forgot Password
-//   async forgotPassword(email) {
-//     try {
-//       const response = await api.post("/forgot-password", {
-//         email: email.trim().toLowerCase(),
-//       });
-
-//       return response.data;
-//     } catch (error) {
-//       throw new Error(
-//         error.response?.data?.message || "Failed to send OTP"
-//       );
-//     }
-//   },
-
-//   // Reset Password
-//   async resetPasswordWithOtp(email, otp, newPassword) {
-//     try {
-//       const response = await api.post("/reset-password", {
-//         email: email.trim().toLowerCase(),
-//         otp: otp.trim(),
-//         newPassword,
-//       });
-
-//       return response.data;
-//     } catch (error) {
-//       throw new Error(
-//         error.response?.data?.message || "Password reset failed"
-//       );
-//     }
-//   },
-
-//   // Google Login
-//   loginWithGoogle() {
-//     window.location.href = `${API_BASE_URL}/api/auth/google`;
-//   },
-// };
-/**
- * Authentication Service
- *
- * Every method talks to the real NestJS backend. There is no mock/simulated mode.
- *
- * The backend serves its routes under the global `/api` prefix, so each request
- * targets `<API_BASE_URL>/api/auth/<route>`.
- *
- * API_BASE_URL is the backend *origin*:
- *  - left unset, requests use relative `/api/...` URLs, which the Vite dev server
- *    proxies to the backend (the backend has no CORS enabled).
- *  - set VITE_API_BASE_URL to call a different origin directly instead.
- */
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 const TOKEN_KEY = "evolv_auth_token";
 const USER_KEY = "evolv_user";
@@ -460,43 +217,42 @@ async getPostLoginRoute() {
     localStorage.getItem(TOKEN_KEY) ||
     sessionStorage.getItem(TOKEN_KEY);
 
-  if (!token) {
-    return "/login";
-  }
+  if (!token) return "/login";
 
   try {
     const response = await fetch(
       `${API_BASE_URL}/api/profile/complete`,
       {
-        method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
         },
       }
     );
 
-    if (!response.ok) {
+    if (response.status === 401) {
+      authService.logout();
+      return "/login";
+    }
+
+    if (response.status === 404) {
       return "/onboarding";
     }
 
+    if (!response.ok) {
+      throw new Error("Failed to fetch profile");
+    }
+
     const result = await response.json();
-    const profile = result?.data ?? result;
+    const profile = result?.profile ?? result?.data?.profile;
 
-    // Replace these checks with the actual completion
-    // field returned by your backend API.
-    const isComplete =
-      profile?.onboardingCompleted === true ||
-      profile?.isComplete === true ||
-      profile?.completed === true;
-
-    return isComplete ? "/home" : "/onboarding";
+    return profile?.username?.trim()
+      ? "/home"
+      : "/onboarding";
   } catch (error) {
-    console.error("Failed to check onboarding status:", error);
+    console.error("Profile check failed:", error);
     return "/onboarding";
   }
 },
-
   /**
    * Get Current Session User
    */
