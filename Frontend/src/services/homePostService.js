@@ -107,6 +107,50 @@ export const homePostService = {
    * @returns {Promise<object>} Normalised feed-post object ready for the feed.
    * @throws {Error} On auth failure, network error, or server error.
    */
+
+
+  // Fetch document posts for Discover
+  async getDocumentPosts() {
+    const token =
+        localStorage.getItem(TOKEN_KEY) ||
+        sessionStorage.getItem(TOKEN_KEY);
+    const response = await fetch(
+        `${API_BASE_URL}/api/posts/document`,
+        {
+            method: "GET",
+            headers: {
+                Accept: "application/json",
+                ...(token
+                    ? { Authorization: `Bearer ${token}` }
+                    : {}),
+            },
+        }
+    );
+
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        throw new Error(
+            result?.message || `Failed to fetch documents (${response.status})`
+        );
+    }
+
+    // Support common API response formats.
+    const posts = Array.isArray(result)
+        ? result
+        : Array.isArray(result?.data)
+          ? result.data
+          : Array.isArray(result?.posts)
+            ? result.posts
+            : Array.isArray(result?.documents)
+              ? result.documents
+              : Array.isArray(result?.data?.posts)
+                ? result.data.posts
+                : [];
+
+    return posts;
+  },
+
   async createImagePost(caption, imageFile) {
     if (!getToken()) {
       throw new Error("Please log in before creating a post.");

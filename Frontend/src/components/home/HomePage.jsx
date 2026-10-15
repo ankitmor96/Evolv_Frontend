@@ -34,7 +34,7 @@ import { authService } from '../../services/authService.js';
 import { homePostService } from "../../services/homePostService.js";
 import { fetchHomeTabs, mapTabsToLabels } from '../../services/homeTabService.js';
 import { getUserSkills } from '../../services/userSkillService.js';
-import { CREATORS, FEED_POSTS, TRENDING_REELS, INTEREST_TABS, DOMAIN_TABS } from '../../data/homeData.js';
+import { CREATORS, FEED_POSTS, INTEREST_TABS } from '../../data/homeData.js';
 import { avatarUrl } from '../../data/avatarUtils.js';
 import './HomePage.css';
 
@@ -77,7 +77,6 @@ const MAIN_NAV = [
 ];
 
 const COMMUNITY_NAV = [
-  { id: 'communities', label: 'Communities', icon: Users, href: '#/connections' },
   { id: 'messages', label: 'Messages', icon: MessageCircle, href: '#/messages' },
 ];
 

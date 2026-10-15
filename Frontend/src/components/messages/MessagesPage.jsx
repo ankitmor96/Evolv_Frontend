@@ -37,7 +37,7 @@ function ConvAvatar({ src, name, size = 46, online = false }) {
 // ─── Nav Rail ─────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
   { id: 'home',      Icon: Home,          label: 'Home',       hash: '/home' },
-  { id: 'discover',  Icon: Compass,       label: 'Discover',   hash: '/explore-gems' },
+  { id: 'discover',  Icon: Compass,       label: 'Discover',   hash: '/discover' },
   { id: 'learning',  Icon: BookOpen,      label: 'Learning',   hash: '/learning' },
   { id: 'messages',  Icon: MessageCircle, label: 'Messages',   hash: '/messages' },
   { id: 'community', Icon: Users,         label: 'Community',  hash: '/connections' },

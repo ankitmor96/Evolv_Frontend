@@ -89,7 +89,77 @@
 .eg-hero-right {
   flex-shrink: 0;
 }
+/* Skip onboarding creator suggestions */
+.eg-skip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 22px;
+  border: 2px solid #080510;
+  border-radius: 16px;
+  background: transparent;
+  color: #080510;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
 
+.eg-skip-btn:hover {
+  background: #080510;
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.eg-skip-btn:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 4px;
+}
+
+.eg-skip-btn:active {
+  transform: translateY(0);
+}
+
+/* Keep both hero actions aligned */
+.eg-hero-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Responsive layout */
+@media (max-width: 768px) {
+  .eg-hero-right {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 10px;
+  }
+
+  .eg-skip-btn,
+  .eg-profile-appearance-btn {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .eg-hero-right {
+    align-items: stretch;
+  }
+
+  .eg-skip-btn,
+  .eg-profile-appearance-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
 /* Profile Appearance Button */
 .eg-profile-appearance-btn {
   display: inline-flex;

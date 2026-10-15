@@ -203,9 +203,9 @@ function EmptyState() {
 
 // ─── How many cards are visible per breakpoint ────────────────────────────────
 // These must stay in sync with the CSS --eg-cards-per-view custom property.
-const CARDS_DESKTOP  = 5;
-const CARDS_TABLET   = 3;  // ≤ 900px
-const CARDS_MOBILE   = 1;  // ≤ 540px
+const CARDS_DESKTOP = 5;
+const CARDS_TABLET = 3;  // ≤ 900px
+const CARDS_MOBILE = 1;  // ≤ 540px
 
 /** Read the current cards-per-view from a CSS custom property set on the
  *  slider viewport — this keeps JS and CSS breakpoints in one place. */
@@ -237,7 +237,7 @@ function CreatorSlider({ creators, connectedIds, onConnect, connectingId }) {
   const totalCreators = creators.length;
   const maxStart = Math.max(0, totalCreators - cardsPerView);
   const atStart = startIndex === 0;
-  const atEnd   = startIndex >= maxStart;
+  const atEnd = startIndex >= maxStart;
 
   const slide = useCallback((direction) => {
     if (isAnimating) return;
@@ -314,6 +314,12 @@ export default function ExploreGems() {
   const [connectingId, setConnectingId] = useState(null);
   const [showAppearanceModal, setShowAppearanceModal] = useState(false);
 
+  const handleSkip = useCallback(() => {
+    // Navigate to Home using your existing hash-based routing.
+    window.location.hash = '/home';
+    window.dispatchEvent(new Event('navigated'));
+  }, []);
+
   // Fetch creators on mount
   useEffect(() => {
     let cancelled = false;
@@ -366,6 +372,15 @@ export default function ExploreGems() {
 
           <div className="eg-hero-right">
             <button
+              type="button"
+              className="eg-skip-btn"
+              onClick={handleSkip}
+            >
+              Skip for now <span aria-hidden="true">→</span>
+            </button>
+
+            <button
+              type="button"
               className="eg-profile-appearance-btn"
               onClick={() => setShowAppearanceModal(true)}
               aria-label="Open profile appearance settings"

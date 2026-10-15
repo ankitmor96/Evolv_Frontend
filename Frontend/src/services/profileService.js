@@ -136,13 +136,8 @@ export const profileService = {
   /**
    * POST /api/profile – creates the profile record for a brand-new user.
    * body: { username, ageRange, identityTypeIds, primaryIdentityTypeId }
-   *
-   * Verified: route exists on backend (returns 401 when unauthenticated,
-   * not 404), so it is safe to call for first-time profile creation.
    */
-  // createProfile(data) {
-  //   return request("/api/profile", { method: "POST", body: data });
-  // },
+  
 
 async createProfile(data, file) {
   const url = `${API_BASE_URL}/api/profile`;
@@ -186,9 +181,6 @@ async createProfile(data, file) {
   /**
    * PATCH /api/profile – updates an existing profile record.
    * body: { username, ageRange, identityTypeIds, primaryIdentityTypeId }
-   *
-   * Returns 404 "User profile not found" when no record exists yet — in that
-   * case callers should use createProfile() instead.
    */
   updateProfile(data) {
     return request("/api/profile", { method: "PATCH", body: data });
@@ -196,10 +188,6 @@ async createProfile(data, file) {
 
   /**
    * Upsert helper: GET to check existence, then POST (create) or PATCH (update).
-   *
-   * The backend returns 404 from PATCH /api/profile when no record exists, so
-   * we probe GET first to choose the right method. This avoids mistaking an
-   * "update-on-missing" 404 for a successful no-op.
    *
    * @param {object} data – profile payload
    * @returns {Promise<any>}
@@ -327,21 +315,6 @@ async createProfile(data, file) {
   },
 
   /**
-   * Upsert helper for bio.
-   *
-   * Strategy: POST first (create). If the backend responds 409 (bio row already
-   * exists) or 400 (duplicate constraint), fall back to PATCH (update).
-   *
-   * We deliberately do NOT use PATCH-first here. The previous PATCH-first
-   * approach failed because the backend returns a 404 "User profile not found"
-   * when the parent profile is absent — which is a different 404 from
-   * "bio row not found". The correct fix is to ensure the profile exists
-   * before calling saveBio (handled in submitOnboardingDraft), then POST
-   * to create the bio row.
-   *
-   * If both POST and PATCH fail, the original error is re-thrown so the
-   * caller can record and surface it rather than silently discarding it.
-   *
    * @param {string} bio
    * @returns {Promise<any>}
    */
@@ -349,14 +322,10 @@ async createProfile(data, file) {
     try {
       return await profileService.createBio(bio);
     } catch (createErr) {
-      // 409 = bio row already exists; 400 may indicate the same depending on
-      // the backend validation layer. Fall back to PATCH in those cases only.
       if (createErr.status === 409 || createErr.status === 400) {
         console.debug("[profileService] Bio already exists — falling back to PATCH");
         return profileService.updateBio(bio);
       }
-      // Any other error (including 404 "profile not found") is a real failure.
-      // Re-throw with context so submitOnboardingDraft records the section.
       console.error(
         `[profileService] POST /api/profile/bio failed (status ${createErr.status}):`,
         createErr.message,
@@ -498,11 +467,7 @@ async createProfile(data, file) {
   // ═══════════════════════════════════════════════
 
   /**
-   * Builds a { "skill name (lower-cased)": backendId } map by fetching skills
-   * for category IDs 1–20 in parallel.
-   *
-   * Results are cached in memory so subsequent calls cost nothing.
-   * Non-existent category IDs are silently ignored (the backend returns 404).
+   * Builds a { "skill name (lower-cased)": backendId }
    *
    * @returns {Promise<Record<string, number>>}
    */
@@ -586,24 +551,6 @@ async createProfile(data, file) {
 
   /**
    * Submit the complete onboarding draft to the backend.
-   *
-   * Fixed execution order (root cause: profile must exist before bio/skills):
-   *
-   *   0. Guard — abort early if no auth token is present.
-   *   1. Fetch skill name→ID map (cached after first call).
-   *   2. Fetch identity types to resolve role label → backend integer ID.
-   *   3. Create or update the user's profile record:
-   *        GET /api/profile → 200 means exists → PATCH /api/profile
-   *                        → 404 means new user  → POST  /api/profile
-   *      If this step fails, bio and skills are skipped (they depend on it).
-   *   4. Save bio (POST first, fall back to PATCH on 409/400).
-   *      Only attempted after step 3 succeeds to avoid "User profile not found".
-   *   5. Save curiosity skills (POST, fall back to PATCH on 409/400).
-   *   6. Save user skills for canDo / learning / wantToImprove (POST each).
-   *
-   * Errors in steps 4–6 are collected and logged but do not block navigation.
-   * Errors in step 3 abort steps 4–6 and are included in the returned list.
-   *
    * @param {object} draft  – the full onboarding draft object
    * @returns {Promise<{ errors: Array<{section: string, status: number|null, message: string}> }>}
    */
@@ -665,9 +612,6 @@ async createProfile(data, file) {
       const countryCode = getCountryCode(draft.country);
       const profileBody = {
         username: draft.username.trim(),
-        // Only include countryCode when it resolves to a valid 2-letter ISO code.
-        // getCountryCode() returns "" for unknown/unset countries; omitting
-        // the key avoids the backend's "must be a 2-letter uppercase code" 400.
         ...(countryCode ? { countryCode } : {}),
         ...(draft.ageRange ? { ageRange: draft.ageRange } : {}),
         ...(identityTypeId != null
@@ -698,15 +642,7 @@ async createProfile(data, file) {
     }
 
     // ── 3.5. Avatar upload ───────────────────────────────────────────────
-    //
-    // Only runs when the user selected a new image (draft.profilePhotoFile is a
-    // File object). If no new file was picked, this step is skipped entirely so
-    // an existing Cloudinary avatar is never overwritten with null.
-    //
-    // The upload is attempted even if the profile save failed so that partial
-    // re-submissions can still sync the avatar. The endpoint is:
     //   POST /api/profile/avatar  (multipart/form-data, field: "avatar")
-    //
     if (draft.profilePhotoFile instanceof File) {
       try {
         const avatarResult = await profileService.uploadAvatar(draft.profilePhotoFile);
@@ -726,22 +662,14 @@ async createProfile(data, file) {
         errors.push({ section: "avatar", status: err.status ?? null, message: err.message });
       }
     } else if (draft.profilePhoto && !draft.profilePhoto.startsWith("data:")) {
-      // profilePhoto is already a remote URL (e.g. Cloudinary) from a previous
-      // session — no upload needed; the backend already has it.
       console.debug("[profileService] Avatar is already a remote URL — skipping upload.");
     } else if (draft.profilePhoto?.startsWith("data:")) {
-      // User selected a photo (data URL exists) but File was lost (e.g. page
-      // reload mid-onboarding). Log a warning so it is visible in the console.
       console.warn(
         "[profileService] profilePhoto is a data URL but profilePhotoFile is not a File. " +
         "Avatar will not be uploaded. The user can re-select the photo after reload."
       );
     }
-
     // ── 4. Bio ────────────────────────────────────────────────────────────
-    //
-    // Only attempt if the profile was saved/confirmed in step 3.
-    // saveBio() uses POST first, falling back to PATCH on 409 (already exists).
     const bioText = (draft.bio ?? draft.focusGoal ?? "").trim();
 
     if (bioText && profileSaved) {

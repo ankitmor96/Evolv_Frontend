@@ -6,6 +6,7 @@ import ExploreGems from './components/explore/ExploreGems';
 import HomePage from './components/home/HomePage';
 import MessagesPage from './components/messages/MessagesPage';
 import DiscoverPage from './components/discover/DiscoverPage';
+import ProfilePage from './components/profile/ProfilePage';
 
 /**
  * The backend Google OAuth callback redirects to a plain pathname URL like
@@ -94,6 +95,10 @@ export default function App() {
 
   if (route === '/discover') {
     return <DiscoverPage />;
+  }
+
+  if (route === '/profile') {
+    return <ProfilePage />;
   }
 
   return <Hero />;
