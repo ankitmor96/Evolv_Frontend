@@ -34,6 +34,7 @@ import { authService } from '../../services/authService.js';
 import { homePostService } from "../../services/homePostService.js";
 import { fetchHomeTabs, mapTabsToLabels } from '../../services/homeTabService.js';
 import { getUserSkills } from '../../services/userSkillService.js';
+import { getProfile } from '../../services/getProfile.js';
 import { CREATORS, FEED_POSTS, INTEREST_TABS } from '../../data/homeData.js';
 import { avatarUrl } from '../../data/avatarUtils.js';
 import './HomePage.css';
@@ -88,6 +89,10 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
   // ── Real user skills from GET /api/skills/user-skills ─────────────────
   const [sidebarSkills, setSidebarSkills] = useState(null);   // null = loading
   const [sidebarGoals, setSidebarGoals] = useState(null);
+  // ── Real profile avatar from GET /api/profile ──────────────────────────
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState(null);
+  const [profileUsername, setProfileUsername] = useState(null);
+  const [profileDisplayName, setProfileDisplayName] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,6 +121,19 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
         console.warn('[HomeSidebar] Could not load user skills:', err.message);
         // Keep null → will show fallback dev data
       });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    getProfile.getProfile()
+      .then((p) => {
+        if (cancelled) return;
+        if (p?.avatarUrl || p?.avatar) setProfileAvatarUrl(p.avatarUrl || p.avatar);
+        if (p?.username) setProfileUsername(p.username);
+        if (p?.fullName || p?.name) setProfileDisplayName(p.fullName || p.name);
+      })
+      .catch(() => { /* silently fall back to authService data */ });
     return () => { cancelled = true; };
   }, []);
 
@@ -592,11 +610,24 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
           {/* User + logout */}
           {user && (
             <div className="hp-sidebar-user">
-              <Avatar src={user.avatar} name={user.name} size={36} />
+              {/* Avatar is clickable — navigates to profile page */}
+              <button
+                type="button"
+                className="hp-sidebar-avatar-btn"
+                onClick={() => { window.location.hash = '/profile'; window.dispatchEvent(new Event('navigated')); setIsSidebarOpen(false); }}
+                aria-label="View my profile"
+                title="View my profile"
+              >
+                <Avatar
+                  src={profileAvatarUrl || user.avatar}
+                  name={profileDisplayName || user.name}
+                  size={36}
+                />
+              </button>
               <div className="hp-sidebar-user-info">
-                <span className="hp-sidebar-user-name">{user.name || 'You'}</span>
+                <span className="hp-sidebar-user-name">{profileDisplayName || user.name || 'You'}</span>
                 <span className="hp-sidebar-user-handle">
-                  @{user.username || (user.email || '').split('@')[0]}
+                  @{profileUsername || user.username || (user.email || '').split('@')[0]}
                 </span>
               </div>
               <button
@@ -618,7 +649,7 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
 // ─────────────────────────────────────────────────────────────────────────────
 // HEADER (top of feed)
 // ─────────────────────────────────────────────────────────────────────────────
-function HomeHeader({ user, onOpenSidebar }) {
+function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar }) {
   const [notifOpen, setNotifOpen] = useState(false);
 
   return (
@@ -638,6 +669,7 @@ function HomeHeader({ user, onOpenSidebar }) {
         <button className="hp-icon-btn" aria-label="Messages" style={{ marginRight: "10px" }}>
           <MessageCircle size={20} aria-hidden="true" />
         </button>
+        {/* Profile avatar — navigates to #/profile on click */}
         <button
           type="button"
           className="hp-mobile-user-btn"
@@ -645,11 +677,12 @@ function HomeHeader({ user, onOpenSidebar }) {
             window.location.hash = '/profile';
             window.dispatchEvent(new Event('navigated'));
           }}
-          aria-label="Open profile"
+          aria-label="Open my profile"
+          title="View profile"
         >
           <Avatar
-            src={user?.avatar}
-            name={user?.name || 'User'}
+            src={profileAvatar || user?.avatar}
+            name={profileName || user?.name || 'User'}
             size={34}
           />
         </button>
@@ -2121,6 +2154,22 @@ function HomeFeed({ user, onOpenSidebar }) {
   // by keeping static data visible and logging a console warning.
   const [postsAuthError, setPostsAuthError] = useState(null);
 
+  // ── Real profile avatar for the header (GET /api/profile) ──────────────
+  const [feedProfileAvatar, setFeedProfileAvatar] = useState(null);
+  const [feedProfileName, setFeedProfileName] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getProfile.getProfile()
+      .then((p) => {
+        if (cancelled) return;
+        if (p?.avatarUrl || p?.avatar) setFeedProfileAvatar(p.avatarUrl || p.avatar);
+        if (p?.fullName || p?.name) setFeedProfileName(p.fullName || p.name);
+      })
+      .catch(() => { /* fall back to user.avatar from authService */ });
+    return () => { cancelled = true; };
+  }, []);
+
   // ── Home Tabs from GET /api/home/tabs ──────────────────────────────────
   const [apiTabs, setApiTabs] = useState(null); // null = loading / not yet resolved
   const [tabsError, setTabsError] = useState(null);
@@ -2259,7 +2308,12 @@ function HomeFeed({ user, onOpenSidebar }) {
 
   return (
     <div className="hp-feed-column">
-      <HomeHeader user={user} onOpenSidebar={onOpenSidebar} />
+      <HomeHeader
+        user={user}
+        profileAvatar={feedProfileAvatar}
+        profileName={feedProfileName}
+        onOpenSidebar={onOpenSidebar}
+      />
       <InterestTabs active={activeTab} onChange={setActiveTab} tabs={FEED_TABS} />
 
       {/* Middle Feed */}

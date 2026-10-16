@@ -488,3 +488,601 @@
   .pp-hero-avatar, .pp-hero-avatar-fallback { width: 66px; height: 66px; font-size: 22px; }
   .pp-stats-row { gap: 10px; }
 }
+
+/* ─── Sidebar avatar button ──────────────────────────────────────────── */
+.pp-sidebar-avatar-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+.pp-sidebar-avatar-btn:hover { opacity: 0.85; transform: scale(1.06); }
+.pp-sidebar-avatar-btn:focus-visible { outline: 2px solid #AA45F5; outline-offset: 2px; }
+
+/* ─── Topbar avatar button ────────────────────────────────────────────── */
+.pp-topbar-avatar-btn {
+  background: none;
+  border: 1.5px solid rgba(9,3,15,0.12);
+  border-radius: 50%;
+  padding: 2px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+.pp-topbar-avatar-btn:hover { border-color: #AA45F5; transform: scale(1.05); }
+.pp-topbar-avatar-btn:focus-visible { outline: 2px solid #AA45F5; outline-offset: 2px; }
+
+/* ─── Your Growth progress bar (mirrors HomePage hp-progress-* styles) ── */
+.pp-growth-section { display: flex; flex-direction: column; gap: 10px; }
+
+.pp-progress-item { margin-bottom: 4px; }
+
+.pp-progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #2d1b4e;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.pp-progress-pct { color: #8b7aa3; font-weight: 400; }
+
+.pp-progress-track {
+  height: 6px;
+  background: rgba(9,3,15,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.pp-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: #AA45F5;
+  transition: width 0.6s cubic-bezier(0.16,1,0.3,1);
+}
+.pp-progress-fill.green  { background: #22c55e; }
+.pp-progress-fill.yellow { background: #eab308; }
+.pp-progress-fill.pink   { background: #ec4899; }
+
+.pp-growth-note {
+  font-size: 10px;
+  color: #b0a3c0;
+  margin: 4px 0 0;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+/* ─── Error toast variant ────────────────────────────────────────────── */
+.pp-toast.error { background: #ef476f; }
+
+/* ─── Edit Skills Modal ──────────────────────────────────────────────── */
+.pp-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  background: rgba(9, 3, 15, 0.52);
+  backdrop-filter: blur(3px);
+}
+
+@keyframes ppFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+
+/* Modal container */
+.pp-modal {
+  width: 100%;
+  max-width: 600px;
+  height: 90vh;
+  height: 90dvh;
+  max-height: 90vh;
+  max-height: 90dvh;
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  background: #fff;
+  border: 1.5px solid rgba(9, 3, 15, 0.07);
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(9, 3, 15, 0.22);
+
+  overflow: hidden;
+}
+
+@keyframes ppSlideUp {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.pp-modal-header {
+  flex: 0 0 auto;
+}
+
+.pp-modal-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #09030F;
+  margin: 0 0 3px;
+  padding: 10px;
+}
+
+.pp-modal-subtitle {
+  font-size: 12px;
+  color: #8b7aa3;
+  margin: 0;
+  padding:10px;
+}
+
+.pp-modal-close-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(9,3,15,0.1);
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  flex-shrink: 0;
+  transition: border-color 160ms ease, color 160ms ease;
+}
+.pp-modal-close-btn:hover { border-color: #AA45F5; color: #AA45F5; }
+.pp-modal-close-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+
+/* Main scrollable modal body */
+.pp-modal-body {
+  flex: 1 1 0;
+  min-height: 0;
+  height: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  overflow-y: scroll;
+  overflow-x: hidden;
+
+  padding: 16px 24px;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+
+  scrollbar-width: thin;
+  scrollbar-color: rgba(170, 69, 245, 0.5) transparent;
+}
+
+.pp-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pp-modal-body::-webkit-scrollbar-thumb {
+  background: rgba(170, 69, 245, 0.5);
+  border-radius: 6px;
+}
+
+/* Domain accordion */
+.pp-modal-domain {
+  flex: 0 0 auto;
+  min-height: 0;
+
+  border: 1.5px solid rgba(9, 3, 15, 0.07);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.pp-modal-domain-header {
+  flex: 0 0 auto;
+}
+
+.pp-modal-domain-header:hover { background: rgba(170,69,245,0.06); }
+
+.pp-modal-domain-label {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(9,3,15,0.55);
+  text-transform: uppercase;
+}
+
+.pp-modal-domain-count {
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(170,69,245,0.15);
+  color: #AA45F5;
+  border-radius: 10px;
+  padding: 1px 7px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.pp-modal-chevron {
+  font-size: 16px;
+  color: #8b7aa3;
+  transition: transform 180ms ease;
+  line-height: 1;
+}
+.pp-modal-chevron.open { transform: rotate(180deg); }
+
+/* Skills grid inside domain */
+
+/* Scrollable skills inside each expanded domain */
+.pp-modal-skills-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 8px;
+
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 0;
+  max-height: 180px;
+
+  padding: 12px 16px 14px;
+  background: #fff;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+
+  scrollbar-width: thin;
+  scrollbar-color: rgba(170, 69, 245, 0.5) transparent;
+}
+
+.pp-modal-skills-grid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pp-modal-skills-grid::-webkit-scrollbar-thumb {
+  background: rgba(170, 69, 245, 0.5);
+  border-radius: 6px;
+}
+
+
+/* Skill chip */
+.pp-modal-skill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 13px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(9,3,15,0.12);
+  background: #fff;
+  color: #2d1b4e;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 120ms ease;
+}
+.pp-modal-skill-chip:hover {
+  border-color: #AA45F5;
+  color: #AA45F5;
+  transform: translateY(-1px);
+}
+.pp-modal-skill-chip.selected {
+  background: rgba(170,69,245,0.12);
+  border-color: #AA45F5;
+  color: #7b3fb8;
+  font-weight: 600;
+}
+.pp-modal-skill-chip.selected:hover { background: rgba(170,69,245,0.18); }
+
+/* Footer */
+.pp-modal-footer {
+  flex: 0 0 auto;
+}
+.pp-modal-footer-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.pp-modal-cancel-btn {
+  padding: 9px 22px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(9,3,15,0.12);
+  background: #fff;
+  color: #2d1b4e;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+.pp-modal-cancel-btn:hover { border-color: #AA45F5; background: rgba(170,69,245,0.04); }
+.pp-modal-cancel-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.pp-modal-save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 24px;
+  border-radius: 10px;
+  border: none;
+  background: #AA45F5;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 160ms ease, transform 120ms ease;
+}
+.pp-modal-save-btn:hover { background: #8a2be2; }
+.pp-modal-save-btn:active { transform: scale(0.97); }
+.pp-modal-save-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Error / success messages inside modal */
+.pp-modal-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(239,71,111,0.08);
+  border: 1px solid rgba(239,71,111,0.2);
+  color: #c41c4a;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.pp-modal-success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(34,197,94,0.08);
+  border: 1px solid rgba(34,197,94,0.2);
+  color: #166534;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Loader spin animation */
+@keyframes ppSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.pp-spin { animation: ppSpin 0.8s linear infinite; }
+
+/* ─── Responsive: modal on mobile ─────────────────────────────────────── */
+@media (max-width: 599px) {
+  .pp-modal-overlay { align-items: flex-end; padding: 0; }
+  .pp-modal {
+    max-width: 100%;
+    border-radius: 20px 20px 0 0;
+    max-height: 85vh;
+  }
+  .pp-modal-header { padding: 18px 18px 14px; }
+  .pp-modal-body { padding: 12px 18px; }
+  .pp-modal-footer { padding: 12px 18px 24px; }
+  .pp-modal-footer-actions { flex-direction: column-reverse; }
+  .pp-modal-cancel-btn,
+  .pp-modal-save-btn { width: 100%; justify-content: center; }
+}
+
+@media (min-width: 600px) and (max-width: 767px) {
+  .pp-modal { max-width: 95vw; }
+}
+
+/* ─── Settings Modal ─────────────────────────────────────────────────────── */
+
+/* Narrower than the skill editor */
+.pp-settings-modal {
+  max-width: 400px;
+}
+
+/* Menu body: no scroll needed for small menu */
+.pp-settings-body {
+  padding: 8px 8px 16px;
+}
+
+/* Vertical menu list */
+.pp-settings-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Each option row */
+.pp-settings-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 160ms ease;
+  outline: none;
+}
+.pp-settings-item:hover  { background: rgba(170,69,245,0.07); }
+.pp-settings-item:focus-visible {
+  outline: 2px solid #AA45F5;
+  outline-offset: -2px;
+}
+
+.pp-settings-item-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(170,69,245,0.08);
+  color: #AA45F5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 160ms ease;
+}
+.pp-settings-item:hover .pp-settings-item-icon { background: rgba(170,69,245,0.14); }
+
+.pp-settings-item-icon--danger { background: rgba(239,71,111,0.09); color: #ef476f; }
+.pp-settings-item:hover .pp-settings-item-icon--danger { background: rgba(239,71,111,0.15); }
+
+.pp-settings-item-label {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #09030F;
+  line-height: 1;
+}
+.pp-settings-item-label--danger { color: #ef476f; }
+
+.pp-settings-item-arrow {
+  color: #c0b4d0;
+  flex-shrink: 0;
+}
+
+/* Divider between normal and danger items */
+.pp-settings-divider {
+  height: 1px;
+  background: rgba(9,3,15,0.07);
+  margin: 6px 8px;
+}
+
+/* Back button */
+.pp-settings-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 4px 8px 10px;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  color: #8b7aa3;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: color 160ms ease, background 160ms ease;
+}
+.pp-settings-back-btn:hover { color: #AA45F5; background: rgba(170,69,245,0.07); }
+.pp-settings-back-btn:focus-visible { outline: 2px solid #AA45F5; outline-offset: 1px; }
+
+/* Sub-title shown in About Us view */
+.pp-settings-sub-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #09030F;
+  margin: 0 16px 12px;
+  letter-spacing: 0.02em;
+}
+
+/* Placeholder panel (Help / Terms / Privacy) */
+.pp-settings-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 24px 24px;
+  text-align: center;
+}
+.pp-settings-placeholder-icon { font-size: 36px; line-height: 1; }
+.pp-settings-placeholder-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #09030F;
+  margin: 0;
+}
+.pp-settings-placeholder-msg {
+  font-size: 13px;
+  color: #8b7aa3;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 280px;
+}
+
+/* Delete Account confirmation */
+.pp-settings-delete-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px 24px;
+  text-align: center;
+}
+.pp-settings-delete-icon { font-size: 40px; line-height: 1; }
+.pp-settings-delete-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #09030F;
+  margin: 0;
+}
+.pp-settings-delete-msg {
+  font-size: 13px;
+  color: #3d2a5a;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 300px;
+}
+.pp-settings-delete-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(239,71,111,0.07);
+  border: 1px solid rgba(239,71,111,0.18);
+  border-radius: 10px;
+  color: #b01040;
+  font-size: 12px;
+  text-align: left;
+  line-height: 1.5;
+  width: 100%;
+  box-sizing: border-box;
+}
+.pp-settings-delete-notice svg { flex-shrink: 0; margin-top: 1px; }
+
+.pp-settings-delete-dismiss-btn {
+  padding: 10px 28px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(9,3,15,0.12);
+  background: #fff;
+  color: #2d1b4e;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+  margin-top: 4px;
+}
+.pp-settings-delete-dismiss-btn:hover {
+  background: rgba(170,69,245,0.06);
+  border-color: #AA45F5;
+}
+
+/* Responsive: Settings modal on mobile */
+@media (max-width: 599px) {
+  .pp-settings-modal {
+    max-width: 100%;
+    border-radius: 20px 20px 0 0;
+    max-height: 80vh;
+  }
+  .pp-settings-item { padding: 16px; }
+}

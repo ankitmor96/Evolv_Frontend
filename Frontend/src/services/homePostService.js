@@ -95,13 +95,6 @@ const unwrapPost = (payload) =>
 export const homePostService = {
   // ── Image post ──────────────────────────────────────────────────────────────
   /**
-   * Create an image post.
-   *
-   * Verified: POST /api/posts → 201 Created
-   * Body: multipart/form-data
-   *   caption  – text
-   *   image    – File (the actual File object, not a URL)
-   *
    * @param {string} caption   – Post caption.
    * @param {File}   imageFile – The selected image File.
    * @returns {Promise<object>} Normalised feed-post object ready for the feed.

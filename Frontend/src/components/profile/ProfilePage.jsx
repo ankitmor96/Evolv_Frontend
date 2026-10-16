@@ -3,7 +3,7 @@
  *
  * Data sources:
  *   authService.getCurrentUser()           → base user (id, name, email)
- *   profileService.getCompleteProfile()    → GET /api/profile/complete
+ *   getProfile.getProfile()                → GET /api/profile
  *   profileService.getUserSkills()         → GET /api/skills/user-skills
  *   profileService.getUserCuriosity()      → GET /api/skills/curiosity
  *   profileService.getUserIdentities()     → GET /api/user-identities
@@ -12,7 +12,7 @@
  * Routing: hash-based (#/profile), consistent with App.jsx
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Home,
   Compass,
@@ -38,12 +38,22 @@ import {
   Target,
   CheckCircle,
   User,
+  Check,
+  AlertCircle,
+  Loader,
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  HelpCircle,
+  Shield,
+  Trash2,
 } from 'lucide-react';
 
 import { getProfile } from "../../services/getProfile.js";
 import { authService } from '../../services/authService.js';
 import { profileService } from '../../services/profileService.js';
 import { homePostService } from '../../services/homePostService.js';
+import { CURIOSITY_DOMAINS } from '../onboarding/onboardingData.js';
 import './ProfilePage.css';
 
 // ─── Navigation helper ───────────────────────────────────────────────────────
@@ -97,7 +107,7 @@ function Avatar({ src, name, size = 40, className = '', style = {} }) {
   );
 }
 
-// ─── Profile Sidebar (reuses HomePage sidebar patterns) ──────────────────────
+// ─── Profile Sidebar ─────────────────────────────────────────────────────────
 function ProfileSidebar({ user, profile, isSidebarOpen, setIsSidebarOpen }) {
   const handleNavClick = (href) => {
     navigate(href);
@@ -109,15 +119,17 @@ function ProfileSidebar({ user, profile, isSidebarOpen, setIsSidebarOpen }) {
     navigate('/login');
   };
 
-  // Prevent body scroll when mobile drawer is open
   useEffect(() => {
     document.body.style.overflow = isSidebarOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [isSidebarOpen]);
 
+  const avatarSrc = profile?.avatarUrl || user?.avatar || '';
+  const displayName = profile?.fullName || user?.name || 'You';
+  const handle = profile?.username || (user?.email || '').split('@')[0];
+
   return (
     <>
-      {/* Backdrop */}
       <div
         className={`pp-sidebar-overlay ${isSidebarOpen ? 'visible' : ''}`}
         onClick={() => setIsSidebarOpen(false)}
@@ -129,7 +141,6 @@ function ProfileSidebar({ user, profile, isSidebarOpen, setIsSidebarOpen }) {
         aria-label="Main navigation"
         aria-modal={isSidebarOpen}
       >
-        {/* Logo */}
         <div className="pp-sidebar-logo">
           <button
             type="button"
@@ -149,7 +160,6 @@ function ProfileSidebar({ user, profile, isSidebarOpen, setIsSidebarOpen }) {
           </button>
         </div>
 
-        {/* Main Nav */}
         <nav aria-label="Main navigation">
           <p className="pp-nav-section-label">MAIN NAV</p>
           <ul className="pp-nav-list">
@@ -170,7 +180,6 @@ function ProfileSidebar({ user, profile, isSidebarOpen, setIsSidebarOpen }) {
           </ul>
         </nav>
 
-        {/* Community */}
         <nav aria-label="Community navigation">
           <p className="pp-nav-section-label">COMMUNITY</p>
           <ul className="pp-nav-list">
@@ -191,7 +200,6 @@ function ProfileSidebar({ user, profile, isSidebarOpen, setIsSidebarOpen }) {
           </ul>
         </nav>
 
-        {/* Profile link — active */}
         <nav aria-label="Profile navigation">
           <p className="pp-nav-section-label">ACCOUNT</p>
           <ul className="pp-nav-list">
@@ -210,22 +218,22 @@ function ProfileSidebar({ user, profile, isSidebarOpen, setIsSidebarOpen }) {
 
         <div className="pp-sidebar-spacer" />
 
-        {/* Footer: user + logout */}
         <div className="pp-sidebar-footer">
           {user && (
             <div className="pp-sidebar-user">
-              <Avatar
-                src={profile?.avatarUrl || user.avatar}
-                name={profile?.fullName || user.name || 'User'}
-                size={36}
-              />
+              {/* Avatar is clickable → profile */}
+              <button
+                type="button"
+                className="pp-sidebar-avatar-btn"
+                onClick={() => handleNavClick('/profile')}
+                aria-label="View my profile"
+                title="View my profile"
+              >
+                <Avatar src={avatarSrc} name={displayName} size={36} />
+              </button>
               <div className="pp-sidebar-user-info">
-                <span className="pp-sidebar-user-name">
-                  {profile?.fullName || user.name || 'You'}
-                </span>
-                <span className="pp-sidebar-user-handle">
-                  @{profile?.username || (user.email || '').split('@')[0]}
-                </span>
+                <span className="pp-sidebar-user-name">{displayName}</span>
+                <span className="pp-sidebar-user-handle">@{handle}</span>
               </div>
               <button
                 className="pp-logout-btn"
@@ -245,21 +253,40 @@ function ProfileSidebar({ user, profile, isSidebarOpen, setIsSidebarOpen }) {
 
 // ─── Right panel ──────────────────────────────────────────────────────────────
 function ProfileRightPanel({ profile, skills, identities, postCount }) {
-  const completenessScore = (() => {
-    let score = 0;
-    if (profile?.username)   score += 20;
-    if (profile?.avatarUrl)  score += 20;
-    if (profile?.bio)        score += 15;
-    if (profile?.countryCode) score += 10;
-    if (skills.canDo.length > 0)     score += 15;
-    if (skills.learning.length > 0)  score += 10;
-    if (identities.length > 0)       score += 10;
-    return Math.min(score, 100);
-  })();
+  // Growth progress using skill counts as proxy (clearly labelled as temporary)
+  const GROWTH_ITEMS = [
+    {
+      label: 'Artificial Intelligence',
+      pct: Math.min(
+        Math.round(
+          (skills.canDo.length /
+            Math.max(skills.canDo.length + skills.learning.length, 1)) *
+            100
+        ),
+        100
+      ),
+      colorClass: '',
+    },
+    {
+      label: 'Psychology',
+      pct: Math.min(skills.learning.length * 10, 100),
+      colorClass: 'green',
+    },
+    {
+      label: 'Economics',
+      pct: Math.min(skills.curiosity.length * 8, 100),
+      colorClass: 'yellow',
+    },
+    {
+      label: 'Helpful',
+      pct: Math.min(skills.curiosity.length * 8, 100),
+      colorClass: 'yellow',
+    },
+  ];
 
   return (
     <aside className="pp-right" aria-label="Profile details panel">
-      {/* Quick stats */}
+      {/* Quick stats — updated labels per requirement */}
       <div className="pp-right-card">
         <p className="pp-right-card-title">Quick Overview</p>
         <div className="pp-quick-stats">
@@ -268,46 +295,49 @@ function ProfileRightPanel({ profile, skills, identities, postCount }) {
             <span className="pp-quick-stat-label">Posts</span>
           </div>
           <div className="pp-quick-stat">
-            <span className="pp-quick-stat-value">{skills.canDo.length + skills.learning.length}</span>
-            <span className="pp-quick-stat-label">Skills</span>
+            {/* Placeholder until appreciation API exists */}
+            <span className="pp-quick-stat-value">1</span>
+            <span className="pp-quick-stat-label">Total appreciation</span>
           </div>
           <div className="pp-quick-stat">
-            <span className="pp-quick-stat-value">{skills.curiosity.length}</span>
-            <span className="pp-quick-stat-label">Interests</span>
+            {/* Placeholder until learning count API exists */}
+            <span className="pp-quick-stat-value">2</span>
+            <span className="pp-quick-stat-label">Total learning</span>
           </div>
           <div className="pp-quick-stat">
-            <span className="pp-quick-stat-value">{identities.length}</span>
-            <span className="pp-quick-stat-label">Roles</span>
+            {/* Placeholder until helpful count API exists */}
+            <span className="pp-quick-stat-value">3</span>
+            <span className="pp-quick-stat-label">Helpful</span>
           </div>
         </div>
       </div>
 
-      {/* Profile completeness */}
+      {/* Your Growth — uses same hp-progress-* classes from HomePage */}
       <div className="pp-right-card">
-        <p className="pp-right-card-title">Profile Completeness</p>
-        <div className="pp-completeness">
-          <div className="pp-completeness-label">
-            <span>Your profile</span>
-            <span className="pp-completeness-pct">{completenessScore}%</span>
-          </div>
-          <div className="pp-completeness-track">
-            <div
-              className="pp-completeness-fill"
-              style={{ width: `${completenessScore}%` }}
-              role="progressbar"
-              aria-valuenow={completenessScore}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={`Profile ${completenessScore}% complete`}
-            />
-          </div>
-          {completenessScore < 100 && (
-            <p style={{ fontSize: 11, color: '#8b7aa3', margin: 0, lineHeight: 1.5 }}>
-              {completenessScore < 50
-                ? 'Add skills and a bio to boost your visibility.'
-                : 'Almost there! Complete remaining sections.'}
-            </p>
-          )}
+        <p className="pp-right-card-title">Your Growth</p>
+        <div className="pp-growth-section">
+          {GROWTH_ITEMS.map(({ label, pct, colorClass }) => (
+            <div key={label} className="pp-progress-item">
+              <div className="pp-progress-label">
+                <span>{label}</span>
+                <span className="pp-progress-pct">{pct}%</span>
+              </div>
+              <div className="pp-progress-track">
+                <div
+                  className={`pp-progress-fill${colorClass ? ' ' + colorClass : ''}`}
+                  style={{ width: `${pct}%` }}
+                  role="progressbar"
+                  aria-valuenow={pct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`${label}: ${pct}%`}
+                />
+              </div>
+            </div>
+          ))}
+          <p className="pp-growth-note">
+            * Growth data is approximate until the dedicated API is available.
+          </p>
         </div>
       </div>
 
@@ -331,7 +361,7 @@ function ProfileRightPanel({ profile, skills, identities, postCount }) {
         </div>
       )}
 
-      {/* Learning curiosities */}
+      {/* Curious About */}
       {skills.curiosity.length > 0 && (
         <div className="pp-right-card">
           <p className="pp-right-card-title">Curious About</p>
@@ -356,7 +386,7 @@ function GridItem({ post }) {
     <article
       className="pp-grid-item"
       tabIndex={0}
-      aria-label={`${isVideo ? 'Reel' : 'Post'}: ${post.caption || 'Untitled'}`}
+      aria-label={`${isVideo ? 'Short Video' : 'Post'}: ${post.caption || 'Untitled'}`}
       role="button"
     >
       {hasSrc ? (
@@ -371,17 +401,19 @@ function GridItem({ post }) {
             {isVideo ? '🎬' : '📝'}
           </span>
           <span style={{ lineHeight: 1.4 }}>
-            {post.caption ? post.caption.slice(0, 40) + (post.caption.length > 40 ? '…' : '') : 'No content'}
+            {post.caption
+              ? post.caption.slice(0, 40) + (post.caption.length > 40 ? '…' : '')
+              : 'No content'}
           </span>
         </div>
       )}
 
-      {/* Video badge */}
+      {/* Video badge — "Short Video" per requirement */}
       {isVideo && (
         <>
-          <div className="pp-reel-badge" aria-label="Reel">
+          <div className="pp-reel-badge" aria-label="Short Video">
             <Play size={8} aria-hidden="true" fill="currentColor" />
-            Reel
+            Short Video
           </div>
           {hasSrc && (
             <div className="pp-play-overlay">
@@ -393,7 +425,6 @@ function GridItem({ post }) {
         </>
       )}
 
-      {/* Hover overlay */}
       <div className="pp-grid-item-overlay" aria-hidden="true">
         <p className="pp-grid-item-caption">{post.caption || ''}</p>
         <div className="pp-grid-item-meta">
@@ -411,11 +442,12 @@ function GridItem({ post }) {
 function ContentSection({ posts }) {
   const [activeTab, setActiveTab] = useState('all');
 
+  // "Reels" renamed to "Short Video" per requirement
   const tabs = [
-    { id: 'all',     label: 'All Posts', icon: Grid3X3 },
-    { id: 'images',  label: 'Images',    icon: ImageIcon },
-    { id: 'reels',   label: 'Reels',     icon: Video },
-    { id: 'articles',label: 'Articles',  icon: FileText },
+    { id: 'all',      label: 'All Posts',   icon: Grid3X3 },
+    { id: 'images',   label: 'Images',      icon: ImageIcon },
+    { id: 'reels',    label: 'Short Video', icon: Video },
+    { id: 'articles', label: 'Articles',    icon: FileText },
   ];
 
   const getFiltered = () => {
@@ -427,8 +459,6 @@ function ContentSection({ posts }) {
     }
   };
 
-  const filtered = getFiltered();
-
   const getCount = (tabId) => {
     switch (tabId) {
       case 'images':   return posts.filter((p) => p.media?.type === 'image').length;
@@ -438,12 +468,10 @@ function ContentSection({ posts }) {
     }
   };
 
+  const filtered = getFiltered();
+
   return (
-    <section
-      className="pp-content-card"
-      aria-label="My content"
-    >
-      {/* Tabs */}
+    <section className="pp-content-card" aria-label="My content">
       <div className="pp-tabs-bar" role="tablist" aria-label="Content filter tabs">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -470,7 +498,6 @@ function ContentSection({ posts }) {
         })}
       </div>
 
-      {/* Grid or empty state */}
       <div
         id={`pp-tabpanel-${activeTab}`}
         role="tabpanel"
@@ -479,17 +506,29 @@ function ContentSection({ posts }) {
         {filtered.length === 0 ? (
           <div className="pp-empty-state" role="status">
             <span className="pp-empty-icon" aria-hidden="true">
-              {activeTab === 'reels' ? '🎬' : activeTab === 'images' ? '🖼️' : activeTab === 'articles' ? '📰' : '📭'}
+              {activeTab === 'reels'
+                ? '🎬'
+                : activeTab === 'images'
+                ? '🖼️'
+                : activeTab === 'articles'
+                ? '📰'
+                : '📭'}
             </span>
             <p className="pp-empty-title">
               {posts.length === 0
                 ? "You haven't posted anything yet"
-                : `No ${activeTab === 'all' ? 'content' : activeTab} yet`}
+                : `No ${
+                    activeTab === 'all'
+                      ? 'content'
+                      : activeTab === 'reels'
+                      ? 'short videos'
+                      : activeTab
+                  } yet`}
             </p>
             <p className="pp-empty-sub">
               {posts.length === 0
-                ? 'Share your first post, reel, or article from the Home feed to see it here.'
-                : `Switch to another tab to see your other content.`}
+                ? 'Share your first post, short video, or article from the Home feed to see it here.'
+                : 'Switch to another tab to see your other content.'}
             </p>
           </div>
         ) : (
@@ -506,10 +545,10 @@ function ContentSection({ posts }) {
 
 // ─── Toast hook ───────────────────────────────────────────────────────────────
 function useToast() {
-  const [toast, setToast] = useState({ visible: false, message: '' });
+  const [toast, setToast] = useState({ visible: false, message: '', isError: false });
 
-  const showToast = useCallback((message) => {
-    setToast({ visible: true, message });
+  const showToast = useCallback((message, isError = false) => {
+    setToast({ visible: true, message, isError });
     setTimeout(() => setToast((prev) => ({ ...prev, visible: false })), 2800);
   }, []);
 
@@ -517,21 +556,23 @@ function useToast() {
 }
 
 // ─── Profile Hero ─────────────────────────────────────────────────────────────
-function ProfileHero({ profile, user, identities, showToast }) {
+function ProfileHero({ profile, user, identities, showToast, onOpenSettings }) {
   const displayName = profile?.fullName || user?.name || 'Your Name';
-  const username = profile?.username || (user?.email || '').split('@')[0] || 'username';
+  const username =
+    profile?.username || (user?.email || '').split('@')[0] || 'username';
   const bio = profile?.bio || '';
   const avatarSrc = profile?.avatarUrl || '';
   const countryCode = profile?.countryCode || '';
 
-  // Map country code to a readable name (simple lookup)
   const countryName = countryCode
-    ? new Intl.DisplayNames(['en'], { type: 'region' }).of(countryCode.toUpperCase()) || countryCode
+    ? new Intl.DisplayNames(['en'], { type: 'region' }).of(
+        countryCode.toUpperCase()
+      ) || countryCode
     : '';
 
-  // Primary identity (role)
   const primaryIdentity = identities.find((i) => i.isPrimary) || identities[0];
-  const roleName = primaryIdentity?.identityType?.name || primaryIdentity?.name || '';
+  const roleName =
+    primaryIdentity?.identityType?.name || primaryIdentity?.name || '';
 
   const handleShare = async () => {
     const url = `${window.location.origin}/#/profile`;
@@ -549,32 +590,32 @@ function ProfileHero({ profile, user, identities, showToast }) {
 
   return (
     <div className="pp-hero-card">
-      {/* Banner */}
       <div className="pp-hero-banner" aria-hidden="true">
         <div className="pp-hero-banner-pattern" />
       </div>
 
-      {/* Body */}
       <div className="pp-hero-body">
-        {/* Avatar row */}
         <div className="pp-hero-avatar-row">
           {avatarSrc ? (
             <img
               src={avatarSrc}
               alt={displayName}
               className="pp-hero-avatar"
-              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
             />
           ) : (
-            <div
-              className="pp-hero-avatar-fallback"
-              aria-label={displayName}
-            >
-              {displayName.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()}
+            <div className="pp-hero-avatar-fallback" aria-label={displayName}>
+              {displayName
+                .split(' ')
+                .map((w) => w[0])
+                .join('')
+                .slice(0, 2)
+                .toUpperCase()}
             </div>
           )}
 
-          {/* Actions */}
           <div className="pp-hero-action-row">
             <button
               className="pp-icon-btn"
@@ -586,7 +627,7 @@ function ProfileHero({ profile, user, identities, showToast }) {
             </button>
             <button
               className="pp-icon-btn"
-              onClick={() => navigate('/onboarding')}
+              onClick={onOpenSettings}
               aria-label="Profile settings"
               title="Settings"
             >
@@ -603,11 +644,9 @@ function ProfileHero({ profile, user, identities, showToast }) {
           </div>
         </div>
 
-        {/* Name */}
         <h1 className="pp-hero-name">{displayName}</h1>
         <p className="pp-hero-username">@{username}</p>
 
-        {/* Role + country */}
         {(roleName || countryName) && (
           <div className="pp-hero-role-row">
             {roleName && (
@@ -625,24 +664,487 @@ function ProfileHero({ profile, user, identities, showToast }) {
           </div>
         )}
 
-        {/* Bio */}
-        {bio && (
-          <p className="pp-hero-bio">{bio}</p>
-        )}
+        {bio && <p className="pp-hero-bio">{bio}</p>}
 
-        {/* Stats */}
+        {/* Stats row — "Followers" → "Connections" */}
         <div className="pp-stats-row" role="list" aria-label="Profile statistics">
           <div className="pp-stat" role="listitem">
-            <span className="pp-stat-value">—</span>
+            <span className="pp-stat-value">0</span>
             <span className="pp-stat-label">Posts</span>
           </div>
           <div className="pp-stat" role="listitem">
-            <span className="pp-stat-value">—</span>
-            <span className="pp-stat-label">Followers</span>
+            <span className="pp-stat-value">0</span>
+            <span className="pp-stat-label">Connections</span>
           </div>
-          <div className="pp-stat" role="listitem">
-            <span className="pp-stat-value">—</span>
-            <span className="pp-stat-label">Following</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Settings Modal ─────────────────────────────────────────────────────────
+/**
+ * Four options: About Us (w/ submenu) | Help | Log Out | Delete Account.
+ * Reuses existing authService.logout() and navigate() helpers.
+ * No fake API calls — Delete Account shows an informative message.
+ */
+function SettingsModal({ onClose }) {
+  // 'main' | 'about' | 'help' | 'deleteConfirm'
+  const [view, setView] = useState('main');
+  const overlayRef = useRef(null);
+
+  // Close on Escape
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  // Lock body scroll
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  const handleLogout = () => {
+    authService.logout();
+    navigate('/login');
+  };
+
+  // ── Shared back arrow ──────────────────────────────────────────────────────
+  const BackBtn = ({ onClick }) => (
+    <button
+      type="button"
+      className="pp-settings-back-btn"
+      onClick={onClick}
+      aria-label="Back to settings menu"
+    >
+      <ChevronLeft size={16} aria-hidden="true" />
+      Back
+    </button>
+  );
+
+  // ── Sub-views ──────────────────────────────────────────────────────────────
+  const AboutUsView = () => (
+    <>
+      <BackBtn onClick={() => setView('main')} />
+      <h3 className="pp-settings-sub-title">About Us</h3>
+      <div className="pp-settings-menu">
+        <button
+          type="button"
+          className="pp-settings-item"
+          onClick={() => {
+            // Open in new tab if a real URL exists; otherwise show placeholder
+            const url = window.EVOLV_TERMS_URL || null;
+            if (url) { window.open(url, '_blank', 'noopener'); }
+            else { setView('termsPlaceholder'); }
+          }}
+        >
+          <span className="pp-settings-item-icon">
+            <FileText size={18} aria-hidden="true" />
+          </span>
+          <span className="pp-settings-item-label">Terms of Use</span>
+          <ChevronRight size={14} className="pp-settings-item-arrow" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          className="pp-settings-item"
+          onClick={() => {
+            const url = window.EVOLV_PRIVACY_URL || null;
+            if (url) { window.open(url, '_blank', 'noopener'); }
+            else { setView('privacyPlaceholder'); }
+          }}
+        >
+          <span className="pp-settings-item-icon">
+            <Shield size={18} aria-hidden="true" />
+          </span>
+          <span className="pp-settings-item-label">Privacy Policy</span>
+          <ChevronRight size={14} className="pp-settings-item-arrow" aria-hidden="true" />
+        </button>
+      </div>
+    </>
+  );
+
+  const PlaceholderView = ({ title, icon, message, onBack }) => (
+    <>
+      <BackBtn onClick={onBack} />
+      <div className="pp-settings-placeholder">
+        <span className="pp-settings-placeholder-icon">{icon}</span>
+        <p className="pp-settings-placeholder-title">{title}</p>
+        <p className="pp-settings-placeholder-msg">{message}</p>
+      </div>
+    </>
+  );
+
+  const DeleteConfirmView = () => (
+    <>
+      <BackBtn onClick={() => setView('main')} />
+      <div className="pp-settings-delete-confirm">
+        <span className="pp-settings-delete-icon">⚠️</span>
+        <p className="pp-settings-delete-title">Delete Account</p>
+        <p className="pp-settings-delete-msg">
+          Account deletion is a <strong>permanent and irreversible</strong> action.
+          All your posts, skills, and progress will be lost.
+        </p>
+        <div className="pp-settings-delete-notice">
+          <AlertCircle size={14} aria-hidden="true" />
+          <span>
+            This feature requires backend support and is not yet available.
+            Please contact <strong>support@evolv.app</strong> to request account deletion.
+          </span>
+        </div>
+        <button
+          type="button"
+          className="pp-settings-delete-dismiss-btn"
+          onClick={() => setView('main')}
+        >
+          Got it
+        </button>
+      </div>
+    </>
+  );
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  const renderView = () => {
+    switch (view) {
+      case 'about':   return <AboutUsView />;
+      case 'help':    return (
+        <PlaceholderView
+          title="Help &amp; Support"
+          icon="🛟"
+          message="Help documentation is coming soon. For urgent issues, email support@evolv.app."
+          onBack={() => setView('main')}
+        />
+      );
+      case 'termsPlaceholder': return (
+        <PlaceholderView
+          title="Terms of Use"
+          icon="📄"
+          message="Our Terms of Use page is being prepared. Please check back soon."
+          onBack={() => setView('about')}
+        />
+      );
+      case 'privacyPlaceholder': return (
+        <PlaceholderView
+          title="Privacy Policy"
+          icon="🔒"
+          message="Our Privacy Policy page is being prepared. Please check back soon."
+          onBack={() => setView('about')}
+        />
+      );
+      case 'deleteConfirm': return <DeleteConfirmView />;
+      default: return null; // main view rendered below
+    }
+  };
+
+  const isMain = view === 'main';
+
+  return (
+    <div
+      className="pp-modal-overlay"
+      ref={overlayRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Settings"
+      onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
+    >
+      <div className="pp-modal pp-settings-modal">
+        {/* Header */}
+        <div className="pp-modal-header">
+          <div>
+            <h2 className="pp-modal-title">Settings</h2>
+          </div>
+          <button
+            className="pp-modal-close-btn"
+            onClick={onClose}
+            aria-label="Close settings"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="pp-settings-body">
+          {isMain ? (
+            <nav className="pp-settings-menu" aria-label="Settings options">
+              {/* About Us */}
+              <button
+                type="button"
+                className="pp-settings-item"
+                onClick={() => setView('about')}
+              >
+                <span className="pp-settings-item-icon">
+                  <Info size={18} aria-hidden="true" />
+                </span>
+                <span className="pp-settings-item-label">About Us</span>
+                <ChevronRight size={14} className="pp-settings-item-arrow" aria-hidden="true" />
+              </button>
+
+              {/* Help */}
+              <button
+                type="button"
+                className="pp-settings-item"
+                onClick={() => setView('help')}
+              >
+                <span className="pp-settings-item-icon">
+                  <HelpCircle size={18} aria-hidden="true" />
+                </span>
+                <span className="pp-settings-item-label">Help</span>
+                <ChevronRight size={14} className="pp-settings-item-arrow" aria-hidden="true" />
+              </button>
+
+              <div className="pp-settings-divider" role="separator" />
+
+              {/* Log Out */}
+              <button
+                type="button"
+                className="pp-settings-item"
+                onClick={handleLogout}
+              >
+                <span className="pp-settings-item-icon pp-settings-item-icon--danger">
+                  <LogOut size={18} aria-hidden="true" />
+                </span>
+                <span className="pp-settings-item-label pp-settings-item-label--danger">Log Out</span>
+              </button>
+
+              {/* Delete Account */}
+              <button
+                type="button"
+                className="pp-settings-item"
+                onClick={() => setView('deleteConfirm')}
+              >
+                <span className="pp-settings-item-icon pp-settings-item-icon--danger">
+                  <Trash2 size={18} aria-hidden="true" />
+                </span>
+                <span className="pp-settings-item-label pp-settings-item-label--danger">Delete Account</span>
+              </button>
+            </nav>
+          ) : (
+            renderView()
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Edit Skills Modal ────────────────────────────────────────────────────────
+/**
+ * Shows all CURIOSITY_DOMAINS from onboardingData.js.
+ * Pre-selects the user's existing skills.
+ * Saves via POST /api/skills/user-skills with actual backend IDs.
+ */
+function EditSkillsModal({ skills, onClose, onSaved }) {
+  const allCurrentSkillNames = new Set([
+    ...skills.canDo,
+    ...skills.learning,
+    ...skills.curiosity,
+  ]);
+
+  const [selectedNames, setSelectedNames] = useState(() => new Set(allCurrentSkillNames));
+  const [expandedDomains, setExpandedDomains] = useState(
+    () => new Set(['technology', 'design'])
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const overlayRef = useRef(null);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  const toggleDomain = (domainId) => {
+    setExpandedDomains((prev) => {
+      const next = new Set(prev);
+      next.has(domainId) ? next.delete(domainId) : next.add(domainId);
+      return next;
+    });
+  };
+
+  const toggleSkill = (skillName) => {
+    setSelectedNames((prev) => {
+      const next = new Set(prev);
+      next.has(skillName) ? next.delete(skillName) : next.add(skillName);
+      return next;
+    });
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError('');
+    setSuccess(false);
+
+    try {
+      // 1. Fetch backend name→ID map
+      const nameToId = await profileService.fetchSkillNameToIdMap();
+
+      // 2. Build ID lists by relationship type
+      //    Preserve CAN_DO for skills already in canDo; default others to LEARNING
+      const canDoIds = [];
+      const learningIds = [];
+
+      for (const name of selectedNames) {
+        const id = nameToId[name.toLowerCase().trim()];
+        if (id == null) continue; // not in backend catalogue → skip
+        if (skills.canDo.includes(name)) {
+          canDoIds.push(id);
+        } else {
+          learningIds.push(id);
+        }
+      }
+
+      // 3. POST each non-empty relationship type
+      const saves = [];
+      if (canDoIds.length > 0) {
+        saves.push(profileService.addUserSkill(canDoIds, 'CAN_DO'));
+      }
+      if (learningIds.length > 0) {
+        saves.push(profileService.addUserSkill(learningIds, 'LEARNING'));
+      }
+      if (saves.length > 0) {
+        await Promise.all(saves);
+      }
+
+      setSuccess(true);
+      await onSaved(); // refresh parent
+      setTimeout(() => onClose(), 800);
+    } catch (err) {
+      console.error('[EditSkillsModal] Save failed:', err);
+      setError(err.message || 'Failed to save skills. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const uniqueSelected = selectedNames.size;
+
+  return (
+    <div
+      className="pp-modal-overlay"
+      ref={overlayRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Edit your skills"
+      onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
+    >
+      <div className="pp-modal">
+        {/* Header */}
+        <div className="pp-modal-header">
+          <div>
+            <h2 className="pp-modal-title">Edit Skills &amp; Interests</h2>
+            <p className="pp-modal-subtitle">
+              {uniqueSelected} skill{uniqueSelected !== 1 ? 's' : ''} selected
+            </p>
+          </div>
+          <button
+            className="pp-modal-close-btn"
+            onClick={onClose}
+            aria-label="Close skills editor"
+            disabled={saving}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="pp-modal-body">
+          {CURIOSITY_DOMAINS.map((domain) => {
+            const isExpanded = expandedDomains.has(domain.id);
+            const uniqueSkills = [...new Set(domain.skills)];
+            const selectedInDomain = uniqueSkills.filter((s) =>
+              selectedNames.has(s)
+            ).length;
+
+            return (
+              <div key={domain.id} className="pp-modal-domain">
+                <button
+                  type="button"
+                  className="pp-modal-domain-header"
+                  onClick={() => toggleDomain(domain.id)}
+                  aria-expanded={isExpanded}
+                >
+                  <span className="pp-modal-domain-label">{domain.label}</span>
+                  {selectedInDomain > 0 && (
+                    <span className="pp-modal-domain-count">
+                      {selectedInDomain}
+                    </span>
+                  )}
+                  <span className={`pp-modal-chevron ${isExpanded ? 'open' : ''}`}>
+                    ▾
+                  </span>
+                </button>
+
+                {isExpanded && (
+                  <div className="pp-modal-skills-grid">
+                    {uniqueSkills.map((skillName) => {
+                      const isSelected = selectedNames.has(skillName);
+                      return (
+                        <button
+                          key={skillName}
+                          type="button"
+                          className={`pp-modal-skill-chip ${isSelected ? 'selected' : ''}`}
+                          onClick={() => toggleSkill(skillName)}
+                          aria-pressed={isSelected}
+                        >
+                          {isSelected && <Check size={11} aria-hidden="true" />}
+                          {skillName}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer */}
+        <div className="pp-modal-footer">
+          {error && (
+            <div className="pp-modal-error" role="alert">
+              <AlertCircle size={14} aria-hidden="true" />
+              <span>{error}</span>
+            </div>
+          )}
+          {success && (
+            <div className="pp-modal-success" role="status">
+              <Check size={14} aria-hidden="true" />
+              <span>Skills saved successfully!</span>
+            </div>
+          )}
+          <div className="pp-modal-footer-actions">
+            <button
+              type="button"
+              className="pp-modal-cancel-btn"
+              onClick={onClose}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="pp-modal-save-btn"
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? (
+                <>
+                  <Loader size={14} className="pp-spin" aria-hidden="true" />
+                  Saving…
+                </>
+              ) : (
+                'Save Skills'
+              )}
+            </button>
           </div>
         </div>
       </div>
@@ -651,7 +1153,7 @@ function ProfileHero({ profile, user, identities, showToast }) {
 }
 
 // ─── Skills Card ──────────────────────────────────────────────────────────────
-function SkillsCard({ skills }) {
+function SkillsCard({ skills, onEditSkills }) {
   const hasAnything =
     skills.canDo.length > 0 ||
     skills.learning.length > 0 ||
@@ -660,10 +1162,11 @@ function SkillsCard({ skills }) {
   return (
     <section className="pp-skills-card" aria-label="My skills and interests">
       <div className="pp-card-header">
-        <h2 className="pp-card-title">Skills & Interests</h2>
+        <h2 className="pp-card-title">Skills &amp; Interests</h2>
+        {/* Edit button → opens popup, does NOT navigate away */}
         <button
           className="pp-card-edit-btn"
-          onClick={() => navigate('/onboarding')}
+          onClick={onEditSkills}
           aria-label="Edit skills and interests"
         >
           Edit
@@ -671,11 +1174,19 @@ function SkillsCard({ skills }) {
       </div>
 
       {!hasAnything ? (
-        <p className="pp-skill-empty">
+        <p className="pp-skill-empty" role="status">
           No skills added yet.{' '}
           <button
-            style={{ background: 'none', border: 'none', color: '#AA45F5', cursor: 'pointer', fontWeight: 600, padding: 0, fontSize: 'inherit' }}
-            onClick={() => navigate('/onboarding')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#AA45F5',
+              cursor: 'pointer',
+              fontWeight: 600,
+              padding: 0,
+              fontSize: 'inherit',
+            }}
+            onClick={onEditSkills}
           >
             Add your skills →
           </button>
@@ -685,12 +1196,18 @@ function SkillsCard({ skills }) {
           {skills.canDo.length > 0 && (
             <div className="pp-skill-group">
               <p className="pp-skill-group-label">
-                <CheckCircle size={11} style={{ display: 'inline', marginRight: 4 }} aria-hidden="true" />
+                <CheckCircle
+                  size={11}
+                  style={{ display: 'inline', marginRight: 4 }}
+                  aria-hidden="true"
+                />
                 Skills I Can Do
               </p>
               <div className="pp-skill-tags">
-                {skills.canDo.map((s) => (
-                  <span key={s} className="pp-skill-tag can-do">{s}</span>
+                {[...new Set(skills.canDo)].map((s) => (
+                  <span key={s} className="pp-skill-tag can-do">
+                    {s}
+                  </span>
                 ))}
               </div>
             </div>
@@ -699,12 +1216,18 @@ function SkillsCard({ skills }) {
           {skills.learning.length > 0 && (
             <div className="pp-skill-group">
               <p className="pp-skill-group-label">
-                <Sparkles size={11} style={{ display: 'inline', marginRight: 4 }} aria-hidden="true" />
+                <Sparkles
+                  size={11}
+                  style={{ display: 'inline', marginRight: 4 }}
+                  aria-hidden="true"
+                />
                 Currently Learning
               </p>
               <div className="pp-skill-tags">
-                {skills.learning.map((s) => (
-                  <span key={s} className="pp-skill-tag learning">{s}</span>
+                {[...new Set(skills.learning)].map((s) => (
+                  <span key={s} className="pp-skill-tag learning">
+                    {s}
+                  </span>
                 ))}
               </div>
             </div>
@@ -713,12 +1236,18 @@ function SkillsCard({ skills }) {
           {skills.curiosity.length > 0 && (
             <div className="pp-skill-group">
               <p className="pp-skill-group-label">
-                <Target size={11} style={{ display: 'inline', marginRight: 4 }} aria-hidden="true" />
+                <Target
+                  size={11}
+                  style={{ display: 'inline', marginRight: 4 }}
+                  aria-hidden="true"
+                />
                 Areas of Interest
               </p>
               <div className="pp-skill-tags">
-                {skills.curiosity.map((s) => (
-                  <span key={s} className="pp-skill-tag curiosity">{s}</span>
+                {[...new Set(skills.curiosity)].map((s) => (
+                  <span key={s} className="pp-skill-tag curiosity">
+                    {s}
+                  </span>
                 ))}
               </div>
             </div>
@@ -733,181 +1262,175 @@ function SkillsCard({ skills }) {
 export default function ProfilePage() {
   const authUser = authService.getCurrentUser();
 
-  // ── State ────────────────────────────────────────────────────────────────
-  const [isSidebarOpen, setIsSidebarOpen]   = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
-  const [profileData, setProfileData]       = useState(null);
-  const [skills, setSkills]                 = useState({ canDo: [], learning: [], curiosity: [] });
-  const [identities, setIdentities]         = useState([]);
-  const [posts, setPosts]                   = useState([]);
-  const [postsLoading, setPostsLoading]     = useState(true);
+  const [profileData, setProfileData] = useState(null);
+  const [skills, setSkills] = useState({ canDo: [], learning: [], curiosity: [] });
+  const [identities, setIdentities] = useState([]);
+  const [posts, setPosts] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [showSkillsModal, setShowSkillsModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   const { toast, showToast } = useToast();
 
-  // ── Auth guard ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!authUser) {
-      navigate('/login');
+  // ── Auth guard ────────────────────────────────────────────────────────────
+ // ── Load profile (GET /api/profile) ──
+useEffect(() => {
+  let cancelled = false;
+
+  const loadProfile = async () => {
+    try {
+      setProfileLoading(true);
+
+      const p = await getProfile.getProfile();
+
+      if (cancelled) return;
+
+      setProfileData({
+        username: p?.username ?? '',
+        fullName: p?.fullName ?? p?.name ?? authUser?.name ?? '',
+        avatarUrl: p?.avatarUrl ?? p?.avatar ?? '',
+        bio: p?.bio ?? p?.bioText ?? '',
+        countryCode: p?.countryCode ?? p?.country ?? '',
+        ageRange: p?.ageRange ?? '',
+      });
+    } catch (err) {
+      if (cancelled) return;
+
+      console.error('[ProfilePage] Failed to load profile:', err);
+
+      setProfileData({
+        username: (authUser?.email || '').split('@')[0],
+        fullName: authUser?.name || '',
+        avatarUrl: '',
+        bio: '',
+        countryCode: '',
+        ageRange: '',
+      });
+    } finally {
+      if (!cancelled) {
+        setProfileLoading(false);
+      }
     }
-  }, [authUser]);
+  };
 
-  if (!authUser) return null;
-
-  // ── Fetch complete profile ───────────────────────────────────────────────
- 
-  // Fetch profile using GET /api/profile
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadProfile = async () => {
-      try {
-        setProfileLoading(true);
-
-        const p = await getProfile.getProfile();
-
-        if (cancelled) return;
-
-        setProfileData({
-          username: p?.username ?? '',
-          fullName: p?.fullName ?? p?.name ?? authUser?.name ?? '',
-          avatarUrl: p?.avatarUrl ?? p?.avatar ?? '',
-          bio: p?.bio ?? p?.bioText ?? '',
-          countryCode: p?.countryCode ?? p?.country ?? '',
-          ageRange: p?.ageRange ?? '',
-        });
-      } catch (err) {
-        if (cancelled) return;
-
-        console.error('[ProfilePage] Failed to load profile:', err);
-
-        setProfileData({
-          username: (authUser?.email || '').split('@')[0],
-          fullName: authUser?.name || '',
-          avatarUrl: '',
-          bio: '',
-          countryCode: '',
-          ageRange: '',
-        });
-      } finally {
-        if (!cancelled) setProfileLoading(false);
-      }
-    };
-
+  if (authUser) {
     loadProfile();
+  } else {
+    setProfileLoading(false);
+  }
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  return () => {
+    cancelled = true;
+  };
+}, []);
 
-
-  // ── Fetch skills ────────────────────────────────────────────────────────
-  useEffect(() => {
+  // ── Load skills ────────────────────────────────────────────────────────────
+  const loadSkills = useCallback(async () => {
     let cancelled = false;
+    try {
+      const [userSkillsRes, curiosityRes] = await Promise.allSettled([
+        profileService.getUserSkills(),
+        profileService.getUserCuriosity(),
+      ]);
 
-    const loadSkills = async () => {
-      try {
-        const [userSkillsRes, curiosityRes] = await Promise.allSettled([
-          profileService.getUserSkills(),
-          profileService.getUserCuriosity(),
-        ]);
+      if (cancelled) return;
 
-        if (cancelled) return;
+      const canDo = [];
+      const learning = [];
 
-        // User skills: CAN_DO / LEARNING / WANT_TO_IMPROVE
-        const canDo    = [];
-        const learning = [];
+      if (userSkillsRes.status === 'fulfilled') {
+        const records = Array.isArray(userSkillsRes.value)
+          ? userSkillsRes.value
+          : Array.isArray(userSkillsRes.value?.data)
+          ? userSkillsRes.value.data
+          : [];
 
-        if (userSkillsRes.status === 'fulfilled') {
-          const records = Array.isArray(userSkillsRes.value)
-            ? userSkillsRes.value
-            : Array.isArray(userSkillsRes.value?.data)
-            ? userSkillsRes.value.data
+        for (const rec of records) {
+          const names = Array.isArray(rec.skills)
+            ? rec.skills.map((s) => s.name || s).filter(Boolean)
             : [];
-
-          for (const rec of records) {
-            const names = Array.isArray(rec.skills)
-              ? rec.skills.map((s) => s.name || s).filter(Boolean)
-              : [];
-            if (rec.relationshipType === 'CAN_DO')          canDo.push(...names);
-            else if (rec.relationshipType === 'LEARNING')    learning.push(...names);
-            else if (rec.relationshipType === 'WANT_TO_IMPROVE') learning.push(...names);
-          }
+          if (rec.relationshipType === 'CAN_DO') canDo.push(...names);
+          else if (rec.relationshipType === 'LEARNING') learning.push(...names);
+          else if (rec.relationshipType === 'WANT_TO_IMPROVE') learning.push(...names);
         }
-
-        // Curiosity skills
-        const curiosity = [];
-
-        if (curiosityRes.status === 'fulfilled') {
-          const raw = curiosityRes.value;
-          const records = Array.isArray(raw)
-            ? raw
-            : Array.isArray(raw?.data)
-            ? raw.data
-            : [];
-
-          for (const rec of records) {
-            const names = Array.isArray(rec.skills)
-              ? rec.skills.map((s) => s.name || s).filter(Boolean)
-              : Array.isArray(rec.skillNames)
-              ? rec.skillNames
-              : rec.skill?.name
-              ? [rec.skill.name]
-              : [];
-            curiosity.push(...names);
-          }
-        }
-
-        setSkills({ canDo, learning, curiosity: [...new Set(curiosity)] });
-      } catch (err) {
-        if (cancelled) return;
-        console.warn('[ProfilePage] Could not load skills:', err.message);
       }
-    };
 
-    loadSkills();
+      const curiosity = [];
+      if (curiosityRes.status === 'fulfilled') {
+        const raw = curiosityRes.value;
+        const records = Array.isArray(raw)
+          ? raw
+          : Array.isArray(raw?.data)
+          ? raw.data
+          : [];
+        for (const rec of records) {
+          const names = Array.isArray(rec.skills)
+            ? rec.skills.map((s) => s.name || s).filter(Boolean)
+            : Array.isArray(rec.skillNames)
+            ? rec.skillNames
+            : rec.skill?.name
+            ? [rec.skill.name]
+            : [];
+          curiosity.push(...names);
+        }
+      }
+
+      setSkills({
+        canDo:    [...new Set(canDo)],
+        learning: [...new Set(learning)],
+        curiosity: [...new Set(curiosity)],
+      });
+    } catch (err) {
+      if (cancelled) return;
+      console.warn('[ProfilePage] Could not load skills:', err.message);
+    }
     return () => { cancelled = true; };
   }, []);
 
-  // ── Fetch identities ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const cancel = loadSkills();
+    return () => { if (typeof cancel === 'function') cancel(); };
+  }, [loadSkills]);
+
+  // ── Load identities ────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
-
-    profileService.getUserIdentities()
+    profileService
+      .getUserIdentities()
       .then((res) => {
         if (cancelled) return;
-        const list = Array.isArray(res) ? res : Array.isArray(res?.data) ? res.data : [];
+        const list = Array.isArray(res)
+          ? res
+          : Array.isArray(res?.data)
+          ? res.data
+          : [];
         setIdentities(list);
       })
       .catch((err) => {
         if (cancelled) return;
         console.warn('[ProfilePage] Could not load identities:', err.message);
       });
-
     return () => { cancelled = true; };
   }, []);
 
-  // ── Fetch posts ──────────────────────────────────────────────────────────
-  // GET /api/posts currently returns 404. homePostService.getPosts() returns []
-  // on failure. We filter to only show posts by the current user (by userId/authorId).
+  // ── Load posts ─────────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
-
-    homePostService.getPosts()
+    homePostService
+      .getPosts()
       .then((allPosts) => {
         if (cancelled) return;
-
-        // Filter to only the authenticated user's posts when IDs are available
         const userId = authUser?.id ? String(authUser.id) : null;
-
         const myPosts = userId
           ? allPosts.filter((p) => {
-              const authorId =
-                String(p.creator?.userId ?? p.creator?.id ?? p.user?.id ?? p.userId ?? '');
+              const authorId = String(
+                p.creator?.userId ?? p.creator?.id ?? p.user?.id ?? p.userId ?? ''
+              );
               return authorId === userId;
             })
-          : []; // If we can't verify authorship, show nothing — never show other users' posts
-
+          : [];
         setPosts(myPosts);
       })
       .catch(() => {
@@ -918,14 +1441,21 @@ export default function ProfilePage() {
         if (cancelled) return;
         setPostsLoading(false);
       });
-
     return () => { cancelled = true; };
   }, []);
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  // ── Skills modal ────────────────────────────────────────────────────────────
+  const handleOpenSkillsModal  = useCallback(() => setShowSkillsModal(true), []);
+  const handleCloseSkillsModal = useCallback(() => setShowSkillsModal(false), []);
+
+  const handleSkillsSaved = useCallback(async () => {
+    await loadSkills();
+    showToast('Skills updated!');
+  }, [loadSkills, showToast]);
+if (!authUser) return null;
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="pp-layout" aria-label="EVOLV profile page">
-      {/* Left sidebar */}
       <ProfileSidebar
         user={authUser}
         profile={profileData}
@@ -933,7 +1463,6 @@ export default function ProfilePage() {
         setIsSidebarOpen={setIsSidebarOpen}
       />
 
-      {/* Main column */}
       <main className="pp-main" aria-label="Profile content">
         {/* Topbar */}
         <div className="pp-topbar">
@@ -951,9 +1480,23 @@ export default function ProfilePage() {
           </div>
 
           <div className="pp-topbar-actions">
+            {/* Avatar button — consistent with HomePage header */}
+            <button
+              type="button"
+              className="pp-topbar-avatar-btn"
+              onClick={() => navigate('/profile')}
+              aria-label="My profile"
+              title="My profile"
+            >
+              <Avatar
+                src={profileData?.avatarUrl || authUser?.avatar || ''}
+                name={profileData?.fullName || authUser?.name || 'You'}
+                size={32}
+              />
+            </button>
             <button
               className="pp-icon-btn"
-              onClick={() => navigate('/onboarding')}
+              onClick={() => setShowSettingsModal(true)}
               aria-label="Profile settings"
               title="Settings"
             >
@@ -962,42 +1505,76 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Page content */}
+        {/* Content */}
         <div className="pp-content">
           {profileLoading ? (
-            /* Skeleton loading state */
             <div>
               <div className="pp-hero-card">
-                <div className="pp-skeleton pp-skeleton-hero" style={{ borderRadius: '20px 20px 0 0' }} />
+                <div
+                  className="pp-skeleton pp-skeleton-hero"
+                  style={{ borderRadius: '20px 20px 0 0' }}
+                />
                 <div style={{ padding: '0 28px 24px' }}>
-                  <div style={{ marginTop: -44, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                    <div className="pp-skeleton" style={{ width: 90, height: 90, borderRadius: '50%', border: '4px solid #fff' }} />
+                  <div
+                    style={{
+                      marginTop: -44,
+                      marginBottom: 16,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-end',
+                    }}
+                  >
+                    <div
+                      className="pp-skeleton"
+                      style={{
+                        width: 90,
+                        height: 90,
+                        borderRadius: '50%',
+                        border: '4px solid #fff',
+                      }}
+                    />
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <div className="pp-skeleton" style={{ width: 80, height: 36, borderRadius: 10 }} />
-                      <div className="pp-skeleton" style={{ width: 36, height: 36, borderRadius: 10 }} />
+                      <div
+                        className="pp-skeleton"
+                        style={{ width: 80, height: 36, borderRadius: 10 }}
+                      />
+                      <div
+                        className="pp-skeleton"
+                        style={{ width: 36, height: 36, borderRadius: 10 }}
+                      />
                     </div>
                   </div>
-                  <div className="pp-skeleton" style={{ width: 200, height: 24, marginBottom: 8 }} />
-                  <div className="pp-skeleton" style={{ width: 120, height: 16, marginBottom: 12 }} />
-                  <div className="pp-skeleton" style={{ width: '80%', height: 14, marginBottom: 6 }} />
-                  <div className="pp-skeleton" style={{ width: '60%', height: 14 }} />
+                  <div
+                    className="pp-skeleton"
+                    style={{ width: 200, height: 24, marginBottom: 8 }}
+                  />
+                  <div
+                    className="pp-skeleton"
+                    style={{ width: 120, height: 16, marginBottom: 12 }}
+                  />
+                  <div
+                    className="pp-skeleton"
+                    style={{ width: '80%', height: 14, marginBottom: 6 }}
+                  />
+                  <div
+                    className="pp-skeleton"
+                    style={{ width: '60%', height: 14 }}
+                  />
                 </div>
               </div>
             </div>
           ) : (
             <>
-              {/* Hero / Profile header */}
               <ProfileHero
                 profile={profileData}
                 user={authUser}
                 identities={identities}
                 showToast={showToast}
+                onOpenSettings={() => setShowSettingsModal(true)}
               />
 
-              {/* Skills + interests */}
-              <SkillsCard skills={skills} />
+              <SkillsCard skills={skills} onEditSkills={handleOpenSkillsModal} />
 
-              {/* My content */}
               {postsLoading ? (
                 <div className="pp-content-card" aria-busy="true">
                   <div style={{ padding: 20, display: 'flex', gap: 12 }}>
@@ -1018,7 +1595,6 @@ export default function ProfilePage() {
         </div>
       </main>
 
-      {/* Right panel */}
       {!profileLoading && (
         <ProfileRightPanel
           profile={profileData}
@@ -1028,9 +1604,20 @@ export default function ProfilePage() {
         />
       )}
 
-      {/* Toast */}
+      {showSkillsModal && (
+        <EditSkillsModal
+          skills={skills}
+          onClose={handleCloseSkillsModal}
+          onSaved={handleSkillsSaved}
+        />
+      )}
+
+      {showSettingsModal && (
+        <SettingsModal onClose={() => setShowSettingsModal(false)} />
+      )}
+
       <div
-        className={`pp-toast ${toast.visible ? 'show' : ''}`}
+        className={`pp-toast ${toast.visible ? 'show' : ''}${toast.isError ? ' error' : ''}`}
         role="status"
         aria-live="polite"
         aria-atomic="true"
