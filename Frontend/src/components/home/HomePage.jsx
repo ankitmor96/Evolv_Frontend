@@ -29,6 +29,8 @@ import {
   Sparkles,
   ArrowRight,
   CheckCircle2,
+  Menu,
+  LayoutDashboard,
 } from 'lucide-react';
 import { authService } from '../../services/authService.js';
 import { homePostService } from "../../services/homePostService.js";
@@ -649,11 +651,22 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
 // ─────────────────────────────────────────────────────────────────────────────
 // HEADER (top of feed)
 // ─────────────────────────────────────────────────────────────────────────────
-function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar }) {
+function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRightSidebar }) {
   const [notifOpen, setNotifOpen] = useState(false);
 
   return (
     <header className="hp-feed-header" style={{ marginTop: "10px" }}>
+      {/* ── Hamburger: visible only on mobile (CSS shows/hides via .hp-mobile-menu-btn) ── */}
+      <button
+        type="button"
+        className="hp-mobile-menu-btn"
+        onClick={onOpenSidebar}
+        aria-label="Open navigation menu"
+        aria-haspopup="dialog"
+      >
+        <Menu size={22} aria-hidden="true" />
+      </button>
+
       <div className="hp-feed-header-right" style={{ display: "flex", justifyContent: "end", alignItems: "center", gap: "8px" }}>
         {/* Notification bell */}
         <button
@@ -666,8 +679,23 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar }) {
         </button>
         &nbsp;
         {/* Messages */}
-        <button className="hp-icon-btn" aria-label="Messages" style={{ marginRight: "10px" }}>
+        <button className="hp-icon-btn"
+          aria-label="Messages"
+          onClick={() => {
+            window.location.hash = '/messages';
+            window.dispatchEvent(new Event('navigated'));
+          }}
+          style={{ marginRight: "10px" }}>
           <MessageCircle size={20} aria-hidden="true" />
+        </button>
+        {/* Right-sidebar toggle: only on mobile */}
+        <button
+          type="button"
+          className="hp-mobile-filter-btn"
+          onClick={onOpenRightSidebar}
+          aria-label="Open learning dashboard"
+        >
+          <LayoutDashboard size={20} aria-hidden="true" />
         </button>
         {/* Profile avatar — navigates to #/profile on click */}
         <button
@@ -879,7 +907,7 @@ function FeedPost({ post, onLike, onSave, onFollow }) {
               aria-hidden="true"
             />
 
-            <span>Appreciate</span>
+            
             <span>{formatCount(post.appreciations ?? 0)}</span>
           </button>
 
@@ -907,7 +935,7 @@ function FeedPost({ post, onLike, onSave, onFollow }) {
               size={20}
               aria-hidden="true"
             />
-            <span>Helpful</span>
+            
             <span>{formatCount(post.helpfulCount ?? 0)}</span>
           </button>
 
@@ -934,7 +962,7 @@ function FeedPost({ post, onLike, onSave, onFollow }) {
               size={20}
               aria-hidden="true"
             />
-            <span>Learned</span>
+            
             <span>{formatCount(post.learnedCount ?? 0)}</span>
           </button>
 
@@ -959,7 +987,7 @@ function FeedPost({ post, onLike, onSave, onFollow }) {
               size={20}
               aria-hidden="true"
             />
-            <span>Discuss</span>
+           
             <span>{formatCount(post.comments ?? 0)}</span>
           </button>
 
@@ -1033,7 +1061,7 @@ const RECENTLY_LEARNED = [
 // ─────────────────────────────────────────────────────────────────────────────
 // RIGHT SIDEBAR
 // ─────────────────────────────────────────────────────────────────────────────
-function RightSidebar({ user }) {
+function RightSidebar({ user, isOpen, onClose }) {
   const [search, setSearch] = useState('');
   const [followed, setFollowed] = useState(new Set());
   const [growthTab, setGrowthTab] = useState('Learning');
@@ -1061,22 +1089,33 @@ function RightSidebar({ user }) {
     { skillCount: 5, learners: 132 },
   ];
 
+  // Close on Escape key (right sidebar drawer on mobile)
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === 'Escape' && isOpen) onClose?.();
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [isOpen, onClose]);
+
   return (
     <>
       <style>{`
-  html,
-  body,
-  #root {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    padding: 0;
-  }
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
 
-  body {
-    overflow: hidden;
-  }
+body {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
 
+#root {
+  width: 100%;
+}
   .hp-layout {
     width: 100%;
     height: 100dvh;
@@ -1114,8 +1153,8 @@ function RightSidebar({ user }) {
     flex-shrink: 0;
   }
 
-  /* Tablet */
-  @media (min-width: 768px) and (max-width: 1199px) {
+  /* Tablet: 768-1024px — drop right-sidebar column; it becomes a drawer */
+  @media (min-width: 768px) and (max-width: 1024px) {
     .hp-layout {
       grid-template-columns: 240px minmax(0, 1fr);
     }
@@ -1130,7 +1169,7 @@ function RightSidebar({ user }) {
     }
   }
 
-  /* Mobile */
+  /* Mobile: single-column flex */
   @media (max-width: 767px) {
     .hp-layout {
       display: flex;
@@ -1242,7 +1281,7 @@ function RightSidebar({ user }) {
   .hp-recommended-text { font-size: 12px; color: #555; line-height: 1.5; }
   .hp-recommended-text strong { color: #2d1b4e; }
   /* ── Post composer styles ───────────────────────────────────────────────────── */
-  .hp-composer { width:93%; background: #fff; border-radius: 12px; border: 1px solid rgba(9,3,15,0.1); padding: 14px 16px; margin-bottom: 12px; }
+  .hp-composer { width: 100%; max-width: 100%; box-sizing: border-box; background: #fff; border-radius: 12px; border: 1px solid rgba(9,3,15,0.1); padding: 14px 16px; margin-bottom: 12px; }
   .hp-composer-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
   .hp-composer-body { flex: 1; }
   .hp-composer-prompt { font-size: 14px; font-weight: 600; color: #2d1b4e; margin: 0 0 3px; }
@@ -1405,7 +1444,28 @@ function RightSidebar({ user }) {
 }
 
 `}</style>
-      <aside className="hp-right-sidebar" aria-label="Discovery panel">
+      {/* Right-sidebar backdrop (mobile only) */}
+      {isOpen && (
+        <button
+          type="button"
+          className="hp-right-sidebar-overlay"
+          onClick={onClose}
+          aria-label="Close learning dashboard"
+          style={{ cursor: 'default' }}
+        />
+      )}
+      <aside
+        className={`hp-right-sidebar${isOpen ? ' open' : ''}`}
+        aria-label="Discovery panel"
+        aria-modal={isOpen || undefined}
+      >
+        {/* Mobile close header */}
+        <div className="hp-mobile-drawer-header">
+          <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>Learning Dashboard</span>
+          <button type="button" onClick={onClose} aria-label="Close learning dashboard">
+            <X size={18} />
+          </button>
+        </div>
 
         {/* Search */}
         <div className="hp-search-bar">
@@ -1614,16 +1674,9 @@ function PostComposer({ user, onPostCreated }) {
 
     setPreviewFiles([]);
 
-    // Open file selector automatically
-    if (
-      type === 'short_video' ||
-      type === 'photos' ||
-      type === 'document'
-    ) {
-      setTimeout(() => {
-        fileInputRef.current?.click();
-      }, 0);
-    }
+    // Note: we do NOT auto-open the file dialog here.
+    // The explicit "Choose…" button inside the composer body is the single
+    // trigger for the file picker, preventing duplicate dialogs.
   };
 
   // ─────────────────────────────────────
@@ -2162,7 +2215,7 @@ function PostComposer({ user, onPostCreated }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN FEED
 // ─────────────────────────────────────────────────────────────────────────────
-function HomeFeed({ user, onOpenSidebar }) {
+function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
   const [activeTab, setActiveTab] = useState('For You');
   // Static posts are set immediately as the initial value so the feed is
   // never blank while the API request is in-flight or when it fails.
@@ -2300,6 +2353,7 @@ function HomeFeed({ user, onOpenSidebar }) {
         profileAvatar={feedProfileAvatar}
         profileName={feedProfileName}
         onOpenSidebar={onOpenSidebar}
+        onOpenRightSidebar={onOpenRightSidebar}
       />
       <InterestTabs active={activeTab} onChange={setActiveTab} tabs={FEED_TABS} />
 
@@ -2362,6 +2416,7 @@ function HomeFeed({ user, onOpenSidebar }) {
 export default function HomePage() {
   const user = authService.getCurrentUser();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(false);
 
   // Guard: unauthenticated → /login
   useEffect(() => {
@@ -2369,6 +2424,28 @@ export default function HomePage() {
       navigate('/login');
     }
   }, [user]);
+
+  // Close right sidebar on Escape
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === 'Escape') {
+        setIsSidebarOpen(false);
+        setIsRightSidebarOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, []);
+
+  // Prevent background scroll when either drawer is open on mobile
+  useEffect(() => {
+    if (isSidebarOpen || isRightSidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [isSidebarOpen, isRightSidebarOpen]);
 
   if (!user) return null; // will redirect
 
@@ -2380,9 +2457,16 @@ export default function HomePage() {
         isSidebarOpen={isSidebarOpen}
         setIsSidebarOpen={setIsSidebarOpen}
       />
-      <HomeFeed user={user} onOpenSidebar={() => setIsSidebarOpen(true)} />
-      <RightSidebar user={user} />
+      <HomeFeed
+        user={user}
+        onOpenSidebar={() => setIsSidebarOpen(true)}
+        onOpenRightSidebar={() => setIsRightSidebarOpen(true)}
+      />
+      <RightSidebar
+        user={user}
+        isOpen={isRightSidebarOpen}
+        onClose={() => setIsRightSidebarOpen(false)}
+      />
     </div>
   );
-
 }

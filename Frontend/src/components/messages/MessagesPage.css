@@ -400,6 +400,7 @@
   border: none;
   cursor: pointer;
   color: #09030F;
+  pointer-events: auto;
   transition: background 0.15s ease;
 }
 .mp-back-btn:hover { background: rgba(9,3,15,0.06); }
@@ -722,10 +723,6 @@
 
 /* Mobile: full-screen mode — show either list OR chat */
 @media (max-width: 768px) {
-  .mp-layout { position: relative; }
-
-  .mp-nav-rail { display: none; }
-
   .mp-sidebar {
     position: absolute;
     inset: 0;
@@ -734,6 +731,7 @@
     transform: translateX(0);
     transition: transform 0.3s ease;
   }
+
   .mp-sidebar.chat-open {
     transform: translateX(-100%);
     pointer-events: none;
@@ -747,13 +745,23 @@
     transform: translateX(100%);
     transition: transform 0.3s ease;
   }
+
   .mp-chat.chat-open {
     transform: translateX(0);
   }
 
-  .mp-back-btn { display: flex; }
-
-  .mp-msg-content { max-width: 80%; }
+  .mp-back-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 30;
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    pointer-events: auto;
+  }
 }
 
 @media (max-width: 480px) {

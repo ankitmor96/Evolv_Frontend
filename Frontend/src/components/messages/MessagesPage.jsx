@@ -36,11 +36,11 @@ function ConvAvatar({ src, name, size = 46, online = false }) {
 
 // ─── Nav Rail ─────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
-  { id: 'home',      Icon: Home,          label: 'Home',       hash: '/home' },
-  { id: 'discover',  Icon: Compass,       label: 'Discover',   hash: '/discover' },
-  { id: 'learning',  Icon: BookOpen,      label: 'Learning',   hash: '/learning' },
-  { id: 'messages',  Icon: MessageCircle, label: 'Messages',   hash: '/messages' },
-  { id: 'community', Icon: Users,         label: 'Community',  hash: '/connections' },
+  { id: 'home', Icon: Home, label: 'Home', hash: '/home' },
+  { id: 'discover', Icon: Compass, label: 'Discover', hash: '/discover' },
+  { id: 'learning', Icon: BookOpen, label: 'Learning', hash: '/learning' },
+  { id: 'messages', Icon: MessageCircle, label: 'Messages', hash: '/messages' },
+  { id: 'community', Icon: Users, label: 'Community', hash: '/connections' },
 ];
 
 function NavRail({ user }) {
@@ -79,10 +79,6 @@ function NavRail({ user }) {
         <button className="mp-nav-btn" onClick={() => navigate('/profile')} aria-label="Profile">
           <User size={20} />
           <span className="mp-nav-tooltip">Profile</span>
-        </button>
-        <button className="mp-nav-btn" onClick={() => navigate('/settings')} aria-label="Settings">
-          <Settings size={20} />
-          <span className="mp-nav-tooltip">Settings</span>
         </button>
       </div>
 
@@ -306,7 +302,14 @@ function ChatWindow({ conv, messages, onSend, onBack, chatOpen }) {
     <div className={`mp-chat${chatOpen ? ' chat-open' : ''}`}>
       {/* Header */}
       <header className="mp-chat-header">
-        <button className="mp-back-btn" onClick={onBack} aria-label="Back to conversations">
+        <button
+          type="button"
+          className="mp-back-btn"
+          onClick={() => {
+    onBack();
+  }}
+          aria-label="Back to conversations"
+        >
           <ChevronLeft size={20} />
         </button>
 
@@ -454,7 +457,10 @@ export default function MessagesPage() {
         conv={activeConv}
         messages={activeMessages}
         onSend={handleSend}
-        onBack={() => setChatOpen(false)}
+        onBack={() => {
+          console.log("Back clicked");
+          setChatOpen(false);
+        }}
         chatOpen={chatOpen}
       />
     </div>

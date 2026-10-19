@@ -2436,146 +2436,149 @@ height: 100dvh;
   align-self: flex-end;
 
 }
-@media (min-width: 768px) and (max-width: 1199px) {
+/* ── Tablet: 768 – 1024px — right sidebar becomes a slide-in drawer ── */
+@media (min-width: 768px) and (max-width: 1024px) {
 
   .hp-layout {
-
+    /* Drop the right-sidebar column; feed takes full remaining width */
     grid-template-columns: 240px minmax(0, 1fr);
-
   }
-  /* Hide right sidebar */
 
+  /* Right sidebar: hidden by default, slide in as a drawer when .open */
   .hp-right-sidebar {
+    display: flex !important;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1002;
+    width: min(360px, 88vw);
+    max-width: 420px;
+    height: 100dvh;
+    box-sizing: border-box;
+    padding: 16px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: #fff;
+    box-shadow: -8px 0 30px rgba(9, 3, 15, 0.12);
+    transform: translateX(105%);
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 280ms ease, visibility 280ms ease;
+  }
 
-    display: none !important;
+  .hp-right-sidebar.open {
+    transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+  }
 
+  /* Show the drawer-header close button at tablet too */
+  .hp-mobile-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(9, 3, 15, 0.1);
+    color: #09030f;
+  }
+
+  .hp-mobile-drawer-header button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 9px;
+    background: #f4f3fa;
+    color: #09030f;
+    cursor: pointer;
   }
 
   /* Compact left sidebar */
-
   .hp-sidebar {
-
     width: 240px;
-
     padding: 18px 12px 18px;
-
   }
+
   .hp-nav-item {
-
     padding: 9px 12px;
-
     gap: 10px;
-
     font-size: 0.84rem;
-
   }
+
   .hp-nav-item span {
-
     font-size: 0.84rem;
-
   }
+
   .hp-logo-img {
-
     width: 88px;
-
   }
+
   /* Feed header */
-
   .hp-feed-header {
-
     padding: 16px 22px 14px;
-
   }
+
   /* Feed */
-
   .hp-feed {
-
     padding: 18px 22px 36px;
-
     gap: 18px;
-
   }
+
   /* Post cards */
-
   .hp-post {
-
     padding: 20px 20px 16px;
+  }
 
+  /* Show the filter button so the right sidebar can be opened */
+  .hp-mobile-filter-btn {
+    display: inline-flex !important;
   }
 
 }
-/* Narrow tablet / large tablet: 900px and below — slim sidebar text */
-
+/* Narrow tablet: 768 – 900px — extra-slim sidebar labels */
 @media (min-width: 768px) and (max-width: 900px) {
 
   .hp-layout {
-
     grid-template-columns: 200px minmax(0, 1fr);
-
   }
+
   .hp-sidebar {
-
     width: 200px;
-
     padding: 16px 10px;
-
   }
+
   .hp-nav-section-label {
-
     font-size: 0.6rem;
-
   }
+
   .hp-nav-item {
-
     padding: 8px 10px;
-
     gap: 8px;
-
   }
+
   .hp-nav-item span {
-
     font-size: 0.8rem;
-
   }
+
   .hp-create-btn {
-
     padding: 10px 14px;
-
     font-size: 0.82rem;
-
   }
-/* Feed Header */
-.hp-feed-header {
-  flex-shrink: 0;
 
-  height: 72px;
-
-  box-sizing: border-box;
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  padding: 0 22px;
-
-  background: #FFFFFF;
-
-  border-bottom: 1px solid rgba(9, 3, 15, 0.08);
-
-  position: relative;
-  z-index: 20;
-}
   .hp-feed {
-
     padding: 16px 16px 32px;
-
     gap: 16px;
-
   }
+
   .hp-post {
-
     padding: 18px 16px 14px;
-
   }
 
 }
@@ -2605,12 +2608,35 @@ height: 100dvh;
 
 
 
-  /* ── Hide both sidebars from normal flow ── */
+  /* ── Hide right sidebar from normal flow; it becomes a slide-in drawer ── */
 
   .hp-right-sidebar {
+    display: flex !important;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1002;
+    width: min(340px, 88vw);
+    max-width: 400px;
+    height: 100dvh;
+    box-sizing: border-box;
+    padding: 16px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: #fff;
+    box-shadow: -8px 0 30px rgba(9, 3, 15, 0.12);
+    transform: translateX(105%);
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 280ms ease, visibility 280ms ease;
+  }
 
-    display: none !important;
-
+  .hp-right-sidebar.open {
+    transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
   }
 
   /* ── Left sidebar → fixed off-canvas drawer ── */
@@ -3165,16 +3191,6 @@ height: 100dvh;
 
   }
 
-
-/* 
-  .hp-mobile-logo-img {
-
-    height: 22px;
-
-  } */
-
-
-
   .hp-feed {
 
     padding: 8px 8px 32px;
@@ -3603,10 +3619,6 @@ height: 100dvh;
     padding: 18px 22px 36px;
     gap: 18px;
   }
-
-  /* .hp-post {
-    max-width: 680px;
-  } */
 }
 
 
@@ -3642,9 +3654,8 @@ height: 100dvh;
     overflow: hidden;
   }
 
-  .hp-right-sidebar {
-    display: none !important;
-  }
+  /* .hp-right-sidebar is now a fixed slide-in drawer on mobile — see the
+     EVOLV MOBILE DRAWERS block at the end of this file. */
 
   .hp-feed-header {
     height: 56px;
@@ -4028,94 +4039,8 @@ height: 100dvh;
     background: rgba(9, 3, 15, 0.48);
   }
 }
-  body {
-    overflow: hidden;
-  }
 
-  .hp-layout {
-    width: 100%;
-    height: 100dvh;
-    min-height: 0;
-    display: grid;
-    grid-template-columns: 280px minmax(0, 1fr) 360px;
-    overflow: hidden;
-  }
-
-  .hp-feed-column {
-    min-width: 0;
-    min-height: 0;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  .hp-feed {
-    flex: 1 1 auto;
-    width: 100%;
-    height: auto;
-    min-width: 0;
-    min-height: 0;
-    box-sizing: border-box;
-
-    overflow-y: auto;
-    overflow-x: hidden;
-
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-  }
-
-  .hp-post {
-    flex-shrink: 0;
-  }
-
-  /* Tablet */
-  @media (min-width: 768px) and (max-width: 1199px) {
-    .hp-layout {
-      grid-template-columns: 240px minmax(0, 1fr);
-    }
-
-    .hp-feed-column {
-      min-height: 0;
-    }
-
-    .hp-feed {
-      min-height: 0;
-      overflow-y: auto;
-    }
-  }
-
-  /* Mobile */
-  @media (max-width: 767px) {
-    .hp-layout {
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      height: 100dvh;
-      min-height: 0;
-      overflow: hidden;
-    }
-
-    .hp-feed-column {
-      flex: 1 1 auto;
-      width: 100%;
-      height: auto;
-      min-height: 0;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .hp-feed {
-      flex: 1 1 auto;
-      width: 100%;
-      height: auto;
-      min-height: 0;
-      overflow-y: auto;
-      overflow-x: hidden;
-      padding: 14px 14px 40px;
-    }
-  }
+/* ── Desktop baseline (>1024px): 3-column grid, right sidebar always visible ── */
     .hp-mobile-user-btn {
     display: none;
 
@@ -4197,7 +4122,7 @@ height: 100dvh;
   .hp-recommended-text { font-size: 12px; color: #555; line-height: 1.5; }
   .hp-recommended-text strong { color: #2d1b4e; }
   /* ── Post composer styles ───────────────────────────────────────────────────── */
-  .hp-composer { width:93%; background: #fff; border-radius: 12px; border: 1px solid rgba(9,3,15,0.1); padding: 14px 16px; margin-bottom: 12px; }
+  .hp-composer { width: 100%; max-width: 100%; box-sizing: border-box; background: #fff; border-radius: 12px; border: 1px solid rgba(9,3,15,0.1); padding: 14px 16px; margin-bottom: 12px; }
   .hp-composer-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
   .hp-composer-body { flex: 1; }
   .hp-composer-prompt { font-size: 14px; font-weight: 600; color: #2d1b4e; margin: 0 0 3px; }

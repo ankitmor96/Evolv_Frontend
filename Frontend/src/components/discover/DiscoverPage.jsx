@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState ,useEffect} from 'react';
 import {
   Search,
   ChevronDown,
@@ -249,6 +249,8 @@ export default function DiscoverPage() {
   const [category, setCategory] = useState('All Categories');
   const [contentType, setContentType] = useState('All');
   const [search, setSearch] = useState('');
+const [contentItems, setContentItems] = useState(DEMO_CONTENT);
+const [documentsLoading, setDocumentsLoading] = useState(true);
 
   const filteredContent = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -281,8 +283,6 @@ export default function DiscoverPage() {
   }, [domain, category, contentType, search]);
 
 
-const [contentItems, setContentItems] = useState(DEMO_CONTENT);
-const [documentsLoading, setDocumentsLoading] = useState(true);
 
 useEffect(() => {
     const loadDocuments = async () => {

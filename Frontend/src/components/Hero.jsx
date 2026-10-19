@@ -56,14 +56,16 @@ export default function Hero() {
 
       <style>{`
         /* ─── Outer background ─── */
-        .page-outer {
-          // min-height: 100vh;
-          background: var(--color-outer-bg, #F4F3FA);
-          display: flex;
-          align-items: flex-start;
-          justify-content: center;
-          padding: 20px;
-        }
+      .page-outer {
+  min-height: 100vh;
+  width: 100%;
+  background: var(--color-outer-bg, #F4F3FA);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
 
         /* ─── 0.0s Purple hero container ─── */
         .hero-container {
