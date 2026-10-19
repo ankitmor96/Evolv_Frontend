@@ -37,6 +37,7 @@ import { homePostService } from "../../services/homePostService.js";
 import { fetchHomeTabs, mapTabsToLabels } from '../../services/homeTabService.js';
 import { getUserSkills } from '../../services/userSkillService.js';
 import { getProfile } from '../../services/getProfile.js';
+import socketService from '../../services/socketService.js';
 import { CREATORS, FEED_POSTS, INTEREST_TABS } from '../../data/homeData.js';
 import { avatarUrl } from '../../data/avatarUtils.js';
 import './HomePage.css';
@@ -767,7 +768,7 @@ function InterestTabs({ active, onChange, tabs = INTEREST_TABS }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // FEED POST
 // ─────────────────────────────────────────────────────────────────────────────
-function FeedPost({ post, onLike, onSave, onFollow }) {
+function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onLearned }) {
   const [showMenu, setShowMenu] = useState(false);
 
   const [activeActionTooltip, setActiveActionTooltip] = useState('');
@@ -2334,6 +2335,189 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
     ));
   }, []);
 
+  // ── Reaction + Learned in-flight guards ────────────────────────────────
+  // Sets of postIds currently awaiting a server response.  Prevents the
+  // user from firing duplicate requests while one is in-flight.
+  const pendingAppreciate = useRef(new Set());
+  const pendingHelpful    = useRef(new Set());
+  const pendingLearned    = useRef(new Set());
+
+  // ── Appreciate ───────────────────────────────────────────────────────────
+  const handleAppreciate = useCallback(async (postId) => {
+    if (pendingAppreciate.current.has(postId)) return;
+    pendingAppreciate.current.add(postId);
+
+    // Snapshot for rollback
+    let prev;
+    setPosts(ps => {
+      prev = ps;
+      return ps.map(p => {
+        if (String(p.id) !== String(postId)) return p;
+        const next = !p.appreciated;
+        return {
+          ...p,
+          appreciated: next,
+          appreciations: Math.max(0, p.appreciations + (next ? 1 : -1)),
+        };
+      });
+    });
+
+    try {
+      const post = prev?.find(p => String(p.id) === String(postId));
+      if (post?.appreciated) {
+        await homePostService.removeReaction(postId, 'APPRECIATE');
+      } else {
+        await homePostService.addReaction(postId, 'APPRECIATE');
+      }
+    } catch (err) {
+      console.warn('[HomeFeed] Appreciate failed — rolling back:', err.message);
+      // Rollback to snapshot
+      setPosts(prev);
+    } finally {
+      pendingAppreciate.current.delete(postId);
+    }
+  }, []);
+
+  // ── Helpful ────────────────────────────────────────────────────────────────
+  const handleHelpful = useCallback(async (postId) => {
+    if (pendingHelpful.current.has(postId)) return;
+    pendingHelpful.current.add(postId);
+
+    let prev;
+    setPosts(ps => {
+      prev = ps;
+      return ps.map(p => {
+        if (String(p.id) !== String(postId)) return p;
+        const next = !p.helpful;
+        return {
+          ...p,
+          helpful: next,
+          helpfulCount: Math.max(0, p.helpfulCount + (next ? 1 : -1)),
+        };
+      });
+    });
+
+    try {
+      const post = prev?.find(p => String(p.id) === String(postId));
+      if (post?.helpful) {
+        await homePostService.removeReaction(postId, 'HELPFUL');
+      } else {
+        await homePostService.addReaction(postId, 'HELPFUL');
+      }
+    } catch (err) {
+      console.warn('[HomeFeed] Helpful failed — rolling back:', err.message);
+      setPosts(prev);
+    } finally {
+      pendingHelpful.current.delete(postId);
+    }
+  }, []);
+
+  // ── Learned ────────────────────────────────────────────────────────────────
+  const handleLearned = useCallback(async (postId) => {
+    if (pendingLearned.current.has(postId)) return;
+    pendingLearned.current.add(postId);
+
+    let prev;
+    setPosts(ps => {
+      prev = ps;
+      return ps.map(p => {
+        if (String(p.id) !== String(postId)) return p;
+        const next = !p.learned;
+        return {
+          ...p,
+          learned: next,
+          learnedCount: Math.max(0, p.learnedCount + (next ? 1 : -1)),
+        };
+      });
+    });
+
+    try {
+      const post = prev?.find(p => String(p.id) === String(postId));
+      if (post?.learned) {
+        await homePostService.unmarkLearned(postId);
+      } else {
+        await homePostService.markLearned(postId);
+      }
+    } catch (err) {
+      console.warn('[HomeFeed] Learned failed — rolling back:', err.message);
+      setPosts(prev);
+    } finally {
+      pendingLearned.current.delete(postId);
+    }
+  }, []);
+
+  // ── Socket.IO — posts-batch and post-updates-batch ─────────────────────
+  useEffect(() => {
+    const socket = socketService.connect();
+
+    // ── posts-batch: new posts emitted by the backend ─────────────────────
+    const offPosts = socketService.onPostsBatch((batch) => {
+      if (!Array.isArray(batch) || batch.length === 0) return;
+      console.log('[HomeFeed] posts-batch received:', batch.length, 'item(s)');
+
+      const incoming = batch
+        .map(item => {
+          const raw = item?.post ?? item;
+          return homePostService._normalisePost(raw);
+        })
+        .filter(p => p.id && !String(p.id).startsWith('local-'));
+
+      if (incoming.length === 0) return;
+
+      setPosts(prev => {
+        const existingIds = new Set(prev.map(p => String(p.id)));
+        const fresh = incoming.filter(p => !existingIds.has(String(p.id)));
+        return fresh.length > 0 ? [...fresh, ...prev] : prev;
+      });
+    });
+
+    // ── post-updates-batch: reaction / learned state changes ──────────────
+    const offUpdates = socketService.onPostUpdatesBatch((batch) => {
+      if (!Array.isArray(batch) || batch.length === 0) return;
+      console.log('[HomeFeed] post-updates-batch received:', batch.length, 'update(s)');
+
+      setPosts(prev => {
+        let changed = false;
+        const next = prev.map(post => {
+          // Collect every update item that targets this post
+          const updates = batch.filter(
+            u => String(u.postId) === String(post.id)
+          );
+          if (updates.length === 0) return post;
+
+          let updated = { ...post };
+          updates.forEach(u => {
+            if (u.type === 'reaction') {
+              // If the backend sends authoritative counts, use them directly.
+              if (u.counts) {
+                if (typeof u.counts.APPRECIATE === 'number') {
+                  updated.appreciations = u.counts.APPRECIATE;
+                }
+                if (typeof u.counts.HELPFUL === 'number') {
+                  updated.helpfulCount = u.counts.HELPFUL;
+                }
+              }
+            } else if (u.type === 'learned') {
+              if (typeof u.counts?.LEARNED === 'number') {
+                updated.learnedCount = u.counts.LEARNED;
+              }
+            }
+          });
+          changed = true;
+          return updated;
+        });
+        return changed ? next : prev;
+      });
+    });
+
+    return () => {
+      offPosts();
+      offUpdates();
+      socketService.disconnect();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Filter by tab:
   // — "For You" / "Learning" / "Discover" → show all posts
   // — Any domain tab → match post.category or tags
@@ -2401,6 +2585,9 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
               onLike={handleLike}
               onSave={handleSave}
               onFollow={handleFollow}
+              onAppreciate={handleAppreciate}
+              onHelpful={handleHelpful}
+              onLearned={handleLearned}
             />
           ))
         )}

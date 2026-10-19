@@ -157,6 +157,37 @@ const socketService = {
   },
 
   /**
+   * Subscribe to the `post-updates-batch` event.
+   *
+   * The backend emits this event as an array of update objects, each
+   * describing a reaction or learned-state change for a specific post.
+   * Observed payload shape (from backend PostsGateway):
+   *   Array<{
+   *     postId    : number | string,
+   *     type      : 'reaction' | 'learned',
+   *     userId    : number | string,
+   *     reaction? : string,          // e.g. 'APPRECIATE' | 'HELPFUL'
+   *     action    : 'added' | 'removed',
+   *     counts?   : { APPRECIATE?: number, HELPFUL?: number, ... }
+   *   }>
+   *
+   * NOTE: Does NOT call connect() / disconnect(). Caller manages lifecycle.
+   *
+   * @param {(batch: Array<object>) => void} callback
+   * @returns {() => void} Unsubscribe function — call in useEffect cleanup.
+   */
+  onPostUpdatesBatch(callback) {
+    if (!_socket) {
+      console.warn('[socketService] onPostUpdatesBatch called before connect() — call connect() first.');
+      return () => {};
+    }
+    _socket.on('post-updates-batch', callback);
+    return () => {
+      if (_socket) _socket.off('post-updates-batch', callback);
+    };
+  },
+
+  /**
    * @returns {boolean} Whether the socket is currently connected.
    */
   isConnected() {

@@ -151,17 +151,12 @@ const request = async (path, options = {}) => {
       signal: controller.signal,
     });
 
-    console.log("[VIDEO DEBUG] Response headers received", {
+    console.log('[homePostService] Response received', {
       status: response.status,
       elapsedMs: Date.now() - startedAt,
     });
 
     const payload = await response.json().catch(() => ({}));
-
-    console.log("[VIDEO DEBUG] Response body received", {
-      elapsedMs: Date.now() - startedAt,
-      payload,
-    });
 
     if (!response.ok) {
       const message = Array.isArray(payload?.message)
@@ -410,6 +405,85 @@ export const homePostService = {
       }
       return [];
     }
+  },
+
+  // ── Reactions ─────────────────────────────────────────────────────────────
+  /**
+   * GET /api/posts/:postId/reactions
+   * Returns reaction counts and the current user's reaction for one post.
+   *
+   * Response shape (confirmed via Postman):
+   *   { success, postId, counts: { APPRECIATE, HELPFUL, … }, myReaction }
+   *
+   * @param {string|number} postId
+   * @returns {Promise<{ counts: object, myReaction: string|null }>}
+   *          Resolves to empty defaults on any failure.
+   */
+  async getReactions(postId) {
+    try {
+      const data = await request(`/api/posts/${postId}/reactions`, { method: 'GET' });
+      return {
+        counts: data?.counts ?? {},
+        myReaction: data?.myReaction ?? null,
+      };
+    } catch (err) {
+      console.warn(`[homePostService] GET reactions for post ${postId}:`, err.message);
+      return { counts: {}, myReaction: null };
+    }
+  },
+
+  /**
+   * PUT /api/posts/:postId/reactions/:reactionType
+   * Adds or updates the current user's reaction.  Idempotent — safe to call
+   * when the reaction is already set (server upserts).
+   *
+   * Supported reactionType values (confirmed via Postman): APPRECIATE, HELPFUL
+   *
+   * @param {string|number} postId
+   * @param {'APPRECIATE'|'HELPFUL'} reactionType
+   * @returns {Promise<object>}  Raw server response.
+   * @throws {Error} On auth failure, network error, or server error.
+   */
+  async addReaction(postId, reactionType) {
+    return request(`/api/posts/${postId}/reactions/${reactionType}`, { method: 'PUT' });
+  },
+
+  /**
+   * DELETE /api/posts/:postId/reactions/:reactionType
+   * Removes the current user's reaction of the given type.
+   *
+   * @param {string|number} postId
+   * @param {'APPRECIATE'|'HELPFUL'} reactionType
+   * @returns {Promise<object>}  Raw server response.
+   * @throws {Error} On auth failure, network error, or server error.
+   */
+  async removeReaction(postId, reactionType) {
+    return request(`/api/posts/${postId}/reactions/${reactionType}`, { method: 'DELETE' });
+  },
+
+  // ── Learned ───────────────────────────────────────────────────────────────
+  /**
+   * PUT /api/posts/:postId/learned
+   * Marks the current user as having learned from this post.
+   *
+   * @param {string|number} postId
+   * @returns {Promise<object>}  Raw server response.
+   * @throws {Error} On auth failure, network error, or server error.
+   */
+  async markLearned(postId) {
+    return request(`/api/posts/${postId}/learned`, { method: 'PUT' });
+  },
+
+  /**
+   * DELETE /api/posts/:postId/learned
+   * Unmarks the current user's learned status for this post.
+   *
+   * @param {string|number} postId
+   * @returns {Promise<object>}  Raw server response.
+   * @throws {Error} On auth failure, network error, or server error.
+   */
+  async unmarkLearned(postId) {
+    return request(`/api/posts/${postId}/learned`, { method: 'DELETE' });
   },
 
   // ── Live Feed fetch (GET /api/posts/feed) — cursor-based pagination ─────────
