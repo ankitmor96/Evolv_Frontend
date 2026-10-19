@@ -721,84 +721,93 @@
   .mp-sidebar { width: 280px; }
 }
 
-/* Mobile: full-screen mode — show either list OR chat */
-
-/* Mobile: show conversation list first, then selected chat */
+/* Mobile Messages — stable full-screen panels */
 @media (max-width: 768px) {
   .mp-layout {
-    position: relative;
-    width: 100%;
-    height: 100dvh;
-    overflow: hidden;
+    position: fixed !important;
+    inset: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100dvh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    isolation: isolate;
   }
 
-  /* Hide the desktop navigation rail on mobile */
   .mp-nav-rail {
-    display: none;
+    display: none !important;
   }
 
-  /* Conversation list is the default mobile screen */
-  .mp-sidebar {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    min-width: 0;
-    height: 100%;
+  /* Conversation list: visible by default */
+  .mp-layout .mp-sidebar {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+    background: #fff !important;
+    transform: none !important;
+    transition: none !important;
     z-index: 10;
-    background: #ffffff;
-    transform: translateX(0);
-    transition: transform 0.3s ease;
-    visibility: visible;
-    pointer-events: auto;
   }
 
-  /* Hide list when a conversation is opened */
-  .mp-sidebar.chat-open {
-    transform: translateX(-100%);
-    visibility: hidden;
-    pointer-events: none;
+  .mp-layout .mp-sidebar:not(.chat-open) {
+    visibility: visible !important;
+    pointer-events: auto !important;
   }
 
-  /* Chat stays off-screen until a conversation is selected */
-  .mp-chat {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    min-width: 0;
+  .mp-layout .mp-sidebar.chat-open {
+    display: none !important;
+  }
+
+  /* Chat: shown only after selecting a conversation */
+  .mp-layout .mp-chat {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+    background: #F4F3FA !important;
+    transform: none !important;
+    transition: none !important;
     z-index: 20;
-    background: #F4F3FA;
-    transform: translateX(100%);
-    transition: transform 0.3s ease;
-    visibility: hidden;
-    pointer-events: none;
   }
 
-  /* Show the selected conversation */
-  .mp-chat.chat-open {
-    transform: translateX(0);
-    visibility: visible;
-    pointer-events: auto;
+  .mp-layout .mp-chat:not(.chat-open) {
+    display: none !important;
   }
 
-  /* Back button inside the chat header */
+  .mp-layout .mp-chat.chat-open {
+    display: flex !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+
+  .mp-layout .mp-conv-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .mp-layout .mp-messages-area {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
   .mp-back-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: flex !important;
     flex-shrink: 0;
-    position: relative;
-    z-index: 30;
-    width: 36px;
-    height: 36px;
-    border: none;
-    border-radius: 10px;
-    background: transparent;
-    color: #09030F;
-    cursor: pointer;
-    pointer-events: auto;
   }
 }
+
 
 @media (max-width: 480px) {
   .mp-chat-header {
@@ -831,3 +840,4 @@
     padding: 10px 14px;
   }
 }
+
