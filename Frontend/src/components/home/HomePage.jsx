@@ -38,7 +38,7 @@ import { fetchHomeTabs, mapTabsToLabels } from '../../services/homeTabService.js
 import { getUserSkills } from '../../services/userSkillService.js';
 import { getProfile } from '../../services/getProfile.js';
 import socketService from '../../services/socketService.js';
-import { CREATORS, FEED_POSTS, INTEREST_TABS } from '../../data/homeData.js';
+import { CREATORS, INTEREST_TABS } from '../../data/homeData.js';
 import { avatarUrl } from '../../data/avatarUtils.js';
 import './HomePage.css';
 
@@ -908,7 +908,7 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
               aria-hidden="true"
             />
 
-            
+
             <span>{formatCount(post.appreciations ?? 0)}</span>
           </button>
 
@@ -936,7 +936,7 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
               size={20}
               aria-hidden="true"
             />
-            
+
             <span>{formatCount(post.helpfulCount ?? 0)}</span>
           </button>
 
@@ -963,7 +963,7 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
               size={20}
               aria-hidden="true"
             />
-            
+
             <span>{formatCount(post.learnedCount ?? 0)}</span>
           </button>
 
@@ -988,7 +988,7 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
               size={20}
               aria-hidden="true"
             />
-           
+
             <span>{formatCount(post.comments ?? 0)}</span>
           </button>
 
@@ -2218,30 +2218,55 @@ function PostComposer({ user, onPostCreated }) {
 // ─────────────────────────────────────────────────────────────────────────────
 function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
   const [activeTab, setActiveTab] = useState('For You');
-  // Static posts are set immediately as the initial value so the feed is
-  // never blank while the API request is in-flight or when it fails.
-  const [posts, setPosts] = useState(() =>
-    FEED_POSTS.map(p => ({ ...p, liked: p.liked ?? false, saved: p.saved ?? false, followed: p.followed ?? false }))
-  );
-  // postsAuthError is only set for 401 responses that indicate the user
-  // must log in. All other errors (network, CORS, 404, 500) are handled
-  // by keeping static data visible and logging a console warning.
-  const [postsAuthError, setPostsAuthError] = useState(null);
 
+  const [posts, setPosts] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [postsAuthError, setPostsAuthError] = useState(null);
   // ── Real profile avatar for the header (GET /api/profile) ──────────────
   const [feedProfileAvatar, setFeedProfileAvatar] = useState(null);
   const [feedProfileName, setFeedProfileName] = useState(null);
 
+  // ── Feed Posts from Backend API ──
   useEffect(() => {
     let cancelled = false;
-    getProfile.getProfile()
-      .then((p) => {
+
+    const loadFeed = async () => {
+      try {
+        setPostsLoading(true);
+        setPostsAuthError(null);
+
+        const response = await homePostService.getFeedPosts();
+        const backendPosts = response?.posts ?? [];
+
         if (cancelled) return;
-        if (p?.avatarUrl || p?.avatar) setFeedProfileAvatar(p.avatarUrl || p.avatar);
-        if (p?.fullName || p?.name) setFeedProfileName(p.fullName || p.name);
-      })
-      .catch(() => { /* fall back to user.avatar from authService */ });
-    return () => { cancelled = true; };
+
+        const mappedPosts = backendPosts.map((post) => ({
+          ...homePostService._normalisePost(post),
+          liked: post.liked ?? false,
+          saved: post.saved ?? false,
+          followed: post.followed ?? false,
+        }));
+
+        // Display ONLY posts received from the backend.
+        setPosts(mappedPosts);
+      } catch (error) {
+        if (cancelled) return;
+
+        console.error("Failed to load feed:", error);
+        setPosts([]);
+        setPostsAuthError("Unable to load posts. Please try again.");
+      } finally {
+        if (!cancelled) {
+          setPostsLoading(false);
+        }
+      }
+    };
+
+    loadFeed();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // ── Home Tabs from GET /api/home/tabs ──────────────────────────────────
@@ -2271,11 +2296,7 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
   }, []);
 
   // ── Feed Posts from GET /api/posts ─────────────────────────────────────
-  // NOTE: homePostService.getPosts() now returns [] on ALL failures
-  // (network, CORS, 404, 500, auth) and logs a console warning per error
-  // type. This useEffect therefore never needs an error catch branch —
-  // any non-empty array from the backend replaces static data; an empty
-  // array leaves the existing static posts untouched.
+
   useEffect(() => {
     let cancelled = false;
 
@@ -2339,8 +2360,8 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
   // Sets of postIds currently awaiting a server response.  Prevents the
   // user from firing duplicate requests while one is in-flight.
   const pendingAppreciate = useRef(new Set());
-  const pendingHelpful    = useRef(new Set());
-  const pendingLearned    = useRef(new Set());
+  const pendingHelpful = useRef(new Set());
+  const pendingLearned = useRef(new Set());
 
   // ── Appreciate ───────────────────────────────────────────────────────────
   const handleAppreciate = useCallback(async (postId) => {
@@ -2515,7 +2536,7 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
       offUpdates();
       socketService.disconnect();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Filter by tab:
@@ -2570,7 +2591,16 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
         )}
 
         {/* Feed posts — always rendered when available */}
-        {visiblePosts.length === 0 ? (
+        {/* Feed Posts */}
+        {postsLoading ? (
+          <div className="hp-feed-empty" role="status">
+            Loading posts...
+          </div>
+        ) : postsAuthError ? (
+          <div className="hp-feed-empty" role="alert">
+            {postsAuthError}
+          </div>
+        ) : visiblePosts.length === 0 ? (
           <div className="hp-feed-empty" role="status">
             <span className="hp-feed-empty-icon">💎</span>
             <p>
