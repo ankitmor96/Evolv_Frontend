@@ -3,7 +3,7 @@ import {
   Home, Compass, BookOpen, MessageCircle, Users, User,
   Settings, LogOut, Search, MoreHorizontal, Pin,
   Image, Paperclip, Smile, Send, ChevronLeft,
-  CheckCheck, Check, ArrowRight, Target, X,
+  CheckCheck, Check, ArrowRight, Target, X, Menu
 } from 'lucide-react';
 import { authService } from '../../services/authService.js';
 import { CONVERSATIONS, INITIAL_MESSAGES } from '../../data/messagesData.js';
@@ -278,7 +278,7 @@ function MessageComposer({ onSend }) {
 }
 
 // ─── Chat Window ──────────────────────────────────────────────────────────────
-function ChatWindow({ conv, messages, onSend, onBack, chatOpen }) {
+function ChatWindow({ conv, messages, onSend, onBack, chatOpen, onMenu }) {
   const endRef = useRef(null);
 
   useEffect(() => {
@@ -312,7 +312,14 @@ function ChatWindow({ conv, messages, onSend, onBack, chatOpen }) {
         >
           <ChevronLeft size={20} />
         </button>
-
+        <button
+          type="button"
+          className="mp-mobile-menu-btn"
+          onClick={onMenu}
+          aria-label="Open navigation menu"
+        >
+          <Menu size={22} />
+        </button>
         <ConvAvatar src={conv.avatar} name={conv.user} size={40} online={conv.online} />
 
         <div className="mp-chat-header-info">
@@ -359,7 +366,7 @@ export default function MessagesPage() {
   const [allMessages, setAllMessages] = useState({ [CONVERSATIONS[0]?.id]: null });
   const [searchQuery, setSearchQuery] = useState('');
   const [chatOpen, setChatOpen] = useState(false); // mobile: whether chat panel is visible
-
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const activeConv = conversations.find(c => c.id === activeId) ?? null;
   const activeMessages = (activeId && allMessages[activeId]) || [];
 
@@ -424,6 +431,84 @@ export default function MessagesPage() {
       {/* Left navigation rail */}
       <NavRail user={user} />
 
+      {mobileMenuOpen && (
+        <div className="mp-mobile-nav-layer">
+          <button
+            type="button"
+            className="mp-mobile-nav-backdrop"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Close navigation menu"
+          />
+
+          <aside
+            className="mp-mobile-nav-drawer"
+            aria-label="Main navigation"
+          >
+            <div className="mp-mobile-nav-header">
+              <div className="mp-nav-logo">
+                <span>ev</span>
+              </div>
+
+              <button
+                type="button"
+                className="mp-mobile-menu-btn"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Close navigation menu"
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            {NAV_ITEMS.map(({ id, Icon, label, hash }) => (
+              <button
+                key={id}
+                type="button"
+                className={`mp-mobile-nav-item ${id === 'messages' ? 'active' : ''
+                  }`}
+                onClick={() => {
+                  setMobileMenuOpen(false);
+
+                  if (id !== 'messages') {
+                    navigate(hash);
+                  }
+                }}
+              >
+                <Icon size={20} />
+                <span>{label}</span>
+              </button>
+            ))}
+
+            <div className="mp-mobile-nav-divider" />
+
+            <button
+              type="button"
+              className="mp-mobile-nav-item"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                navigate('/profile');
+              }}
+            >
+              <User size={20} />
+              <span>Profile</span>
+            </button>
+
+            <button
+              type="button"
+              className="mp-mobile-nav-item"
+              onClick={async () => {
+                setMobileMenuOpen(false);
+                await authService.logout();
+                window.history.pushState({}, '', '/login');
+                window.dispatchEvent(new Event('navigated'));
+              }}
+            >
+              <LogOut size={20} />
+              <span>Log out</span>
+            </button>
+          </aside>
+        </div>
+      )}
+
       {/* Conversation sidebar */}
       <aside className={`mp-sidebar${chatOpen ? ' chat-open' : ''}`} aria-label="Conversations">
         <div className="mp-sidebar-header">
@@ -440,6 +525,15 @@ export default function MessagesPage() {
             />
           </div>
           <h1 className="mp-sidebar-title">Messages</h1>
+          <button
+            type="button"
+            className="mp-mobile-menu-btn"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Open navigation menu"
+            aria-expanded={mobileMenuOpen}
+          >
+            <Menu size={22} />
+          </button>
         </div>
 
         <div className="mp-conv-list" role="list" aria-label="Conversation list">
@@ -469,6 +563,7 @@ export default function MessagesPage() {
           setChatOpen(false);
         }}
         chatOpen={chatOpen}
+        onMenu={() => setMobileMenuOpen(true)}
       />
     </div>
   );

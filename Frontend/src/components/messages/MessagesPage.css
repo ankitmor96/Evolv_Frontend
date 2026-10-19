@@ -841,3 +841,117 @@
   }
 }
 
+
+/* Mobile navigation menu button */
+.mp-mobile-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border: 1px solid rgba(9, 3, 15, 0.1);
+  border-radius: 11px;
+  background: #fff;
+  color: #09030F;
+  cursor: pointer;
+}
+
+.mp-sidebar-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Navigation drawer overlay */
+.mp-mobile-nav-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.mp-mobile-nav-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: rgba(9, 3, 15, 0.45);
+  cursor: pointer;
+}
+
+.mp-mobile-nav-drawer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(290px, 82vw);
+  box-sizing: border-box;
+  padding: 20px 14px;
+  overflow-y: auto;
+  background: #fff;
+  box-shadow: 8px 0 30px rgba(9, 3, 15, 0.12);
+  animation: mp-drawer-in 0.22s ease-out;
+}
+
+.mp-mobile-nav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  padding: 0 4px;
+}
+
+.mp-mobile-nav-header .mp-nav-logo {
+  margin: 0;
+}
+
+.mp-mobile-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 13px 14px;
+  margin-bottom: 5px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: rgba(9, 3, 15, 0.7);
+  text-align: left;
+  font: 500 14px 'Inter', sans-serif;
+  cursor: pointer;
+}
+
+.mp-mobile-nav-item:hover,
+.mp-mobile-nav-item.active {
+  color: #AA45F5;
+  background: rgba(170, 69, 245, 0.1);
+}
+
+.mp-mobile-nav-divider {
+  height: 1px;
+  margin: 14px 8px;
+  background: rgba(9, 3, 15, 0.1);
+}
+
+@keyframes mp-drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .mp-mobile-menu-btn {
+    display: inline-flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-mobile-nav-drawer {
+    animation: none;
+  }
+}
