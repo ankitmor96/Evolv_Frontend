@@ -102,7 +102,7 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
         // Backend may return array directly or wrapped in { data }
         const records = Array.isArray(res) ? res
           : Array.isArray(res?.data) ? res.data
-          : [];
+            : [];
         const canDo = [];
         const learning = [];
         for (const rec of records) {
@@ -167,8 +167,8 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
 
   return (
     <>
-     
-<style>{`
+
+      <style>{`
 
 /* Keep the action tooltip above the post card */
 .hp-post {
@@ -775,7 +775,7 @@ function FeedPost({ post, onLike, onSave, onFollow }) {
         /* dismissed */
       }
     } else {
-      await navigator.clipboard.writeText(url).catch(() => {});
+      await navigator.clipboard.writeText(url).catch(() => { });
     }
   };
   return (
@@ -809,7 +809,7 @@ function FeedPost({ post, onLike, onSave, onFollow }) {
               '+ Follow'
             )}
           </button>
-         
+
         </div>
       </div>
 
@@ -980,8 +980,8 @@ function FeedPost({ post, onLike, onSave, onFollow }) {
           aria-pressed={post.saved}
         >
           <span className="hp-action-tooltip" role="tooltip">
-              {activeActionTooltip === 'Bookmark' ? 'Bookmark' : ''}
-            </span>
+            {activeActionTooltip === 'Bookmark' ? 'Bookmark' : ''}
+          </span>
           <Bookmark
             size={20}
             fill={post.saved ? 'currentColor' : 'none'}
@@ -1005,8 +1005,8 @@ function FeedPost({ post, onLike, onSave, onFollow }) {
           aria-expanded={showMenu}
         >
           <span className="hp-action-tooltip" role="tooltip">
-              {activeActionTooltip === 'More' ? 'More' : ''}
-            </span>
+            {activeActionTooltip === 'More' ? 'More' : ''}
+          </span>
           <MoreHorizontal
             size={21}
             aria-hidden="true"
@@ -1758,6 +1758,7 @@ function PostComposer({ user, onPostCreated }) {
           title: postData.title,
           description: postData.description,
           files: postData.files,
+          file: selectedFile,
         });
 
         // Normalise the raw response into feed-post shape manually because
@@ -1845,7 +1846,7 @@ function PostComposer({ user, onPostCreated }) {
         return 'image/*';
 
       case 'document':
-        return '.pdf,.doc,.docx,.ppt,.pptx,.txt';
+        return '.pdf,.doc,.docx,.ppt,.pptx,.txt,.xls,.xlsx,.csv';
 
       default:
         return '';
@@ -1854,6 +1855,7 @@ function PostComposer({ user, onPostCreated }) {
 
   const isMultiple = selectedType === 'photos';
 
+  const [selectedFile, setSelectedFile] = useState(null);
   return (
     <div className="hp-composer" aria-label="Create a post">
 
@@ -1937,11 +1939,23 @@ function PostComposer({ user, onPostCreated }) {
           )}
 
 
-          {/* DOCUMENT */}
-          {selectedType === 'document' && (
-            <div className="hp-composer-upload-area">
 
+          {/* DOCUMENT */}
+          {selectedType === "document" && (
+            <div className="hp-composer-upload-area">
               <p>Upload a document</p>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setSelectedFile(file);
+                  console.log("Selected document:", file);
+                }}
+              />
 
               <button
                 type="button"
@@ -1950,8 +1964,14 @@ function PostComposer({ user, onPostCreated }) {
                 Choose Document
               </button>
 
+              {selectedFile && (
+                <p>
+                  Selected: {selectedFile.name}
+                </p>
+              )}
             </div>
           )}
+
 
           {/* QUESTION */}
           {!isMediaType && selectedType === 'question' && (
@@ -2204,75 +2224,42 @@ function HomeFeed({ user, onOpenSidebar }) {
   // array leaves the existing static posts untouched.
   useEffect(() => {
     let cancelled = false;
-    homePostService.getPosts()
-      .then((backendPosts) => {
-        if (cancelled) return;
-        if (backendPosts.length > 0) {
-          // Backend returned real posts — normalise to FeedPost format.
-          // Deduplicate against the static set by stable post ID so the
-          // same content never appears twice if IDs overlap.
-          const staticIds = new Set(
-            FEED_POSTS.map((p) => String(p.id))
-          );
-          const mapped = backendPosts
-            .filter((p) => {
-              const pid = String(p._id || p.id || '');
-              return pid && !staticIds.has(pid);
-            })
-            .map((p) => ({
-              id: p._id || p.id || `bp-${Math.random()}`,
-              type: p.type === 'short_video' ? 'reel' : 'post',
-              creator: {
-                name: p.creator?.name || p.user?.name || p.author?.name || 'Unknown',
-                username: p.creator?.username || p.user?.username || '',
-                field: p.creator?.field || p.user?.field || 'Community Member',
-                avatar: p.creator?.avatar || p.creator?.profileImage || p.user?.avatar || '',
-              },
-              category: p.category || p.skillName || 'Discover',
-              tags: Array.isArray(p.tags) ? p.tags : [],
-              caption: p.caption || p.content || p.title || '',
-              media: {
-                type: p.type === 'short_video' ? 'video' : (p.mediaUrl || p.imageUrl || p.media?.url ? 'image' : 'text'),
-                src: p.mediaUrl || p.imageUrl || p.media?.url || p.media?.src || '',
-                poster: p.poster || p.thumbnail || '',
-              },
-              liked: false,
-              saved: false,
-              followed: false,
-              appreciated: false,
-              appreciations: p.appreciations ?? p.likes ?? 0,
-              helpful: false,
-              helpfulCount: p.helpfulCount ?? 0,
-              learned: false,
-              learnedCount: p.learnedCount ?? 0,
-              comments: p.comments ?? p.commentCount ?? 0,
-              likes: p.likes ?? 0,
-              timestamp: p.createdAt
-                ? new Date(p.createdAt).toLocaleDateString()
-                : 'Recently',
-            }));
-          if (mapped.length > 0) {
-            // Prepend new backend posts ahead of static posts in the feed.
-            setPosts((prev) => [
-              ...mapped,
-              ...prev,
-            ]);
-          }
-          // If every backend post ID matched a static ID, no update needed.
-        }
-        // backendPosts === [] means the API failed gracefully or the
-        // endpoint is not yet implemented — keep static posts as-is.
-        setPostsAuthError(null);
-      })
-      .catch(() => {
-        // homePostService.getPosts() should never throw — it handles all
-        // errors internally. This catch is a final safety net.
-        if (cancelled) return;
-        console.warn('[HomeFeed] Unexpected rejection from getPosts(); static feed retained.');
-      });
-    return () => { cancelled = true; };
-  }, []);
 
+    const loadFeed = async () => {
+      try {
+        const { posts: backendPosts = [] } =
+          await homePostService.getFeedPosts();
+
+        if (cancelled || backendPosts.length === 0) return;
+
+        const mapped = backendPosts.map((post) =>
+          homePostService._normalisePost(post)
+        );
+
+        setPosts((prev) => {
+          const existingIds = new Set(
+            prev.map((post) => String(post.id))
+          );
+
+          const newPosts = mapped.filter(
+            (post) => !existingIds.has(String(post.id))
+          );
+
+          return [...newPosts, ...prev];
+        });
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to load feed:", error);
+        }
+      }
+    };
+
+    loadFeed();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   // Use API tabs when available, fall back to static DOMAIN_TABS
   const FEED_TABS = apiTabs ?? ['For You', 'Learning', 'Discover', ...INTEREST_TABS.slice(2)];
 

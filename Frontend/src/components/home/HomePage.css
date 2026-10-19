@@ -1,18 +1,5 @@
-/* =====================================================================
-
-   EVOLV — HOME PAGE
-
-   3-column layout: left sidebar | scrollable feed | right sidebar
-
-   Palette: white bg, #09030F dark, #AA45F5 purple, #F4F3FA outer
-
-   ===================================================================== */
-
-
 
 @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap');
-
-
 
 /* ─── Layout shell ────────────────────────────────────────────── */
 
@@ -46,14 +33,7 @@ height: 100dvh;
 
 }
 
-
-
-/* ═══════════════════════════════════════════════════════════════
-
-   LEFT SIDEBAR
-
-   ═══════════════════════════════════════════════════════════════ */
-
+/* ═══════════════════════════════════════════════════════════════LEFT SIDEBAR ═══════════════════════════════════════════════════════════════ */
 .hp-sidebar {
 
   width: 280px;
@@ -86,8 +66,6 @@ height: 100dvh;
 
 }
 
-
-
 @keyframes hpSideIn {
 
   from {
@@ -97,9 +75,6 @@ height: 100dvh;
     transform: translateX(-16px);
 
   }
-
-
-
   to {
 
     opacity: 1;
@@ -109,9 +84,6 @@ height: 100dvh;
   }
 
 }
-
-
-
 /* Logo */
 
 .hp-sidebar-logo {
@@ -177,9 +149,6 @@ height: 100dvh;
   transition: background 180ms ease, color 180ms ease, border-color 180ms ease;
 
 }
-
-
-
 .hp-sidebar-close:hover {
 
   background: rgba(170, 69, 245, 0.1);
@@ -189,8 +158,6 @@ height: 100dvh;
   color: #AA45F5;
 
 }
-
-
 
 /* Nav section label */
 
@@ -2469,59 +2436,13 @@ height: 100dvh;
   align-self: flex-end;
 
 }
-
-
-
-/* ═══════════════════════════════════════════════════════════════
-
-   RESPONSIVE — LAYOUT ONLY
-
-   ─────────────────────────────────────────────────────────────
-
-   Desktop:  ≥1200px  →  3-col: 280px | 1fr | 360px
-
-   Tablet:   768–1199px  →  2-col: 240px | 1fr (right sidebar hidden)
-
-   Mobile:   <768px   →  1-col: mobile header + tabs + full-width feed
-
-
-
-   ⚠  Media styles (.hp-post-media-img, .hp-post-video-wrapper,
-
-      .hp-post-image-wrapper, video) are intentionally NOT overridden
-
-      in any @media block — the post card narrows; media scales
-
-      fluidly via width:100% already set in the base rules.
-
-   ═══════════════════════════════════════════════════════════════ */
-
-
-
-/* ─────────────────────────────────────────────────────────────
-
-   TABLET  768px – 1199px
-
-   2-col layout: compact sidebar | fluid feed
-
-   Right sidebar hidden
-
-───────────────────────────────────────────────────────────── */
-
 @media (min-width: 768px) and (max-width: 1199px) {
-
-
-
-  /* 2-column grid */
 
   .hp-layout {
 
     grid-template-columns: 240px minmax(0, 1fr);
 
   }
-
-
-
   /* Hide right sidebar */
 
   .hp-right-sidebar {
@@ -2529,8 +2450,6 @@ height: 100dvh;
     display: none !important;
 
   }
-
-
 
   /* Compact left sidebar */
 
@@ -2541,9 +2460,6 @@ height: 100dvh;
     padding: 18px 12px 18px;
 
   }
-
-
-
   .hp-nav-item {
 
     padding: 9px 12px;
@@ -2553,25 +2469,16 @@ height: 100dvh;
     font-size: 0.84rem;
 
   }
-
-
-
   .hp-nav-item span {
 
     font-size: 0.84rem;
 
   }
-
-
-
   .hp-logo-img {
 
     width: 88px;
 
   }
-
-
-
   /* Feed header */
 
   .hp-feed-header {
@@ -2579,9 +2486,6 @@ height: 100dvh;
     padding: 16px 22px 14px;
 
   }
-
-
-
   /* Feed */
 
   .hp-feed {
@@ -2591,9 +2495,6 @@ height: 100dvh;
     gap: 18px;
 
   }
-
-
-
   /* Post cards */
 
   .hp-post {
@@ -2603,9 +2504,6 @@ height: 100dvh;
   }
 
 }
-
-
-
 /* Narrow tablet / large tablet: 900px and below — slim sidebar text */
 
 @media (min-width: 768px) and (max-width: 900px) {
@@ -2615,9 +2513,6 @@ height: 100dvh;
     grid-template-columns: 200px minmax(0, 1fr);
 
   }
-
-
-
   .hp-sidebar {
 
     width: 200px;
@@ -2625,17 +2520,11 @@ height: 100dvh;
     padding: 16px 10px;
 
   }
-
-
-
   .hp-nav-section-label {
 
     font-size: 0.6rem;
 
   }
-
-
-
   .hp-nav-item {
 
     padding: 8px 10px;
@@ -2643,17 +2532,11 @@ height: 100dvh;
     gap: 8px;
 
   }
-
-
-
   .hp-nav-item span {
 
     font-size: 0.8rem;
 
   }
-
-
-
   .hp-create-btn {
 
     padding: 10px 14px;
@@ -2661,9 +2544,6 @@ height: 100dvh;
     font-size: 0.82rem;
 
   }
-
-
-
 /* Feed Header */
 .hp-feed-header {
   flex-shrink: 0;
@@ -2685,9 +2565,6 @@ height: 100dvh;
   position: relative;
   z-index: 20;
 }
-
-
-
   .hp-feed {
 
     padding: 16px 16px 32px;
@@ -2695,9 +2572,6 @@ height: 100dvh;
     gap: 16px;
 
   }
-
-
-
   .hp-post {
 
     padding: 18px 16px 14px;
@@ -2706,22 +2580,7 @@ height: 100dvh;
 
 }
 
-
-
-/* ─────────────────────────────────────────────────────────────
-
-   MOBILE  <768px
-
-   1-column layout: mobile header | tabs | full-width feed
-
-   Desktop sidebars hidden. Left sidebar becomes a slide-in drawer.
-
-───────────────────────────────────────────────────────────── */
-
 @media (max-width: 767px) {
-
-
-
   /* Switch to single column flex */
 
   .hp-layout {
@@ -2753,8 +2612,6 @@ height: 100dvh;
     display: none !important;
 
   }
-
-
 
   /* ── Left sidebar → fixed off-canvas drawer ── */
 
@@ -2809,9 +2666,6 @@ height: 100dvh;
     padding: 20px 16px;
 
   }
-
-
-
   /* Drawer open state */
 
   .hp-sidebar.open {
@@ -2830,8 +2684,6 @@ height: 100dvh;
 
   }
 
-
-
   /* Show the X close button inside the drawer */
 
   .hp-sidebar-close {
@@ -2839,9 +2691,6 @@ height: 100dvh;
     display: flex !important;
 
   }
-
-
-
   /* ── Backdrop overlay (behind drawer, above content) ── */
 
   .hp-sidebar-overlay {
@@ -3421,29 +3270,6 @@ height: 100dvh;
    Keep this block at the END of HomePage.css.
    ===================================================================== */
 
-/* .hp-feed {
-  flex: 1;
-  min-width: 0;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
-
-  overflow-y: auto;
-  overflow-x: hidden;
-  
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-
-  padding: 20px 28px 40px;
-
-  background: #F8F7FB;
-
-  scrollbar-width: thin;
-  scrollbar-color: rgba(170, 69, 245, 0.2) transparent;
-} */
-
 .hp-feed::-webkit-scrollbar {
   width: 6px;
 }
@@ -3830,19 +3656,6 @@ height: 100dvh;
     padding: 8px 10px;
   }
 
-  /* .hp-feed {
-    width: 100%;
-    max-width: 100%;
-
-    padding: 12px 10px 30px;
-    gap: 14px;
-
-    align-items: stretch;
-
-    overflow-y: auto;
-    overflow-x: hidden;
-  } */
-
   .hp-post {
     width: 100%;
     max-width: 100%;
@@ -3980,4 +3793,568 @@ height: 100dvh;
 
 .hp-post {
   flex-shrink: 0;
+}
+
+
+/* =====================================================
+   EVOLV MOBILE DRAWERS — ADD AT END OF HomePage.css
+   ===================================================== */
+
+.hp-mobile-menu-btn,
+.hp-mobile-filter-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(170, 69, 245, 0.25);
+  border-radius: 11px;
+  background: #fff;
+  color: #8b2fd8;
+  cursor: pointer;
+}
+
+.hp-mobile-drawer-header {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .hp-layout {
+    display: flex !important;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100vw;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .hp-feed-column {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .hp-mobile-menu-btn,
+  .hp-mobile-filter-btn {
+    display: inline-flex;
+  }
+
+  .hp-feed-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-shrink: 0;
+    width: 100%;
+    min-height: 58px;
+    height: auto;
+    margin-top: 0 !important;
+    padding: 8px 12px;
+    box-sizing: border-box;
+    background: #fff;
+  }
+
+  .hp-feed-header-right {
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px !important;
+    margin-left: auto;
+  }
+
+  .hp-icon-btn {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+
+  .hp-tabs-wrapper {
+    flex-shrink: 0;
+    width: 100%;
+    padding: 8px;
+  }
+
+  .hp-feed {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 12px 10px 32px;
+    box-sizing: border-box;
+    align-items: stretch;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .hp-post {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* LEFT NAVIGATION DRAWER */
+  .hp-sidebar {
+    position: fixed !important;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1001;
+    width: min(300px, 84vw);
+    height: 100dvh;
+    max-width: 320px;
+    box-sizing: border-box;
+    transform: translateX(-105%);
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 280ms ease, visibility 280ms ease;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: #fff;
+  }
+
+  .hp-sidebar.open {
+    transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .hp-sidebar-close {
+    display: flex !important;
+  }
+
+  /* BACKDROP */
+  .hp-sidebar-overlay {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(9, 3, 15, 0.48);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 280ms ease, visibility 280ms ease;
+  }
+
+  .hp-sidebar-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  /* RIGHT LEARNING DASHBOARD DRAWER */
+  .hp-right-sidebar {
+    display: flex !important;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1002;
+    width: min(360px, 90vw);
+    max-width: 420px;
+    height: 100dvh;
+    box-sizing: border-box;
+    padding: 16px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: #fff;
+    box-shadow: -8px 0 30px rgba(9, 3, 15, 0.12);
+    transform: translateX(105%);
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 280ms ease, visibility 280ms ease;
+  }
+
+  .hp-right-sidebar.open {
+    transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .hp-mobile-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-shrink: 0;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(9, 3, 15, 0.1);
+    color: #09030f;
+  }
+
+  .hp-mobile-drawer-header button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 9px;
+    background: #f4f3fa;
+    color: #09030f;
+    cursor: pointer;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hp-sidebar,
+  .hp-right-sidebar,
+  .hp-sidebar-overlay {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.hp-right-sidebar-overlay {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .hp-right-sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1001;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: rgba(9, 3, 15, 0.48);
+  }
+}
+  body {
+    overflow: hidden;
+  }
+
+  .hp-layout {
+    width: 100%;
+    height: 100dvh;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr) 360px;
+    overflow: hidden;
+  }
+
+  .hp-feed-column {
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .hp-feed {
+    flex: 1 1 auto;
+    width: 100%;
+    height: auto;
+    min-width: 0;
+    min-height: 0;
+    box-sizing: border-box;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .hp-post {
+    flex-shrink: 0;
+  }
+
+  /* Tablet */
+  @media (min-width: 768px) and (max-width: 1199px) {
+    .hp-layout {
+      grid-template-columns: 240px minmax(0, 1fr);
+    }
+
+    .hp-feed-column {
+      min-height: 0;
+    }
+
+    .hp-feed {
+      min-height: 0;
+      overflow-y: auto;
+    }
+  }
+
+  /* Mobile */
+  @media (max-width: 767px) {
+    .hp-layout {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100dvh;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .hp-feed-column {
+      flex: 1 1 auto;
+      width: 100%;
+      height: auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .hp-feed {
+      flex: 1 1 auto;
+      width: 100%;
+      height: auto;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 14px 14px 40px;
+    }
+  }
+    .hp-mobile-user-btn {
+    display: none;
+
+    width: 40px;
+    height: 40px;
+
+    padding: 3px;
+
+    border: 1.5px solid rgba(9, 3, 15, 0.12);
+    border-radius: 50%;
+
+    background: #ffffff;
+
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+
+    transition:
+      border-color 0.2s ease,
+      background 0.2s ease,
+      transform 0.15s ease;
+  }
+
+  .hp-mobile-user-btn:hover {
+    border-color: #aa45f5;
+    background: rgba(170, 69, 245, 0.06);
+  }
+
+  .hp-mobile-user-btn:active {
+    transform: scale(0.94);
+  }
+
+  .hp-mobile-user-btn:focus-visible {
+    outline: 2px solid #aa45f5;
+    outline-offset: 2px;
+  }
+
+  /* Show only on mobile */
+  @media (max-width: 767px) {
+    .hp-mobile-user-btn {
+      display: inline-flex;
+    }
+  }
+
+  /* ── Right sidebar new section styles ────────────────────────────────────── */
+  .hp-growth-tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid rgba(9,3,15,0.08); }
+  .hp-growth-tab { padding: 6px 12px; border: none; background: none; font-size: 13px; font-weight: 500; color: #8b7aa3; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .hp-growth-tab.active { color: #aa45f5; border-bottom-color: #aa45f5; font-weight: 600; }
+  .hp-progress-item { margin-bottom: 10px; }
+  .hp-progress-label { display: flex; justify-content: space-between; font-size: 12px; color: #2d1b4e; margin-bottom: 4px; font-weight: 500; }
+  .hp-progress-pct { color: #8b7aa3; font-weight: 400; }
+  .hp-progress-track { height: 6px; background: rgba(9,3,15,0.08); border-radius: 3px; overflow: hidden; }
+  .hp-progress-fill { height: 100%; border-radius: 3px; background: #aa45f5; }
+  .hp-progress-fill.green  { background: #22c55e; }
+  .hp-progress-fill.yellow { background: #eab308; }
+  .hp-progress-fill.pink   { background: #ec4899; }
+  .hp-learned-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+  .hp-learned-item { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .hp-learned-check { width: 18px; height: 18px; border-radius: 50%; background: rgba(34,197,94,0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .hp-learned-text { flex: 1; color: #2d1b4e; font-weight: 500; }
+  .hp-learned-when { color: #8b7aa3; font-size: 11px; white-space: nowrap; }
+  .hp-continue-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: rgba(170,69,245,0.06); border-radius: 10px; border: 1px solid rgba(170,69,245,0.15); }
+  .hp-continue-icon { width: 34px; height: 34px; border-radius: 50%; background: rgba(170,69,245,0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #aa45f5; }
+  .hp-continue-body { flex: 1; min-width: 0; }
+  .hp-continue-title { font-size: 13px; font-weight: 600; color: #2d1b4e; margin: 0 0 2px; }
+  .hp-continue-sub { font-size: 11px; color: #8b7aa3; margin: 0; }
+  .hp-continue-arrow { width: 28px; height: 28px; border-radius: 50%; background: #aa45f5; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
+  .hp-continue-arrow:hover { background: #8a2be2; }
+  .hp-learn-person-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+  .hp-learn-person-info { flex: 1; min-width: 0; }
+  .hp-learn-person-name { font-size: 13px; font-weight: 600; color: #2d1b4e; display: block; }
+  .hp-learn-person-field { font-size: 11px; color: #8b7aa3; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hp-learn-person-meta { font-size: 11px; color: #8b7aa3; display: block; }
+  .hp-learn-btn { padding: 5px 14px; border: 1.5px solid #aa45f5; border-radius: 20px; background: #fff; color: #aa45f5; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .hp-learn-btn:hover, .hp-learn-btn.following { background: #aa45f5; color: #fff; }
+  .hp-recommended-body { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+  .hp-recommended-icon { width: 36px; height: 36px; border-radius: 50%; background: rgba(170,69,245,0.1); display: flex; align-items: center; justify-content: center; color: #aa45f5; flex-shrink: 0; }
+  .hp-recommended-text { font-size: 12px; color: #555; line-height: 1.5; }
+  .hp-recommended-text strong { color: #2d1b4e; }
+  /* ── Post composer styles ───────────────────────────────────────────────────── */
+  .hp-composer { width:93%; background: #fff; border-radius: 12px; border: 1px solid rgba(9,3,15,0.1); padding: 14px 16px; margin-bottom: 12px; }
+  .hp-composer-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .hp-composer-body { flex: 1; }
+  .hp-composer-prompt { font-size: 14px; font-weight: 600; color: #2d1b4e; margin: 0 0 3px; }
+  .hp-composer-placeholder { font-size: 12px; color: #8b7aa3; margin: 0; }
+  .hp-composer-types { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .hp-composer-type-btn { display: flex; align-items: center; gap: 4px; padding: 5px 10px; border: 1px solid rgba(9,3,15,0.12); border-radius: 20px; background: #fff; font-size: 12px; color: #555; cursor: pointer; }
+  .hp-composer-type-btn:hover { border-color: #aa45f5; color: #aa45f5; }
+  .hp-composer-footer { display: flex; justify-content: flex-end; }
+  .hp-composer-post-btn { padding: 7px 20px; background: #1a0a2e; color: #fff; border: none; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .hp-composer-post-btn:hover { background: #aa45f5; }
+  .hp-composer-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #111827;
+
+  padding: 4px 0;
+}
+
+.hp-composer-input::placeholder {
+  color: #9ca3af;
+}
+
+.hp-composer-upload-area {
+  padding: 12px 0;
+}
+
+.hp-composer-upload-area p {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.hp-composer-upload-area button {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.hp-composer-type-btn.active {
+  border-color: #7c3aed;
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.08);
+}
+
+.hp-composer-file-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.hp-composer-file-item {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.hp-composer-file-item img,
+.hp-composer-file-item video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hp-composer-file-item > button {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+
+  width: 24px;
+  height: 24px;
+
+  border: none;
+  border-radius: 50%;
+
+  background: rgba(0, 0, 0, 0.65);
+  color: white;
+
+  cursor: pointer;
+}
+
+.hp-composer-document-preview {
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  gap: 5px;
+  padding: 8px;
+
+  font-size: 24px;
+}
+
+.hp-composer-document-preview span {
+  max-width: 90px;
+
+  font-size: 11px;
+  color: #4b5563;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Caption input */
+.hp-composer-caption {
+  width: 100%;
+  margin: 12px 0;
+}
+
+.hp-composer-caption-input {
+  width: 100%;
+  min-height: 90px;
+  padding: 14px 16px;
+  border: 1px solid #e5e1eb;
+  border-radius: 12px;
+  background: #fff;
+  color: #20152c;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease,
+              box-shadow 0.2s ease;
+}
+
+.hp-composer-caption-input::placeholder {
+  color: #a39aaa;
+}
+
+.hp-composer-caption-input:focus {
+  border-color: #a63df5;
+  box-shadow: 0 0 0 3px rgba(166, 61, 245, 0.1);
+}
+
+.hp-composer-caption-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 5px;
+  color: #9688a5;
+  font-size: 12px;
 }
