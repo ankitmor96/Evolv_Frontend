@@ -807,6 +807,27 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
       await navigator.clipboard.writeText(url).catch(() => { });
     }
   };
+  const currentUser = authService.getCurrentUser();
+
+  const currentUserId =
+    currentUser?.id ??
+    currentUser?.userId ??
+    currentUser?._id;
+
+  const creatorId =
+    post.creator?.id ??
+    post.creator?.userId ??
+    post.creator?._id;
+
+  const isOwnPost =
+    currentUserId != null &&
+    creatorId != null &&
+    String(currentUserId) === String(creatorId);
+  console.log('Current user:', currentUser);
+  console.log('Post creator:', post.creator);
+  console.log('Current user ID:', currentUserId);
+  console.log('Creator ID:', creatorId);
+  console.log('Is own post:', isOwnPost);
   return (
     <article className="hp-post" aria-label={`${post.type === 'reel' ? 'Reel' : 'Post'} by ${post.creator.name}`}>
       {/* Post header */}
@@ -827,18 +848,26 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
           </div>
         </div>
         <div className="hp-post-header-right">
-          <button
-            className={`hp-follow-btn ${post.followed ? 'following' : ''}`}
-            onClick={() => onFollow(post.id)}
-            aria-label={post.followed ? `Unfollow ${post.creator.name}` : `Follow ${post.creator.name}`}
-          >
-            {post.followed ? (
-              <><CheckCheck size={13} aria-hidden="true" /> Following</>
-            ) : (
-              '+ Follow'
-            )}
-          </button>
-
+          {!isOwnPost && (
+            <button
+              className={`hp-follow-btn ${post.followed ? 'following' : ''}`}
+              onClick={() => onFollow(post.id)}
+              aria-label={
+                post.followed
+                  ? `Disconnect from ${post.creator.name}`
+                  : `Connect with ${post.creator.name}`
+              }
+            >
+              {post.followed ? (
+                <>
+                  <CheckCheck size={13} aria-hidden="true" />
+                  Connected
+                </>
+              ) : (
+                '+ Connect'
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -853,7 +882,34 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
       <p className="hp-post-caption">{post.caption}</p>
 
       {/* Media */}
-      {post.media.type === 'video' ? (
+
+      {/* Media */}
+      {post.media.type === 'document' ? (
+        <div className="hp-document-card">
+          <div className="hp-document-icon">
+            <BookOpen size={28} aria-hidden="true" />
+          </div>
+
+          <div className="hp-document-info">
+            <p className="hp-document-name">
+              {post.media.fileName || 'Document'}
+            </p>
+            <span>Document attachment</span>
+          </div>
+
+          {post.media.src && (
+            <a
+              className="hp-document-download"
+              href={post.media.src}
+              download={post.media.fileName || 'document'}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Download Document
+            </a>
+          )}
+        </div>
+      ) : post.media.type === 'video' ? (
         <div className="hp-post-video-wrapper">
           <video
             src={post.media.src || '/example.mp4'}
@@ -865,7 +921,7 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
             Your browser does not support the video tag.
           </video>
         </div>
-      ) : (
+      ) : post.media.type === 'image' && post.media.src ? (
         <div className="hp-post-image-wrapper">
           <img
             src={post.media.src}
@@ -874,7 +930,7 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
             loading="lazy"
           />
         </div>
-      )}
+      ) : null}
 
       {/* Action row */}
       <div className="hp-post-actions">
@@ -1772,6 +1828,7 @@ function PostComposer({ user, onPostCreated }) {
           newPost = {
             ...newPost,
             creator: {
+              id: user?.id ?? user?.userId ?? user?._id,
               name: user?.name || user?.username || 'You',
               username: user?.username || '',
               field: user?.field || 'Community Member',
@@ -1814,12 +1871,33 @@ function PostComposer({ user, onPostCreated }) {
           files: postData.files,
           file: selectedFile,
         });
-
+        console.log('[Document Upload] Backend response:', raw);
+        console.log('[Document Upload] Parsed document:', created);
+        console.log('[Document Upload] Download URL:', documentUrl);
         // Normalise the raw response into feed-post shape manually because
         // these types may not return a mediaUrl or thumbnailUrl.
         const created =
           raw?.post ?? raw?.data?.post ?? raw?.data ?? raw ?? {};
+        const documentUrl =
+          created.documentUrl ??
+          created.documentURL ??
+          created.fileUrl ??
+          created.fileURL ??
+          created.mediaUrl ??
+          created.document?.url ??
+          created.document?.documentUrl ??
+          created.file?.url ??
+          created.file?.path ??
+          created.attachment?.url ??
+          created.url ??
+          '';
 
+        const documentName =
+          selectedFile?.name ??
+          created.fileName ??
+          created.document?.name ??
+          created.file?.originalName ??
+          'Download document';
         newPost = {
           id: created._id || created.id || `local-${Date.now()}`,
           type: 'post',
@@ -1835,7 +1913,17 @@ function PostComposer({ user, onPostCreated }) {
             field: user?.field || 'Community Member',
             avatar: user?.avatar || user?.profileImage || '',
           },
-          media: { type: 'text', src: '' },
+          media: {
+            type: selectedType === 'document'
+              ? 'document'
+              : 'text',
+            src: selectedType === 'document'
+              ? documentUrl
+              : '',
+            fileName: selectedType === 'document'
+              ? documentName
+              : '',
+          },
           liked: false,
           saved: false,
           followed: false,

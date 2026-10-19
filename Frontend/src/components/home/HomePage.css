@@ -4283,3 +4283,78 @@ height: 100dvh;
   color: #9688a5;
   font-size: 12px;
 }
+.hp-document-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  margin-top: 12px;
+  border: 1px solid #e5dcef;
+  border-radius: 14px;
+  background: #faf7ff;
+  min-width: 0;
+}
+
+.hp-document-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: #f0ddff;
+  color: #922de0;
+}
+
+.hp-document-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.hp-document-name {
+  margin: 0 0 5px;
+  overflow-wrap: anywhere;
+  color: #20152c;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.hp-document-info span {
+  color: #81748f;
+  font-size: 12px;
+}
+
+.hp-document-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border-radius: 20px;
+  background: #1a0a2e;
+  color: #fff;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.hp-document-download:hover {
+  background: #aa45f5;
+}
+
+@media (max-width: 480px) {
+  .hp-document-card {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .hp-document-info {
+    flex-basis: calc(100% - 65px);
+  }
+
+  .hp-document-download {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}

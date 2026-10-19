@@ -583,15 +583,21 @@ export const homePostService = {
       ? p.media[0]
       : p.media ?? payload?.media ?? {};
 
-    const rawType =
+    const rawType = String(
       media?.mediaType ??
       p.mediaType ??
       p.postType ??
       p.postKind ??
-      fallbackType;
+      fallbackType
+    ).toLowerCase();
 
     const isVideo = String(rawType).toLowerCase().includes("video");
-
+    const isDocument =
+      rawType.includes("document") ||
+      rawType.includes("file") ||
+      rawType.includes("application/pdf") ||
+      rawType.includes("application/vnd");
+      
     const mediaSrc =
       media?.mediaUrl ??
       media?.url ??
@@ -599,6 +605,7 @@ export const homePostService = {
       p.videoUrl ??
       p.imageUrl ??
       "";
+    
 
     return {
       id: p.postId ?? p.id ?? p._id ?? `local-${Date.now()}`,
@@ -610,14 +617,67 @@ export const homePostService = {
         ? new Date(p.createdAt).toLocaleDateString()
         : "Just now",
       creator: {
-        name: p.creator?.name ?? p.user?.name ?? p.author?.name ?? "You",
-        username: p.creator?.username ?? p.user?.username ?? "",
-        field: p.creator?.field ?? p.user?.field ?? "Community Member",
-        avatar: p.creator?.avatar ?? p.user?.avatar ?? "",
+        id:
+          p?.creator?.id ??
+          p?.creator?.userId ??
+          p?.creator?.user?.id ??
+          p?.user?.id ??
+          p?.userId ??
+          p?.author?.id ??
+          p?.authorId ??
+          p?.user_id ??
+          null,
+
+        name:
+          p.creator?.name ??
+          p.user?.name ??
+          p.author?.name ??
+          "You",
+
+        username:
+          p.creator?.username ??
+          p.user?.username ??
+          "",
+
+        field:
+          p.creator?.field ??
+          p.user?.field ??
+          "Community Member",
+
+        avatar:
+          p.creator?.avatar ??
+          p.creator?.profileImage ??
+          p.user?.avatar ??
+          "",
       },
       media: {
-        type: isVideo ? "video" : mediaSrc ? "image" : "text",
-        src: mediaSrc,
+        type: isDocument
+          ? "document"
+          : isVideo
+            ? "video"
+            : mediaSrc
+              ? "image"
+              : "text",
+
+        src:
+          media?.documentUrl ??
+          media?.fileUrl ??
+          media?.mediaUrl ??
+          media?.url ??
+          p.documentUrl ??
+          p.fileUrl ??
+          p.mediaUrl ??
+          p.imageUrl ??
+          "",
+
+        fileName:
+          media?.fileName ??
+          media?.originalName ??
+          p.fileName ??
+          p.originalName ??
+          p.document?.name ??
+          "Document",
+
         ...(media?.thumbnailUrl
           ? { poster: media.thumbnailUrl }
           : {}),
