@@ -306,8 +306,8 @@ function ChatWindow({ conv, messages, onSend, onBack, chatOpen }) {
           type="button"
           className="mp-back-btn"
           onClick={() => {
-    onBack();
-  }}
+            onBack();
+          }}
           aria-label="Back to conversations"
         >
           <ChevronLeft size={20} />
@@ -356,7 +356,7 @@ export default function MessagesPage() {
 
   const [conversations, setConversations] = useState(CONVERSATIONS);
   const [activeId, setActiveId] = useState(CONVERSATIONS[0]?.id ?? null);
-  const [allMessages, setAllMessages] = useState({ [CONVERSATIONS[0]?.id]: INITIAL_MESSAGES });
+  const [allMessages, setAllMessages] = useState({ [CONVERSATIONS[0]?.id]: null });
   const [searchQuery, setSearchQuery] = useState('');
   const [chatOpen, setChatOpen] = useState(false); // mobile: whether chat panel is visible
 
@@ -373,13 +373,21 @@ export default function MessagesPage() {
     setActiveId(conv.id);
     setChatOpen(true);
     // Clear unread count
-    setConversations(prev =>
-      prev.map(c => c.id === conv.id ? { ...c, unreadCount: 0 } : c)
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === conv.id ? { ...c, unreadCount: 0 } : c
+      )
     );
-    // Initialise messages for this conversation if not present
-    if (!allMessages[conv.id]) {
-      setAllMessages(prev => ({ ...prev, [conv.id]: [] }));
-    }
+
+    // Initialise messages if this conversation has no messages yet.
+    setAllMessages((prev) => {
+      if (prev[conv.id]) return prev;
+
+      return {
+        ...prev,
+        [conv.id]: [],
+      };
+    });
   };
 
   const handleSend = useCallback((text) => {
@@ -458,7 +466,6 @@ export default function MessagesPage() {
         messages={activeMessages}
         onSend={handleSend}
         onBack={() => {
-          console.log("Back clicked");
           setChatOpen(false);
         }}
         chatOpen={chatOpen}
