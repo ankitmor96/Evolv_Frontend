@@ -122,12 +122,25 @@
 .pp-avatar-img { border-radius: 50%; object-fit: cover; display: block; }
 
 /* Sidebar overlay (mobile) */
+
+/* Sidebar backdrop: do not block clicks when the menu is closed */
 .pp-sidebar-overlay {
-  display: none; position: fixed; inset: 0;
-  background: rgba(9, 3, 15, 0.45); z-index: 99; opacity: 0;
-  transition: opacity 280ms ease;
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(9, 3, 15, 0.45);
+  z-index: 99;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 280ms ease, visibility 280ms ease;
 }
-.pp-sidebar-overlay.visible { opacity: 1; }
+
+.pp-sidebar-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+}
 
 /* ─── Main column ───────────────────────────────────────────────────── */
 .pp-main {
@@ -508,7 +521,6 @@
 /* ─── Topbar avatar button ────────────────────────────────────────────── */
 .pp-topbar-avatar-btn {
   background: none;
-  border: 1.5px solid rgba(9,3,15,0.12);
   border-radius: 50%;
   padding: 2px;
   cursor: pointer;
@@ -1085,4 +1097,514 @@
     max-height: 80vh;
   }
   .pp-settings-item { padding: 16px; }
+}
+
+/* Document post card */
+.pp-grid-document-item {
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #e5d8f5;
+  border-radius: 14px;
+  aspect-ratio: 1 / 1;
+  min-width: 0;
+}
+
+.pp-grid-document-card {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  padding: 18px;
+  background: #faf7ff;
+}
+
+.pp-grid-document-icon {
+  width: 54px;
+  height: 54px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 13px;
+  color: #9634e8;
+  background: #f0dcff;
+}
+
+.pp-grid-document-title {
+  width: 100%;
+  margin: 0;
+  color: #1a1025;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.pp-grid-document-subtitle {
+  margin: 0;
+  color: #81718f;
+  font-size: 12px;
+}
+
+.pp-grid-document-download {
+  width: 100%;
+  min-height: 42px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px;
+  margin-top: 4px;
+  border: none;
+  border-radius: 10px;
+  background: #1a0a2e;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.pp-grid-document-download:hover {
+  background: #9634e8;
+  transform: translateY(-1px);
+}
+
+.pp-grid-document-download svg {
+  flex-shrink: 0;
+}
+
+.pp-grid-document-unavailable {
+  color: #b42318;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .pp-grid-document-card {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .pp-grid-document-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .pp-grid-document-icon svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .pp-grid-document-title {
+    font-size: 12px;
+  }
+
+  .pp-grid-document-subtitle {
+    font-size: 10px;
+  }
+
+  .pp-grid-document-download {
+    min-height: 36px;
+    gap: 4px;
+    padding: 7px 4px;
+    font-size: 10px;
+  }
+
+  .pp-grid-document-download svg {
+    width: 14px;
+    height: 14px;
+  }
+}
+
+
+/* Clickable profile posts */
+.pp-grid-clickable {
+  min-width: 0;
+  cursor: pointer;
+  outline-offset: 3px;
+}
+
+.pp-grid-clickable:focus-visible {
+  outline: 2px solid #9634e8;
+  border-radius: 14px;
+}
+
+.pp-grid-clickable .pp-grid-item {
+  height: 100%;
+}
+
+/* Instagram-style post modal */
+.pp-post-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(12, 7, 20, 0.78);
+  backdrop-filter: blur(6px);
+}
+
+.pp-post-modal {
+  position: relative;
+  width: min(1050px, 100%);
+  max-height: 90vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(300px, 0.8fr);
+  overflow: hidden;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
+}
+
+.pp-post-modal-close {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #eee4f6;
+  border-radius: 50%;
+  background: #fff;
+  color: #241333;
+  cursor: pointer;
+}
+
+.pp-post-modal-media {
+  min-width: 0;
+  min-height: 400px;
+  max-height: 90vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #17121d;
+}
+
+.pp-post-modal-media img,
+.pp-post-modal-media video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 90vh;
+  object-fit: contain;
+}
+
+.pp-post-modal-document {
+  width: 100%;
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  color: #b14bf5;
+  text-align: center;
+}
+
+.pp-post-modal-document h3 {
+  color: #fff;
+  overflow-wrap: anywhere;
+}
+
+.pp-post-modal-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 10px;
+  background: #9634e8;
+  color: #fff;
+  text-decoration: none;
+}
+
+.pp-post-modal-text {
+  padding: 30px;
+  color: #fff;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pp-post-modal-details {
+  min-width: 0;
+  padding: 26px 22px;
+  overflow-y: auto;
+  color: #241333;
+}
+
+.pp-post-modal-heading {
+  padding-right: 38px;
+  border-bottom: 1px solid #eee7f4;
+}
+
+.pp-post-modal-heading h2 {
+  margin: 0 0 6px;
+  font-size: 21px;
+}
+
+.pp-post-modal-heading span {
+  display: block;
+  margin-bottom: 18px;
+  color: #8b8195;
+  font-size: 13px;
+}
+
+.pp-post-modal-caption {
+  margin: 20px 0;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.pp-post-modal-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pp-post-modal-stat {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 14px 10px;
+  border: 1px solid #eee3f8;
+  border-radius: 12px;
+  background: #faf7ff;
+}
+
+.pp-post-modal-stat svg {
+  grid-row: span 2;
+  color: #9634e8;
+}
+
+.pp-post-modal-stat strong {
+  font-size: 18px;
+}
+
+.pp-post-modal-stat span {
+  color: #84768f;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.pp-post-modal-caption-toggle {
+  margin-top: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #9634e8;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pp-post-modal-caption-expanded {
+  margin-top: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pp-post-modal-note {
+  margin-top: 22px;
+  color: #968ba0;
+  font-size: 12px;
+}
+
+@media (max-width: 700px) {
+  .pp-post-modal-overlay {
+    padding: 10px;
+  }
+
+  .pp-post-modal {
+    width: 100%;
+    max-height: 94vh;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(180px, 42vh) minmax(0, 1fr);
+    overflow-y: auto;
+  }
+
+  .pp-post-modal-media {
+    min-height: 180px;
+    max-height: 42vh;
+  }
+
+  .pp-post-modal-media img,
+  .pp-post-modal-media video {
+    max-height: 42vh;
+  }
+
+  .pp-post-modal-details {
+    padding: 20px 16px;
+    overflow: visible;
+  }
+
+  .pp-post-modal-heading h2 {
+    font-size: 18px;
+  }
+}
+
+
+/* ==========================================
+   MOBILE MENU + RIGHT OVERVIEW DRAWER FIX
+   ========================================== */
+
+/* Overview button: hidden on desktop */
+.pp-mobile-overview-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1.5px solid rgba(170, 69, 245, 0.35);
+  border-radius: 10px;
+  background: #fff;
+  color: #8b35d8;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-right: 10px;
+}
+
+.pp-mobile-overview-btn:hover {
+  background: rgba(170, 69, 245, 0.08);
+  border-color: #AA45F5;
+}
+
+.pp-mobile-overview-btn:focus-visible,
+.pp-mobile-menu-btn:focus-visible {
+  outline: 2px solid #AA45F5;
+  outline-offset: 3px;
+}
+
+/* Hidden unless the overview drawer is open */
+.pp-right-overlay {
+  display: none;
+}
+
+.pp-right-close-btn {
+  display: none;
+}
+
+/* Tablet and mobile: show Overview button and use a drawer */
+@media (max-width: 1199px) {
+  .pp-mobile-overview-btn {
+    display: inline-flex;
+  }
+
+  .pp-topbar-actions {
+    gap: 8px;
+  }
+
+  .pp-right-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 109;
+    background: rgba(9, 3, 15, 0.45);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      opacity 220ms ease,
+      visibility 220ms ease;
+  }
+
+  .pp-right-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  /* Override the existing display:none rule */
+  .pp-right,
+  .pp-right.open {
+    display: flex !important;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(360px, 90vw);
+    max-width: 100%;
+    height: 100dvh;
+    padding: 64px 16px 20px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: #F4F3FA;
+    border-left: 1px solid rgba(9, 3, 15, 0.1);
+    box-shadow: -8px 0 32px rgba(9, 3, 15, 0.12);
+    z-index: 110;
+    transform: translateX(100%);
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      transform 260ms ease,
+      visibility 260ms ease;
+  }
+
+  .pp-right.open {
+    transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .pp-right-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 14px;
+    right: 14px;
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(9, 3, 15, 0.12);
+    border-radius: 10px;
+    background: #fff;
+    color: #2d1b4e;
+    cursor: pointer;
+    z-index: 112;
+  }
+
+  .pp-right-close-btn:hover {
+    color: #AA45F5;
+    border-color: #AA45F5;
+  }
+}
+
+/* Keep the desktop three-column layout unchanged */
+@media (min-width: 1200px) {
+  .pp-right {
+    display: flex;
+    position: static;
+    width: auto;
+    height: 100dvh;
+    padding: 20px 16px;
+    transform: none;
+    visibility: visible;
+    pointer-events: auto;
+    box-shadow: none;
+  }
+
+  .pp-right-overlay,
+  .pp-right-close-btn {
+    display: none;
+  }
 }

@@ -486,6 +486,197 @@ export const homePostService = {
     return request(`/api/posts/${postId}/learned`, { method: 'DELETE' });
   },
 
+  // ── Comments ──────────────────────────────────────────────────────────────
+
+  /**
+   * GET /api/posts/:postId/comments
+   * Returns the comment list for a specific post.
+   * Verified: Postman shows array of { id, content, userId, postId, createdAt, updatedAt, deletedAt }
+   *
+   * @param {string|number} postId
+   * @returns {Promise<Array>} Comments array, or [] on failure.
+   */
+  async getComments(postId) {
+    try {
+      const result = await request(`/api/posts/${postId}/comments`, { method: 'GET' });
+      // Backend may return array directly or wrapped in { data }
+      return Array.isArray(result)
+        ? result
+        : Array.isArray(result?.data)
+          ? result.data
+          : [];
+    } catch (err) {
+      console.warn(`[homePostService] GET comments for post ${postId}:`, err.message);
+      return [];
+    }
+  },
+
+  /**
+   * POST /api/posts/:postId/comments
+   * Creates a new comment on a specific post.
+   * Request body: { content: string }
+   * Verified: Postman shows 201 response with the created comment object.
+   *
+   * @param {string|number} postId
+   * @param {string} content
+   * @returns {Promise<object>} Created comment object.
+   * @throws {Error} On auth failure, network error, or server error.
+   */
+  async createComment(postId, content) {
+    return request(`/api/posts/${postId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  },
+
+  /**
+   * PATCH /api/comments/:commentId
+   * Updates the content of an existing comment.
+   * Verified: Postman shows { success, message, data: { id, content, ... } }
+   *
+   * @param {string|number} commentId
+   * @param {string} content  – New comment content.
+   * @returns {Promise<object>} Updated comment response.
+   * @throws {Error} On auth failure, network error, or server error.
+   */
+  async updateComment(commentId, content) {
+    return request(`/api/comments/${commentId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ content }),
+    });
+  },
+
+  /**
+   * DELETE /api/comments/:commentId
+   * Deletes a comment by its ID.
+   * Verified: Postman shows { success: true, message: 'Comment deleted successfully' }
+   *
+   * @param {string|number} commentId
+   * @returns {Promise<object>} Deletion confirmation.
+   * @throws {Error} On auth failure, network error, or server error.
+   */
+  async deleteComment(commentId) {
+    return request(`/api/comments/${commentId}`, { method: 'DELETE' });
+  },
+
+  /**
+   * GET /api/posts/:postId/comments/count
+   * Returns the comment count for a specific post.
+   * Verified: Postman shows { success: true, postId: number, count: number }
+   *
+   * @param {string|number} postId
+   * @returns {Promise<number>} Comment count, or 0 on failure.
+   */
+  async getCommentCount(postId) {
+    try {
+      const result = await request(`/api/posts/${postId}/comments/count`, { method: 'GET' });
+      return typeof result?.count === 'number' ? result.count : 0;
+    } catch (err) {
+      console.warn(`[homePostService] GET comment count for post ${postId}:`, err.message);
+      return 0;
+    }
+  },
+
+  /**
+   * GET /api/comments/my-comments
+   * Returns the current authenticated user's comments.
+   * Verified: Postman shows { success: true, count: number, data: [...] }
+   *
+   * @returns {Promise<Array>} User's comments array, or [] on failure.
+   */
+  async getMyComments() {
+    try {
+      const result = await request('/api/comments/my-comments', { method: 'GET' });
+      return Array.isArray(result)
+        ? result
+        : Array.isArray(result?.data)
+          ? result.data
+          : [];
+    } catch (err) {
+      console.warn('[homePostService] GET my-comments:', err.message);
+      return [];
+    }
+  },
+
+  // ── My Posts (for Profile Page) ─────────────────────────────────────────
+
+  /**
+   * Fetch the current user's own posts from the feed by matching userId.
+   * Uses GET /api/posts/feed and filters by the authenticated user's ID.
+   * Falls back to GET /api/posts/my-posts/* for image/video/document counts.
+   *
+   * @param {string|number} currentUserId  - The authenticated user's ID (from authService).
+   * @returns {Promise<Array>} Normalized post objects belonging to the current user.
+   */
+
+
+  async getMyPosts(currentUserId) {
+    const endpoints = [
+      { path: "/api/posts/my-posts/images", type: "image" },
+      { path: "/api/posts/my-posts/videos", type: "video" },
+      { path: "/api/posts/my-posts/documents", type: "document" },
+    ];
+
+    const results = await Promise.all(
+      endpoints.map(async ({ path, type }) => {
+        try {
+          const result = await request(path, {
+            method: "GET",
+          });
+
+          const rawPosts = Array.isArray(result?.data)
+            ? result.data
+            : Array.isArray(result?.posts)
+              ? result.posts
+              : Array.isArray(result?.data?.posts)
+                ? result.data.posts
+                : Array.isArray(result)
+                  ? result
+                  : [];
+
+          return rawPosts.map((post) => ({
+            ...this._normalisePost(post, type),
+            _sortDate:
+              post.publishedAt ||
+              post.createdAt ||
+              post.updatedAt ||
+              "",
+          }));
+        } catch (err) {
+          console.error(
+            `[homePostService] Failed to load ${type} posts:`,
+            err.message
+          );
+
+          return [];
+        }
+      })
+    );
+
+    const uniquePosts = new Map();
+
+    results.flat().forEach((post) => {
+      if (post.id != null) {
+        const { _sortDate, ...normalizedPost } = post;
+
+        uniquePosts.set(String(post.id), {
+          ...normalizedPost,
+          _sortDate,
+        });
+      }
+    });
+
+    return Array.from(uniquePosts.values())
+      .sort(
+        (a, b) =>
+          new Date(b._sortDate || 0).getTime() -
+          new Date(a._sortDate || 0).getTime()
+      )
+      .map(({ _sortDate, ...post }) => post);
+  },
+
+
+
   // ── Live Feed fetch (GET /api/posts/feed) — cursor-based pagination ─────────
   /**
    * Fetch a page of public feed posts from the verified feed endpoint.
@@ -597,7 +788,7 @@ export const homePostService = {
       rawType.includes("file") ||
       rawType.includes("application/pdf") ||
       rawType.includes("application/vnd");
-      
+
     const mediaSrc =
       media?.mediaUrl ??
       media?.url ??
@@ -605,7 +796,7 @@ export const homePostService = {
       p.videoUrl ??
       p.imageUrl ??
       "";
-    
+
 
     return {
       id: p.postId ?? p.id ?? p._id ?? `local-${Date.now()}`,
@@ -630,24 +821,54 @@ export const homePostService = {
 
         name:
           p.creator?.name ??
+          p.creator?.fullName ??
+          p.creator?.displayName ??
           p.user?.name ??
+          p.user?.fullName ??
+          p.user?.displayName ??
           p.author?.name ??
-          "You",
+          p.author?.fullName ??
+          p.author?.displayName ??
+          (p.creator?.firstName ? `${p.creator.firstName} ${p.creator.lastName || ''}`.trim() : null) ??
+          (p.user?.firstName ? `${p.user.firstName} ${p.user.lastName || ''}`.trim() : null) ??
+          (p.author?.firstName ? `${p.author.firstName} ${p.author.lastName || ''}`.trim() : null) ??
+          (typeof p.creator === 'string' ? p.creator : null) ??
+          (typeof p.author === 'string' ? p.author : null) ??
+          p.creator?.username ??
+          p.user?.username ??
+          p.author?.username ??
+          p.username ??
+          "",
 
         username:
           p.creator?.username ??
           p.user?.username ??
+          p.author?.username ??
+          p.creator?.email?.split('@')[0] ??
+          p.user?.email?.split('@')[0] ??
+          p.author?.email?.split('@')[0] ??
+          p.username ??
           "",
 
         field:
           p.creator?.field ??
           p.user?.field ??
+          p.author?.field ??
           "Community Member",
 
         avatar:
           p.creator?.avatar ??
+          p.creator?.avatarUrl ??
           p.creator?.profileImage ??
+          p.creator?.profilePhoto ??
           p.user?.avatar ??
+          p.user?.avatarUrl ??
+          p.user?.profileImage ??
+          p.user?.profilePhoto ??
+          p.author?.avatar ??
+          p.author?.avatarUrl ??
+          p.author?.profileImage ??
+          p.author?.profilePhoto ??
           "",
       },
       media: {
@@ -671,8 +892,10 @@ export const homePostService = {
           "",
 
         fileName:
+          media?.metadata?.originalName ??
           media?.fileName ??
           media?.originalName ??
+          media?.altText ??
           p.fileName ??
           p.originalName ??
           p.document?.name ??
@@ -682,17 +905,49 @@ export const homePostService = {
           ? { poster: media.thumbnailUrl }
           : {}),
       },
-      liked: false,
-      saved: false,
-      followed: false,
-      appreciated: false,
-      appreciations: 0,
-      helpful: false,
-      helpfulCount: 0,
-      learned: false,
-      learnedCount: 0,
-      comments: 0,
-      likes: 0,
+      liked: Boolean(p.liked || p.isLiked || p.myReaction === 'APPRECIATE' || p.appreciated),
+      saved: Boolean(p.saved || p.isSaved || p.bookmarked),
+      followed: Boolean(p.followed || p.isFollowed),
+      appreciated: Boolean(p.appreciated || p.myReaction === 'APPRECIATE' || p.liked),
+      appreciations: Number(
+        p.appreciations ??
+        p.appreciationCount ??
+        p.reactionCounts?.APPRECIATE ??
+        p.reactions?.counts?.APPRECIATE ??
+        p.reactions?.APPRECIATE ??
+        p.reactions?.appreciate ??
+        p.likes ??
+        p.likeCount ??
+        0
+      ),
+      helpful: Boolean(p.helpful || p.isHelpful || p.myReaction === 'HELPFUL'),
+      helpfulCount: Number(
+        p.helpfulCount ??
+        p.reactionCounts?.HELPFUL ??
+        p.reactions?.counts?.HELPFUL ??
+        p.reactions?.HELPFUL ??
+        p.reactions?.helpful ??
+        0
+      ),
+      learned: Boolean(p.learned === true || p.isLearned || p.hasLearned),
+      learnedCount: Number(
+        p.learnedCount ??
+        p.learnings ??
+        p.learnCount ??
+        (typeof p.learned === 'number' ? p.learned : 0)
+      ),
+      comments: Number(
+        p.commentsCount ??
+        p.commentCount ??
+        (Array.isArray(p.comments) ? p.comments.length : (typeof p.comments === 'number' ? p.comments : 0))
+      ),
+      likes: Number(
+        p.likes ??
+        p.likeCount ??
+        p.appreciations ??
+        p.reactionCounts?.APPRECIATE ??
+        0
+      ),
     };
   },
 };

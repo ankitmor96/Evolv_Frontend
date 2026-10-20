@@ -60,9 +60,19 @@ export async function fetchHomeTabs() {
     throw err;
   }
 
-  // Backend may wrap the array in a { data } envelope — handle both.
-  const raw = Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : [];
-  return raw;
+ 
+  // Support both the object response and array response.
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (Array.isArray(payload?.data)) {
+    return payload.data;
+  }
+
+  // Preserve tabs and selectedSkills from the API.
+  return payload;
+
 }
 
 /**

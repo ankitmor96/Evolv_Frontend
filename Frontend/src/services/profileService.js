@@ -119,6 +119,7 @@ const request = async (path, options = {}) => {
 // ─── In-memory skill name → backend ID cache ──────────────────────────────────
 // Built once per session by fetchSkillNameToIdMap().
 let _skillNameToIdCache = null;
+let _skillIdToNameCache = null;
 
 // ─── Public service object ────────────────────────────────────────────────────
 
@@ -463,6 +464,30 @@ async createProfile(data, file) {
   },
 
   // ═══════════════════════════════════════════════
+  // POST COUNTS
+  // ═══════════════════════════════════════════════
+
+  /**
+   * GET /api/posts/my-posts/counts
+   *
+   * Returns the post counts for the currently authenticated user.
+   * Response envelope: { success: true, data: { totalPosts, imageCount, videoCount, documentCount } }
+   *
+   * @returns {Promise<{ totalPosts: number, imageCount: number, videoCount: number, documentCount: number }>}
+   */
+  async getMyPostCounts() {
+    const payload = await request("/api/posts/my-posts/counts");
+    // Backend returns { success, data: { totalPosts, imageCount, videoCount, documentCount } }
+    const data = payload?.data ?? payload;
+    return {
+      totalPosts:    Number(data?.totalPosts    ?? 0),
+      imageCount:    Number(data?.imageCount    ?? 0),
+      videoCount:    Number(data?.videoCount    ?? 0),
+      documentCount: Number(data?.documentCount ?? 0),
+    };
+  },
+
+  // ═══════════════════════════════════════════════
   // NAME → ID MAPPING HELPERS
   // ═══════════════════════════════════════════════
 
@@ -481,6 +506,7 @@ async createProfile(data, file) {
     );
 
     const map = {};
+    const idMap = {};
     for (const result of results) {
       if (result.status !== "fulfilled") continue;
       const data = result.value;
@@ -496,15 +522,28 @@ async createProfile(data, file) {
       for (const skill of skills) {
         if (skill?.name && skill?.id != null) {
           map[skill.name.toLowerCase().trim()] = Number(skill.id);
+          idMap[Number(skill.id)] = skill.name;
         }
       }
     }
 
     _skillNameToIdCache = map;
+    _skillIdToNameCache = idMap;
     console.debug(
       `[profileService] Skill name→ID map built: ${Object.keys(map).length} entries`
     );
     return map;
+  },
+
+  /**
+   * Builds an inverted { backendId: "Skill Name" } map from category skills.
+   *
+   * @returns {Promise<Record<number, string>>}
+   */
+  async fetchSkillIdToNameMap() {
+    if (_skillIdToNameCache) return _skillIdToNameCache;
+    await profileService.fetchSkillNameToIdMap();
+    return _skillIdToNameCache || {};
   },
 
   /**

@@ -188,6 +188,38 @@ const socketService = {
   },
 
   /**
+   * Subscribe to the `comment-updates-batch` event.
+   *
+   * The backend PostsGateway emits this event when a comment is created,
+   * updated, or deleted. Each item in the batch describes one comment change.
+   *
+   * Observed payload shape (from backend PostsGateway):
+   *   Array<{
+   *     postId    : number | string,
+   *     commentId : number | string,
+   *     type      : 'comment',
+   *     action    : 'created' | 'updated' | 'deleted',
+   *     comment?  : { id, content, userId, postId, createdAt, updatedAt },
+   *     count?    : number,   // updated total comment count for the post
+   *   }>
+   *
+   * NOTE: Does NOT call connect() / disconnect(). Caller manages lifecycle.
+   *
+   * @param {(batch: Array<object>) => void} callback
+   * @returns {() => void} Unsubscribe function — call in useEffect cleanup.
+   */
+  onCommentUpdatesBatch(callback) {
+    if (!_socket) {
+      console.warn('[socketService] onCommentUpdatesBatch called before connect() — call connect() first.');
+      return () => {};
+    }
+    _socket.on('comment-updates-batch', callback);
+    return () => {
+      if (_socket) _socket.off('comment-updates-batch', callback);
+    };
+  },
+
+  /**
    * @returns {boolean} Whether the socket is currently connected.
    */
   isConnected() {

@@ -18,7 +18,7 @@ function Row({ label, values, quote }) {
     <motion.div className="pp-row" variants={ROW} initial="hidden" animate="visible">
       <span className="pp-label">{label}</span>
       <span className={`pp-value ${quote ? 'pp-quote' : ''}`}>
-        {quote ? `“${values[0]}”` : values.slice(0, 4).join(' · ')}
+        {quote ? `"${values[0]}"` : values.slice(0, 4).join(' · ')}
         {!quote && values.length > 4 ? ` +${values.length - 4}` : ''}
       </span>
     </motion.div>
@@ -29,17 +29,33 @@ function Row({ label, values, quote }) {
  * Compact "EVOLV PROFILE" preview that sits beside the form on desktop and
  * below it on mobile. Updates live as the user builds their identity, and
  * simply omits any section the user hasn't filled in yet.
+ *
+ * Shows ALL onboarding fields: identity, country, curiosities, canDo,
+ * learning, wantToImprove, focus domains, and bio.
  */
 export default function ProfilePreview({ draft }) {
   const role = resolvedRole(draft);
   const hasIdentity = Boolean(draft.username.trim() || draft.name.trim());
   const bioText = (draft.bio ?? draft.focusGoal ?? '').trim();
+
+  // Ensure all skill arrays are clean string arrays
+  const canDoList = Array.isArray(draft.skills?.canDo)
+    ? draft.skills.canDo.filter((s) => typeof s === 'string' && s.trim())
+    : [];
+  const learningList = Array.isArray(draft.skills?.learning)
+    ? draft.skills.learning.filter((s) => typeof s === 'string' && s.trim())
+    : [];
+  const wantToImproveList = Array.isArray(draft.skills?.wantToImprove)
+    ? draft.skills.wantToImprove.filter((s) => typeof s === 'string' && s.trim())
+    : [];
+
   const hasContent =
     Boolean(role) ||
     Boolean(draft.country) ||
     draft.curiosities.length > 0 ||
-    draft.skills.canDo.length > 0 ||
-    draft.skills.learning.length > 0 ||
+    canDoList.length > 0 ||
+    learningList.length > 0 ||
+    wantToImproveList.length > 0 ||
     draft.focusDomains.length > 0 ||
     bioText.length > 0;
 
@@ -68,8 +84,9 @@ export default function ProfilePreview({ draft }) {
       <div className="pp-body">
         <Row label="COUNTRY" values={draft.country ? [draft.country] : []} />
         <Row label="CURIOUS ABOUT" values={draft.curiosities} />
-        <Row label="I CAN DO" values={draft.skills.canDo} />
-        <Row label="I'M LEARNING" values={draft.skills.learning} />
+        <Row label="I CAN DO" values={canDoList} />
+        <Row label="I'M LEARNING" values={learningList} />
+        <Row label="I WANT TO GET BETTER AT" values={wantToImproveList} />
         {draft.focusDomains.length > 0 && (
           <motion.div className="pp-row" variants={ROW} initial="hidden" animate="visible">
             <span className="pp-label">FOCUS</span>

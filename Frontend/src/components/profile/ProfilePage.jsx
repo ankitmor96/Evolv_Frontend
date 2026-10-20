@@ -47,12 +47,16 @@ import {
   HelpCircle,
   Shield,
   Trash2,
+  Download,
+  BarChart3
 } from 'lucide-react';
 
 import { getProfile } from "../../services/getProfile.js";
 import { authService } from '../../services/authService.js';
 import { profileService } from '../../services/profileService.js';
 import { homePostService } from '../../services/homePostService.js';
+import socketService from '../../services/socketService.js';
+import CommentPanel from '../shared/CommentPanel.jsx';
 import { CURIOSITY_DOMAINS } from '../onboarding/onboardingData.js';
 import './ProfilePage.css';
 
@@ -64,10 +68,10 @@ function navigate(path) {
 
 // ─── Sidebar nav items ───────────────────────────────────────────────────────
 const MAIN_NAV = [
-  { id: 'home',       label: 'Home',        icon: Home,         href: '/home' },
-  { id: 'discover',   label: 'Discover',    icon: Compass,      href: '/discover' },
-  { id: 'mylearning', label: 'My Learning', icon: BookOpen,     href: '/learning' },
-  { id: 'saved',      label: 'Saved',       icon: Bookmark,     href: '/saved' },
+  { id: 'home', label: 'Home', icon: Home, href: '/home' },
+  { id: 'discover', label: 'Discover', icon: Compass, href: '/discover' },
+  { id: 'mylearning', label: 'My Learning', icon: BookOpen, href: '/learning' },
+  { id: 'saved', label: 'Saved', icon: Bookmark, href: '/saved' },
 ];
 
 const COMMUNITY_NAV = [
@@ -252,148 +256,237 @@ function ProfileSidebar({ user, profile, isSidebarOpen, setIsSidebarOpen }) {
 }
 
 // ─── Right panel ──────────────────────────────────────────────────────────────
-function ProfileRightPanel({ profile, skills, identities, postCount }) {
-  // Growth progress using skill counts as proxy (clearly labelled as temporary)
+function ProfileRightPanel({  
+  profile,
+  skills = { canDo: [], learning: [], curiosity: [] },
+  identities = [],
+  postCount = 0,
+  posts = [],
+  isOpen = false,
+  onClose = () => {},
+}) {
+  // ── Compute real stats from the user's own posts ────────────────────────
+  // _normalisePost sets these fields from backend reaction data (REST + Socket).
+  const postList = Array.isArray(posts) ? posts : [];
+  const totalAppreciation = postList.reduce(
+    (sum, p) => sum + (Number(p.appreciations) || Number(p.likes) || 0), 0
+  );
+  const totalLearned = postList.reduce(
+    (sum, p) => sum + (Number(p.learnedCount) || 0), 0
+  );
+  const totalHelpful = postList.reduce(
+    (sum, p) => sum + (Number(p.helpfulCount) || 0), 0
+  );
+
+  // ── Build Growth items from real skill data ───────────────────────────
+  // Topics come from the user's actual learning & canDo skills.
+  // Percentages for skill-specific growth need a dedicated API (not yet
+  // available). Only the Helpful bar uses a real metric.
+  const helpfulPct = Math.min(totalHelpful * 10, 100);
+  const canDoSkills = Array.isArray(skills?.canDo) ? skills.canDo : [];
+  const learningSkills = Array.isArray(skills?.learning) ? skills.learning : [];
+  const growthSkills = [...learningSkills, ...canDoSkills]
+    .filter((s, i, arr) => arr.indexOf(s) === i)
+    .slice(0, 3);
+
   const GROWTH_ITEMS = [
-    {
-      label: 'Artificial Intelligence',
-      pct: Math.min(
-        Math.round(
-          (skills.canDo.length /
-            Math.max(skills.canDo.length + skills.learning.length, 1)) *
-            100
-        ),
-        100
-      ),
-      colorClass: '',
-    },
-    {
-      label: 'Psychology',
-      pct: Math.min(skills.learning.length * 10, 100),
-      colorClass: 'green',
-    },
-    {
-      label: 'Economics',
-      pct: Math.min(skills.curiosity.length * 8, 100),
-      colorClass: 'yellow',
-    },
+    ...growthSkills.map((label, idx) => ({
+      label,
+      pct: 0, // No per-skill growth API yet
+      colorClass: ['', 'green', 'yellow'][idx % 3],
+    })),
     {
       label: 'Helpful',
-      pct: Math.min(skills.curiosity.length * 8, 100),
+      pct: helpfulPct,
       colorClass: 'yellow',
     },
   ];
 
   return (
-    <aside className="pp-right" aria-label="Profile details panel">
-      {/* Quick stats — updated labels per requirement */}
-      <div className="pp-right-card">
-        <p className="pp-right-card-title">Quick Overview</p>
-        <div className="pp-quick-stats">
-          <div className="pp-quick-stat">
-            <span className="pp-quick-stat-value">{postCount}</span>
-            <span className="pp-quick-stat-label">Posts</span>
-          </div>
-          <div className="pp-quick-stat">
-            {/* Placeholder until appreciation API exists */}
-            <span className="pp-quick-stat-value">1</span>
-            <span className="pp-quick-stat-label">Total appreciation</span>
-          </div>
-          <div className="pp-quick-stat">
-            {/* Placeholder until learning count API exists */}
-            <span className="pp-quick-stat-value">2</span>
-            <span className="pp-quick-stat-label">Total learning</span>
-          </div>
-          <div className="pp-quick-stat">
-            {/* Placeholder until helpful count API exists */}
-            <span className="pp-quick-stat-value">3</span>
-            <span className="pp-quick-stat-label">Helpful</span>
-          </div>
-        </div>
-      </div>
+    <>
+      {/* Backdrop for the overview drawer on smaller screens */}
+      <div
+        className={`pp-right-overlay ${isOpen ? 'visible' : ''}`}
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
-      {/* Your Growth — uses same hp-progress-* classes from HomePage */}
-      <div className="pp-right-card">
-        <p className="pp-right-card-title">Your Growth</p>
-        <div className="pp-growth-section">
-          {GROWTH_ITEMS.map(({ label, pct, colorClass }) => (
-            <div key={label} className="pp-progress-item">
-              <div className="pp-progress-label">
-                <span>{label}</span>
-                <span className="pp-progress-pct">{pct}%</span>
-              </div>
-              <div className="pp-progress-track">
-                <div
-                  className={`pp-progress-fill${colorClass ? ' ' + colorClass : ''}`}
-                  style={{ width: `${pct}%` }}
-                  role="progressbar"
-                  aria-valuenow={pct}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={`${label}: ${pct}%`}
-                />
-              </div>
+      <aside
+        className={`pp-right ${isOpen ? 'open' : ''}`}
+        aria-label="Profile details panel"
+        aria-modal={isOpen ? true : undefined}
+      >
+        <button
+          type="button"
+          className="pp-right-close-btn"
+          onClick={onClose}
+          aria-label="Close profile overview"
+        >
+          <X size={20} />
+        </button>
+        {/* Quick stats — real data from post reactions & post counts */}
+        <div className="pp-right-card">
+          <p className="pp-right-card-title">Quick Overview</p>
+          <div className="pp-quick-stats">
+            <div className="pp-quick-stat">
+              <span className="pp-quick-stat-value">{postCount}</span>
+              <span className="pp-quick-stat-label">Posts</span>
             </div>
-          ))}
-          <p className="pp-growth-note">
-            * Growth data is approximate until the dedicated API is available.
-          </p>
-        </div>
-      </div>
-
-      {/* Identities */}
-      {identities.length > 0 && (
-        <div className="pp-right-card">
-          <p className="pp-right-card-title">My Roles</p>
-          <div className="pp-identity-list">
-            {identities.map((identity) => (
-              <div key={identity.id} className="pp-identity-item">
-                <span className="pp-identity-dot" aria-hidden="true" />
-                <span style={{ flex: 1 }}>
-                  {identity.identityType?.name || identity.name || 'Role'}
-                </span>
-                {identity.isPrimary && (
-                  <span className="pp-identity-primary">Primary</span>
-                )}
-              </div>
-            ))}
+            <div className="pp-quick-stat">
+              <span className="pp-quick-stat-value">{totalAppreciation}</span>
+              <span className="pp-quick-stat-label">Total appreciation</span>
+            </div>
+            <div className="pp-quick-stat">
+              <span className="pp-quick-stat-value">{totalLearned}</span>
+              <span className="pp-quick-stat-label">Total learning</span>
+            </div>
+            <div className="pp-quick-stat">
+              <span className="pp-quick-stat-value">{totalHelpful}</span>
+              <span className="pp-quick-stat-label">Helpful</span>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Curious About */}
-      {skills.curiosity.length > 0 && (
+        {/* Your Growth — topics from real skills; helpful % from real reactions */}
         <div className="pp-right-card">
-          <p className="pp-right-card-title">Curious About</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {skills.curiosity.slice(0, 8).map((s) => (
-              <span key={s} className="pp-skill-tag curiosity">{s}</span>
-            ))}
+          <p className="pp-right-card-title">Your Growth</p>
+          <div className="pp-growth-section">
+            {GROWTH_ITEMS.length > 0 ? (
+              GROWTH_ITEMS.map(({ label, pct, colorClass }) => (
+                <div key={label} className="pp-progress-item">
+                  <div className="pp-progress-label">
+                    <span>{label}</span>
+                    <span className="pp-progress-pct">{pct}%</span>
+                  </div>
+                  <div className="pp-progress-track">
+                    <div
+                      className={`pp-progress-fill${colorClass ? ' ' + colorClass : ''}`}
+                      style={{ width: `${pct}%` }}
+                      role="progressbar"
+                      aria-valuenow={pct}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label={`${label}: ${pct}%`}
+                    />
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="pp-growth-note" style={{ marginTop: 0 }}>
+                Add skills during onboarding or via Edit Skills to see your growth areas.
+              </p>
+            )}
+            <p className="pp-growth-note">
+              * Skill-level % needs a dedicated growth API. Helpful % = real reactions.
+            </p>
           </div>
         </div>
-      )}
-    </aside>
+
+        {/* Identities */}
+        {identities.length > 0 && (
+          <div className="pp-right-card">
+            <p className="pp-right-card-title">My Roles</p>
+            <div className="pp-identity-list">
+              {identities.map((identity) => (
+                <div key={identity.id} className="pp-identity-item">
+                  <span className="pp-identity-dot" aria-hidden="true" />
+                  <span style={{ flex: 1 }}>
+                    {identity.identityType?.name || identity.name || 'Role'}
+                  </span>
+                  {identity.isPrimary && (
+                    <span className="pp-identity-primary">Primary</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Curious About */}
+        {skills.curiosity.length > 0 && (
+          <div className="pp-right-card">
+            <p className="pp-right-card-title">Curious About</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {skills.curiosity.slice(0, 8).map((s) => (
+                <span key={s} className="pp-skill-tag curiosity">{s}</span>
+              ))}
+            </div>
+          </div>
+        )}
+      </aside>
+    </>
   );
 }
 
 // ─── Content Grid Item ────────────────────────────────────────────────────────
+
 function GridItem({ post }) {
-  const isVideo = post.media?.type === 'video';
+  const isVideo =
+    post.media?.type === 'video' || post.type === 'reel';
+
+  const isDocument = post.media?.type === 'document';
+
   const mediaSrc = post.media?.src || '';
   const hasSrc = Boolean(mediaSrc);
 
+  const fileName =
+    post.media?.fileName &&
+      post.media.fileName !== 'Document'
+      ? post.media.fileName
+      : post.caption || 'Document';
+
   return (
     <article
-      className="pp-grid-item"
+      className={`pp-grid-item${isDocument ? ' pp-grid-document-item' : ''}`}
       tabIndex={0}
-      aria-label={`${isVideo ? 'Short Video' : 'Post'}: ${post.caption || 'Untitled'}`}
-      role="button"
+      aria-label={`${isDocument ? 'Document' : isVideo ? 'Short Video' : 'Post'
+        }: ${post.caption || 'Untitled'}`}
     >
-      {hasSrc ? (
+      {isDocument ? (
+        <div className="pp-grid-document-card">
+          <div className="pp-grid-document-icon">
+            <FileText size={42} aria-hidden="true" />
+          </div>
+
+          <h3 className="pp-grid-document-title">
+            {post.caption || fileName}
+          </h3>
+
+          <p className="pp-grid-document-subtitle">
+            Document attachment
+          </p>
+
+          {hasSrc ? (
+            <a
+              className="pp-grid-document-download"
+              href={mediaSrc}
+              download={fileName}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Download ${fileName}`}
+            >
+              <Download size={17} aria-hidden="true" />
+              <span>Download Document</span>
+            </a>
+          ) : (
+            <p className="pp-grid-document-unavailable">
+              Document URL is unavailable.
+            </p>
+          )}
+        </div>
+      ) : hasSrc ? (
         isVideo ? (
-          <video src={mediaSrc} poster={post.media?.poster || ''} preload="none" />
+          <video
+            src={mediaSrc}
+            poster={post.media?.poster || ''}
+            preload="none"
+          />
         ) : (
-          <img src={mediaSrc} alt={post.caption || 'Post image'} loading="lazy" />
+          <img
+            src={mediaSrc}
+            alt={post.caption || 'Post image'}
+            loading="lazy"
+          />
         )
       ) : (
         <div className="pp-grid-placeholder">
@@ -402,19 +495,20 @@ function GridItem({ post }) {
           </span>
           <span style={{ lineHeight: 1.4 }}>
             {post.caption
-              ? post.caption.slice(0, 40) + (post.caption.length > 40 ? '…' : '')
+              ? post.caption.slice(0, 40) +
+              (post.caption.length > 40 ? '…' : '')
               : 'No content'}
           </span>
         </div>
       )}
 
-      {/* Video badge — "Short Video" per requirement */}
       {isVideo && (
         <>
           <div className="pp-reel-badge" aria-label="Short Video">
             <Play size={8} aria-hidden="true" fill="currentColor" />
             Short Video
           </div>
+
           {hasSrc && (
             <div className="pp-play-overlay">
               <div className="pp-play-circle">
@@ -425,46 +519,209 @@ function GridItem({ post }) {
         </>
       )}
 
-      <div className="pp-grid-item-overlay" aria-hidden="true">
-        <p className="pp-grid-item-caption">{post.caption || ''}</p>
-        <div className="pp-grid-item-meta">
-          <Heart size={11} aria-hidden="true" />
-          <span>{post.appreciations ?? post.likes ?? 0}</span>
-          <MessageSquare size={11} aria-hidden="true" />
-          <span>{post.comments ?? 0}</span>
+      {!isDocument && (
+        <div className="pp-grid-item-overlay" aria-hidden="true">
+          <p className="pp-grid-item-caption">
+            {post.caption || ''}
+          </p>
+
+          <div className="pp-grid-item-meta">
+            <Heart size={11} aria-hidden="true" />
+            <span>{post.appreciations ?? post.likes ?? 0}</span>
+            <MessageSquare size={11} aria-hidden="true" />
+            <span>{post.comments ?? 0}</span>
+          </div>
         </div>
-      </div>
+      )}
     </article>
   );
 }
 
+function PostDetailModal({ post, onClose, onDiscuss }) {
+  const [showCaption, setShowCaption] = useState(true);
+
+  const mediaType = post.media?.type;
+  const mediaSrc = post.media?.src || '';
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
+  const stats = [
+    {
+      label: 'Appreciation',
+      value: post.appreciations ?? post.likes ?? 0,
+      icon: Heart,
+    },
+    {
+      label: 'Learned',
+      value: post.learnedCount ?? 0,
+      icon: BookOpen,
+    },
+    {
+      label: 'Helpful',
+      value: post.helpfulCount ?? 0,
+      icon: CheckCircle,
+    },
+    {
+      label: 'Discuss',
+      value: post.comments ?? 0,
+      icon: MessageCircle,
+    },
+  ];
+
+  return (
+    <div
+      className="pp-post-modal-overlay"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+      role="presentation"
+    >
+      <section
+        className="pp-post-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Post details"
+      >
+        <button
+          type="button"
+          className="pp-post-modal-close"
+          onClick={onClose}
+          aria-label="Close post"
+        >
+          <X size={22} />
+        </button>
+
+        <div className="pp-post-modal-media">
+          {mediaType === 'video' ? (
+            mediaSrc ? (
+              <video src={mediaSrc} controls autoPlay />
+            ) : (
+              <p>Video unavailable</p>
+            )
+          ) : mediaType === 'document' ? (
+            <div className="pp-post-modal-document">
+              <FileText size={64} />
+              <h3>{post.caption || 'Document'}</h3>
+              {mediaSrc && (
+                <a
+                  href={mediaSrc}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="pp-post-modal-download"
+                >
+                  <Download size={17} />
+                  Download Document
+                </a>
+              )}
+            </div>
+          ) : mediaSrc ? (
+            <img
+              src={mediaSrc}
+              alt={post.caption || 'Post'}
+            />
+          ) : (
+            <div className="pp-post-modal-text">
+              {post.caption || 'No post content available.'}
+            </div>
+          )}
+        </div>
+
+        <div className="pp-post-modal-details">
+          <div className="pp-post-modal-heading">
+            <h2>Post details</h2>
+            <span>EVOLV Community</span>
+          </div>
+
+          <div className="pp-post-modal-caption">
+            <p>{post.caption || 'No caption added.'}</p>
+          </div>
+
+          <div className="pp-post-modal-stats">
+            {stats.map(({ label, value, icon: Icon }) => (
+              <div
+                className="pp-post-modal-stat"
+                key={label}
+                style={label === 'Discuss' ? { cursor: 'pointer' } : undefined}
+                onClick={label === 'Discuss' ? () => { onClose(); onDiscuss?.(post.id); } : undefined}
+                role={label === 'Discuss' ? 'button' : undefined}
+                tabIndex={label === 'Discuss' ? 0 : undefined}
+                onKeyDown={label === 'Discuss'
+                  ? (e) => { if (e.key === 'Enter' || e.key === ' ') { onClose(); onDiscuss?.(post.id); } }
+                  : undefined}
+                aria-label={label === 'Discuss' ? `View ${value} comments` : undefined}
+              >
+                <Icon size={20} aria-hidden="true" />
+                <strong>{value}</strong>
+                <span>{label}</span>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            className="pp-post-modal-caption-toggle"
+            onClick={() => setShowCaption((value) => !value)}
+          >
+            {showCaption ? 'Hide caption' : 'Show caption'}
+          </button>
+
+          {showCaption && (
+            <div className="pp-post-modal-caption-expanded">
+              {post.caption || 'No caption added.'}
+            </div>
+          )}
+
+          <p className="pp-post-modal-note">
+            Opened from your profile posts.
+          </p>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 // ─── Content Section ──────────────────────────────────────────────────────────
-function ContentSection({ posts }) {
+function ContentSection({ posts, onDiscuss }) {
   const [activeTab, setActiveTab] = useState('all');
+  const [selectedPost, setSelectedPost] = useState(null);
 
   // "Reels" renamed to "Short Video" per requirement
   const tabs = [
-    { id: 'all',      label: 'All Posts',   icon: Grid3X3 },
-    { id: 'images',   label: 'Images',      icon: ImageIcon },
-    { id: 'reels',    label: 'Short Video', icon: Video },
-    { id: 'articles', label: 'Articles',    icon: FileText },
+    { id: 'all', label: 'All Posts', icon: Grid3X3 },
+    { id: 'images', label: 'Images', icon: ImageIcon },
+    { id: 'reels', label: 'Short Video', icon: Video },
+    { id: 'articles', label: 'Articles', icon: FileText },
   ];
 
   const getFiltered = () => {
     switch (activeTab) {
-      case 'images':   return posts.filter((p) => p.media?.type === 'image');
-      case 'reels':    return posts.filter((p) => p.media?.type === 'video' || p.type === 'reel');
+      case 'images': return posts.filter((p) => p.media?.type === 'image');
+      case 'reels': return posts.filter((p) => p.media?.type === 'video' || p.type === 'reel');
       case 'articles': return posts.filter((p) => !p.media?.src && p.type !== 'reel');
-      default:         return posts;
+      default: return posts;
     }
   };
 
   const getCount = (tabId) => {
     switch (tabId) {
-      case 'images':   return posts.filter((p) => p.media?.type === 'image').length;
-      case 'reels':    return posts.filter((p) => p.media?.type === 'video' || p.type === 'reel').length;
+      case 'images': return posts.filter((p) => p.media?.type === 'image').length;
+      case 'reels': return posts.filter((p) => p.media?.type === 'video' || p.type === 'reel').length;
       case 'articles': return posts.filter((p) => !p.media?.src && p.type !== 'reel').length;
-      default:         return posts.length;
+      default: return posts.length;
     }
   };
 
@@ -509,21 +766,20 @@ function ContentSection({ posts }) {
               {activeTab === 'reels'
                 ? '🎬'
                 : activeTab === 'images'
-                ? '🖼️'
-                : activeTab === 'articles'
-                ? '📰'
-                : '📭'}
+                  ? '🖼️'
+                  : activeTab === 'articles'
+                    ? '📰'
+                    : '📭'}
             </span>
             <p className="pp-empty-title">
               {posts.length === 0
                 ? "You haven't posted anything yet"
-                : `No ${
-                    activeTab === 'all'
-                      ? 'content'
-                      : activeTab === 'reels'
-                      ? 'short videos'
-                      : activeTab
-                  } yet`}
+                : `No ${activeTab === 'all'
+                  ? 'content'
+                  : activeTab === 'reels'
+                    ? 'short videos'
+                    : activeTab
+                } yet`}
             </p>
             <p className="pp-empty-sub">
               {posts.length === 0
@@ -534,11 +790,39 @@ function ContentSection({ posts }) {
         ) : (
           <div className="pp-grid">
             {filtered.map((post) => (
-              <GridItem key={post.id} post={post} />
+              <div
+                key={post.id}
+                className="pp-grid-clickable"
+                onClick={() => setSelectedPost(post)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setSelectedPost(post);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={`Open post: ${post.caption || 'Untitled'}`}
+              >
+                <GridItem post={post} />
+              </div>
+
             ))}
+
           </div>
+
         )}
+
+
       </div>
+      {/* Instagram-style post detail modal */}
+      {selectedPost && (
+        <PostDetailModal
+          post={selectedPost}
+          onClose={() => setSelectedPost(null)}
+          onDiscuss={onDiscuss}
+        />
+      )}
     </section>
   );
 }
@@ -556,7 +840,7 @@ function useToast() {
 }
 
 // ─── Profile Hero ─────────────────────────────────────────────────────────────
-function ProfileHero({ profile, user, identities, showToast, onOpenSettings }) {
+function ProfileHero({ profile, user, identities, showToast, onOpenSettings, postCounts }) {
   const displayName = profile?.fullName || user?.name || 'Your Name';
   const username =
     profile?.username || (user?.email || '').split('@')[0] || 'username';
@@ -566,8 +850,8 @@ function ProfileHero({ profile, user, identities, showToast, onOpenSettings }) {
 
   const countryName = countryCode
     ? new Intl.DisplayNames(['en'], { type: 'region' }).of(
-        countryCode.toUpperCase()
-      ) || countryCode
+      countryCode.toUpperCase()
+    ) || countryCode
     : '';
 
   const primaryIdentity = identities.find((i) => i.isPrimary) || identities[0];
@@ -669,7 +953,9 @@ function ProfileHero({ profile, user, identities, showToast, onOpenSettings }) {
         {/* Stats row — "Followers" → "Connections" */}
         <div className="pp-stats-row" role="list" aria-label="Profile statistics">
           <div className="pp-stat" role="listitem">
-            <span className="pp-stat-value">0</span>
+            <span className="pp-stat-value" aria-live="polite" aria-atomic="true">
+              {postCounts != null ? postCounts.totalPosts : '–'}
+            </span>
             <span className="pp-stat-label">Posts</span>
           </div>
           <div className="pp-stat" role="listitem">
@@ -807,8 +1093,8 @@ function SettingsModal({ onClose }) {
   // ── Render ─────────────────────────────────────────────────────────────────
   const renderView = () => {
     switch (view) {
-      case 'about':   return <AboutUsView />;
-      case 'help':    return (
+      case 'about': return <AboutUsView />;
+      case 'help': return (
         <PlaceholderView
           title="Help &amp; Support"
           icon="🛟"
@@ -1261,8 +1547,14 @@ function SkillsCard({ skills, onEditSkills }) {
 // ─── ROOT: ProfilePage ────────────────────────────────────────────────────────
 export default function ProfilePage() {
   const authUser = authService.getCurrentUser();
+  const authUserId =
+    authUser?.id ??
+    authUser?.userId ??
+    authUser?._id ??
+    null;
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileData, setProfileData] = useState(null);
   const [skills, setSkills] = useState({ canDo: [], learning: [], curiosity: [] });
@@ -1271,114 +1563,182 @@ export default function ProfilePage() {
   const [postsLoading, setPostsLoading] = useState(true);
   const [showSkillsModal, setShowSkillsModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  // Comment panel state
+  const [openCommentPostId, setOpenCommentPostId] = useState(null);
+  /**
+   * postCounts — live data from GET /api/posts/my-posts/counts.
+   * null = request in flight; object = resolved (totalPosts, imageCount, videoCount, documentCount).
+   */
+  const [postCounts, setPostCounts] = useState(null);
 
   const { toast, showToast } = useToast();
 
   // ── Auth guard ────────────────────────────────────────────────────────────
- // ── Load profile (GET /api/profile) ──
-useEffect(() => {
-  let cancelled = false;
+  // ── Load profile (GET /api/profile) ──
+  useEffect(() => {
+    let cancelled = false;
 
-  const loadProfile = async () => {
-    try {
-      setProfileLoading(true);
+    const loadProfile = async () => {
+      try {
+        setProfileLoading(true);
 
-      const p = await getProfile.getProfile();
+        const p = await getProfile.getProfile();
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      setProfileData({
-        username: p?.username ?? '',
-        fullName: p?.fullName ?? p?.name ?? authUser?.name ?? '',
-        avatarUrl: p?.avatarUrl ?? p?.avatar ?? '',
-        bio: p?.bio ?? p?.bioText ?? '',
-        countryCode: p?.countryCode ?? p?.country ?? '',
-        ageRange: p?.ageRange ?? '',
-      });
-    } catch (err) {
-      if (cancelled) return;
+        setProfileData({
+          username: p?.username ?? '',
+          fullName: p?.fullName ?? p?.name ?? authUser?.name ?? '',
+          avatarUrl: p?.avatarUrl ?? p?.avatar ?? '',
+          bio: p?.bio ?? p?.bioText ?? '',
+          countryCode: p?.countryCode ?? p?.country ?? '',
+          ageRange: p?.ageRange ?? '',
+        });
+      } catch (err) {
+        if (cancelled) return;
 
-      console.error('[ProfilePage] Failed to load profile:', err);
+        console.error('[ProfilePage] Failed to load profile:', err);
 
-      setProfileData({
-        username: (authUser?.email || '').split('@')[0],
-        fullName: authUser?.name || '',
-        avatarUrl: '',
-        bio: '',
-        countryCode: '',
-        ageRange: '',
-      });
-    } finally {
-      if (!cancelled) {
-        setProfileLoading(false);
+        setProfileData({
+          username: (authUser?.email || '').split('@')[0],
+          fullName: authUser?.name || '',
+          avatarUrl: '',
+          bio: '',
+          countryCode: '',
+          ageRange: '',
+        });
+      } finally {
+        if (!cancelled) {
+          setProfileLoading(false);
+        }
       }
+    };
+
+    if (authUser) {
+      loadProfile();
+    } else {
+      setProfileLoading(false);
     }
-  };
 
-  if (authUser) {
-    loadProfile();
-  } else {
-    setProfileLoading(false);
-  }
-
-  return () => {
-    cancelled = true;
-  };
-}, []);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // ── Load skills ────────────────────────────────────────────────────────────
   const loadSkills = useCallback(async () => {
     let cancelled = false;
     try {
-      const [userSkillsRes, curiosityRes] = await Promise.allSettled([
+      const [userSkillsRes, curiosityRes, idToNameRes] = await Promise.allSettled([
         profileService.getUserSkills(),
         profileService.getUserCuriosity(),
+        profileService.fetchSkillIdToNameMap(),
       ]);
 
       if (cancelled) return;
+
+      const idToName = idToNameRes.status === 'fulfilled' ? (idToNameRes.value || {}) : {};
+
+      const resolveSkillNames = (record) => {
+        if (!record) return [];
+
+        if (typeof record === 'string') {
+          const trimmed = record.trim();
+          if (!trimmed) return [];
+          if (!isNaN(Number(trimmed)) && idToName[Number(trimmed)]) {
+            return [idToName[Number(trimmed)]];
+          }
+          return [trimmed];
+        }
+
+        const rawList =
+          record.skills ??
+          record.skill ??
+          record.skillId ??
+          record.skillIds ??
+          record.userSkills ??
+          (record.name ? [record.name] : []);
+
+        const items = Array.isArray(rawList) ? rawList : (rawList != null ? [rawList] : []);
+        const names = [];
+
+        for (const item of items) {
+          if (item == null) continue;
+
+          if (typeof item === 'string') {
+            const trimmed = item.trim();
+            if (!trimmed) continue;
+            if (!isNaN(Number(trimmed)) && idToName[Number(trimmed)]) {
+              names.push(idToName[Number(trimmed)]);
+            } else {
+              names.push(trimmed);
+            }
+          } else if (typeof item === 'number') {
+            if (idToName[item]) {
+              names.push(idToName[item]);
+            }
+          } else if (typeof item === 'object') {
+            const directName = item.name ?? item.skill?.name ?? item.title ?? null;
+            if (directName && typeof directName === 'string') {
+              names.push(directName.trim());
+            } else {
+              const id = item.id ?? item.skillId ?? item.skill?.id ?? null;
+              if (id != null && idToName[Number(id)]) {
+                names.push(idToName[Number(id)]);
+              }
+            }
+          }
+        }
+        return names;
+      };
 
       const canDo = [];
       const learning = [];
 
       if (userSkillsRes.status === 'fulfilled') {
-        const records = Array.isArray(userSkillsRes.value)
-          ? userSkillsRes.value
-          : Array.isArray(userSkillsRes.value?.data)
-          ? userSkillsRes.value.data
-          : [];
+        const payload = userSkillsRes.value;
+        const records = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(payload?.skills)
+              ? payload.skills
+              : Array.isArray(payload?.userSkills)
+                ? payload.userSkills
+                : [];
 
         for (const rec of records) {
-          const names = Array.isArray(rec.skills)
-            ? rec.skills.map((s) => s.name || s).filter(Boolean)
-            : [];
-          if (rec.relationshipType === 'CAN_DO') canDo.push(...names);
-          else if (rec.relationshipType === 'LEARNING') learning.push(...names);
-          else if (rec.relationshipType === 'WANT_TO_IMPROVE') learning.push(...names);
+          const names = resolveSkillNames(rec);
+          const rel = String(rec.relationshipType || rec.type || '').toUpperCase();
+          if (rel === 'CAN_DO' || rel === 'CANDO') {
+            canDo.push(...names);
+          } else if (rel === 'LEARNING' || rel === 'WANT_TO_IMPROVE' || rel === 'WANTTOIMPROVE') {
+            learning.push(...names);
+          } else {
+            canDo.push(...names);
+          }
         }
       }
 
       const curiosity = [];
       if (curiosityRes.status === 'fulfilled') {
-        const raw = curiosityRes.value;
-        const records = Array.isArray(raw)
-          ? raw
-          : Array.isArray(raw?.data)
-          ? raw.data
-          : [];
+        const payload = curiosityRes.value;
+        const records = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(payload?.skills)
+              ? payload.skills
+              : [];
+
         for (const rec of records) {
-          const names = Array.isArray(rec.skills)
-            ? rec.skills.map((s) => s.name || s).filter(Boolean)
-            : Array.isArray(rec.skillNames)
-            ? rec.skillNames
-            : rec.skill?.name
-            ? [rec.skill.name]
-            : [];
+          const names = resolveSkillNames(rec);
           curiosity.push(...names);
         }
       }
 
       setSkills({
-        canDo:    [...new Set(canDo)],
+        canDo: [...new Set(canDo)],
         learning: [...new Set(learning)],
         curiosity: [...new Set(curiosity)],
       });
@@ -1404,8 +1764,8 @@ useEffect(() => {
         const list = Array.isArray(res)
           ? res
           : Array.isArray(res?.data)
-          ? res.data
-          : [];
+            ? res.data
+            : [];
         setIdentities(list);
       })
       .catch((err) => {
@@ -1416,43 +1776,189 @@ useEffect(() => {
   }, []);
 
   // ── Load posts ─────────────────────────────────────────────────────────────
+  // getMyPosts uses GET /api/posts/feed + client-side filter by userId.
+  // The old getPosts() was GET /api/posts which always returned [] (not implemented).
+
+  const loadPosts = useCallback(async () => {
+    setPostsLoading(true);
+
+    try {
+      const myPosts = await homePostService.getMyPosts(authUserId);
+
+      // Fetch live reaction counts for the user's posts in parallel to get verified backend counts
+      const enrichedPosts = await Promise.all(
+        myPosts.map(async (post) => {
+          if (!post.id) return post;
+          try {
+            const reactionData = await homePostService.getReactions(post.id);
+            const counts = reactionData?.counts ?? reactionData?.data?.counts ?? {};
+            return {
+              ...post,
+              appreciations:
+                typeof counts.APPRECIATE === 'number'
+                  ? counts.APPRECIATE
+                  : post.appreciations,
+              helpfulCount:
+                typeof counts.HELPFUL === 'number'
+                  ? counts.HELPFUL
+                  : post.helpfulCount,
+              appreciated:
+                reactionData?.myReaction === 'APPRECIATE' || post.appreciated,
+              helpful:
+                reactionData?.myReaction === 'HELPFUL' || post.helpful,
+            };
+          } catch {
+            return post;
+          }
+        })
+      );
+
+      setPosts(enrichedPosts);
+    } catch (err) {
+      console.error("[ProfilePage] Failed to load posts:", err);
+      setPosts([]);
+    } finally {
+      setPostsLoading(false);
+    }
+  }, [authUserId]);
+
   useEffect(() => {
+    loadPosts();
+  }, [loadPosts]);
+
+  // (only one effect needed — loadPosts is stable via useCallback)
+
+  // ── Load post counts (GET /api/posts/my-posts/counts) ─────────────────────
+  // Runs once on mount. On error the component stays usable with a 0 fallback.
+  useEffect(() => {
+    if (!authUser) return;
     let cancelled = false;
-    homePostService
-      .getPosts()
-      .then((allPosts) => {
+
+    profileService
+      .getMyPostCounts()
+      .then((counts) => {
         if (cancelled) return;
-        const userId = authUser?.id ? String(authUser.id) : null;
-        const myPosts = userId
-          ? allPosts.filter((p) => {
-              const authorId = String(
-                p.creator?.userId ?? p.creator?.id ?? p.user?.id ?? p.userId ?? ''
-              );
-              return authorId === userId;
-            })
-          : [];
-        setPosts(myPosts);
+        setPostCounts(counts);
       })
-      .catch(() => {
+      .catch((err) => {
         if (cancelled) return;
-        setPosts([]);
-      })
-      .finally(() => {
-        if (cancelled) return;
-        setPostsLoading(false);
+        console.warn('[ProfilePage] Could not load post counts:', err.message);
+        // Fall back to zeros so the UI never crashes
+        setPostCounts({ totalPosts: 0, imageCount: 0, videoCount: 0, documentCount: 0 });
       });
+
     return () => { cancelled = true; };
   }, []);
 
+  // ── Socket.IO for profile page ─────────────────────────────────────────────
+  useEffect(() => {
+    socketService.connect();
+
+    // Listen for new posts (in case the user just created one on the home feed)
+    const offPosts = socketService.onPostsBatch((batch) => {
+      if (!Array.isArray(batch) || batch.length === 0) return;
+      const userId = authUser?.id ?? authUser?.userId ?? authUser?._id;
+      if (!userId) return;
+
+      const incoming = batch
+        .map(item => homePostService._normalisePost(item?.post ?? item))
+        .filter(p => {
+          const cid = p.creator?.id ?? p.creator?.userId ?? p.userId;
+          return cid != null && String(cid) === String(userId) &&
+            p.id && !String(p.id).startsWith('local-');
+        });
+
+      if (incoming.length === 0) return;
+
+      setPosts(prev => {
+        const existingIds = new Set(prev.map(p => String(p.id)));
+        const fresh = incoming.filter(p => !existingIds.has(String(p.id)));
+        if (fresh.length === 0) return prev;
+        // Refresh post counts after new post arrives
+        profileService.getMyPostCounts().then(setPostCounts).catch(() => { });
+        return [...fresh, ...prev];
+      });
+    });
+
+    // Listen for reaction / learned updates on the user's own posts
+    const offUpdates = socketService.onPostUpdatesBatch((batch) => {
+      if (!Array.isArray(batch) || batch.length === 0) return;
+      setPosts(prev => {
+        let changed = false;
+        const next = prev.map(post => {
+          const updates = batch.filter(u => String(u.postId) === String(post.id));
+          if (updates.length === 0) return post;
+          let updated = { ...post };
+          updates.forEach(u => {
+            if (u.type === 'reaction' && u.counts) {
+              if (typeof u.counts.APPRECIATE === 'number') updated.appreciations = u.counts.APPRECIATE;
+              if (typeof u.counts.HELPFUL === 'number') updated.helpfulCount = u.counts.HELPFUL;
+            } else if (u.type === 'learned' && typeof u.counts?.LEARNED === 'number') {
+              updated.learnedCount = u.counts.LEARNED;
+            }
+          });
+          changed = true;
+          return updated;
+        });
+        return changed ? next : prev;
+      });
+    });
+
+    // Listen for comment count updates on the user's own posts
+    const offComments = socketService.onCommentUpdatesBatch((batch) => {
+      if (!Array.isArray(batch) || batch.length === 0) return;
+      setPosts(prev => {
+        let changed = false;
+        const next = prev.map(post => {
+          const updates = batch.filter(u => String(u.postId) === String(post.id));
+          if (updates.length === 0) return post;
+          let updatedPost = { ...post };
+          updates.forEach(u => {
+            if (typeof u.count === 'number') {
+              updatedPost.comments = u.count;
+            } else if (u.action === 'created') {
+              updatedPost.comments = Math.max(0, (updatedPost.comments ?? 0) + 1);
+            } else if (u.action === 'deleted') {
+              updatedPost.comments = Math.max(0, (updatedPost.comments ?? 0) - 1);
+            }
+          });
+          changed = true;
+          return updatedPost;
+        });
+        return changed ? next : prev;
+      });
+    });
+
+    return () => {
+      offPosts();
+      offUpdates();
+      offComments();
+      socketService.disconnect();
+    };
+  }, [authUser]);
+
   // ── Skills modal ────────────────────────────────────────────────────────────
-  const handleOpenSkillsModal  = useCallback(() => setShowSkillsModal(true), []);
+  const handleOpenSkillsModal = useCallback(() => setShowSkillsModal(true), []);
   const handleCloseSkillsModal = useCallback(() => setShowSkillsModal(false), []);
 
   const handleSkillsSaved = useCallback(async () => {
     await loadSkills();
     showToast('Skills updated!');
   }, [loadSkills, showToast]);
-if (!authUser) return null;
+
+  // ── Comment panel handlers ──────────────────────────────────────────────────
+  const handleDiscuss = useCallback((postId) => {
+    setOpenCommentPostId(String(postId));
+  }, []);
+
+  const handleCommentCountChange = useCallback((postId, delta) => {
+    setPosts(prev => prev.map(p =>
+      String(p.id) !== String(postId) ? p
+        : { ...p, comments: Math.max(0, (p.comments ?? 0) + delta) }
+    ));
+  }, []);
+
+  if (!authUser) return null;
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="pp-layout" aria-label="EVOLV profile page">
@@ -1488,6 +1994,19 @@ if (!authUser) return null;
               aria-label="My profile"
               title="My profile"
             >
+
+              <button
+                type="button"
+                className="pp-mobile-overview-btn"
+                onClick={() => setIsRightPanelOpen(true)}
+                aria-label="Open profile overview"
+                aria-expanded={isRightPanelOpen}
+                title="Quick Overview"
+              >
+                <BarChart3 size={18} aria-hidden="true" />
+                <span>Overview</span>
+              </button>
+
               <Avatar
                 src={profileData?.avatarUrl || authUser?.avatar || ''}
                 name={profileData?.fullName || authUser?.name || 'You'}
@@ -1571,6 +2090,7 @@ if (!authUser) return null;
                 identities={identities}
                 showToast={showToast}
                 onOpenSettings={() => setShowSettingsModal(true)}
+                postCounts={postCounts}
               />
 
               <SkillsCard skills={skills} onEditSkills={handleOpenSkillsModal} />
@@ -1588,21 +2108,30 @@ if (!authUser) return null;
                   </div>
                 </div>
               ) : (
-                <ContentSection posts={posts} />
+                <ContentSection posts={posts} onDiscuss={handleDiscuss} />
               )}
             </>
           )}
         </div>
       </main>
 
+
       {!profileLoading && (
         <ProfileRightPanel
           profile={profileData}
           skills={skills}
           identities={identities}
-          postCount={posts.length}
+          postCount={
+            postCounts != null
+              ? postCounts.totalPosts
+              : posts.length
+          }
+          posts={posts}
+          isOpen={isRightPanelOpen}
+          onClose={() => setIsRightPanelOpen(false)}
         />
       )}
+
 
       {showSkillsModal && (
         <EditSkillsModal
@@ -1624,6 +2153,16 @@ if (!authUser) return null;
       >
         {toast.message}
       </div>
+
+      {/* Comment panel — slide-in panel for profile post comments */}
+      {openCommentPostId && (
+        <CommentPanel
+          postId={openCommentPostId}
+          currentUser={authUser}
+          onClose={() => setOpenCommentPostId(null)}
+          onCountChange={handleCommentCountChange}
+        />
+      )}
     </div>
   );
 }

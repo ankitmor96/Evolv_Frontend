@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import CommentPanel from '../shared/CommentPanel.jsx';
 import {
   Home,
   Compass,
@@ -33,9 +34,10 @@ import {
   LayoutDashboard,
 } from 'lucide-react';
 import { authService } from '../../services/authService.js';
-import { homePostService } from "../../services/homePostService.js";
+import { homePostService } from '../../services/homePostService.js';
 import { fetchHomeTabs, mapTabsToLabels } from '../../services/homeTabService.js';
 import { getUserSkills } from '../../services/userSkillService.js';
+import { profileService } from '../../services/profileService.js';
 import { getProfile } from '../../services/getProfile.js';
 import socketService from '../../services/socketService.js';
 import { CREATORS, INTEREST_TABS } from '../../data/homeData.js';
@@ -84,14 +86,13 @@ const COMMUNITY_NAV = [
   { id: 'messages', label: 'Messages', icon: MessageCircle, href: '#/messages' },
 ];
 
-// ── Sidebar skill fallback (used until real user-skills API responds) ─────────
-const DEV_SKILLS = ['Python', 'AI / LLMs', 'System Design', 'Economics', 'Psychology'];
-const DEV_LEARNING_GOALS = ['Deep Learning', 'Behavioral Psychology', 'Sustainable Energy'];
-
+const DEV_LEARNING_GOALS = [];
 function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen }) {
   // ── Real user skills from GET /api/skills/user-skills ─────────────────
-  const [sidebarSkills, setSidebarSkills] = useState(null);   // null = loading
-  const [sidebarGoals, setSidebarGoals] = useState(null);
+  const [sidebarSkills, setSidebarSkills] = useState([]);   // null = loading
+  const [sidebarGoals, setSidebarGoals] = useState([]);
+  const [skillsLoading, setSkillsLoading] = useState(true);
+
   // ── Real profile avatar from GET /api/profile ──────────────────────────
   const [profileAvatarUrl, setProfileAvatarUrl] = useState(null);
   const [profileUsername, setProfileUsername] = useState(null);
@@ -99,34 +100,142 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
 
   useEffect(() => {
     let cancelled = false;
-    getUserSkills()
-      .then((res) => {
-        if (cancelled) return;
-        // Backend may return array directly or wrapped in { data }
-        const records = Array.isArray(res) ? res
-          : Array.isArray(res?.data) ? res.data
-            : [];
-        const canDo = [];
-        const learning = [];
-        for (const rec of records) {
-          const names = Array.isArray(rec.skills)
-            ? rec.skills.map((s) => s.name || s).filter(Boolean)
-            : [];
-          if (rec.relationshipType === 'CAN_DO') canDo.push(...names);
-          else if (rec.relationshipType === 'LEARNING') learning.push(...names);
-          else if (rec.relationshipType === 'WANT_TO_IMPROVE') learning.push(...names);
-        }
-        setSidebarSkills(canDo.length > 0 ? canDo : null);
-        setSidebarGoals(learning.length > 0 ? learning : null);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        console.warn('[HomeSidebar] Could not load user skills:', err.message);
-        // Keep null → will show fallback dev data
-      });
-    return () => { cancelled = true; };
-  }, []);
 
+    const getRecords = (response) => {
+      const value = response?.data ?? response;
+
+      if (Array.isArray(value)) return value;
+      if (Array.isArray(value?.data)) return value.data;
+      if (Array.isArray(value?.skills)) return value.skills;
+      if (Array.isArray(value?.items)) return value.items;
+      if (Array.isArray(value?.userSkills)) return value.userSkills;
+
+      return [];
+    };
+
+    const loadSelectedSkills = async () => {
+      setSkillsLoading(true);
+
+      try {
+        // Fetch saved user skills and available skill names together.
+        const [userSkillsResult, categoryResults, curiosityResult] =
+          await Promise.all([
+            profileService.getUserSkills(),
+            Promise.allSettled(
+              Array.from({ length: 20 }, (_, index) =>
+                profileService.getCategorySkills(index + 1)
+              )
+            ),
+            profileService.getUserCuriosity(),
+          ]);
+
+        if (cancelled) return;
+
+        // Map backend skill IDs to their actual names.
+        const skillNameById = new Map();
+
+        categoryResults.forEach((result) => {
+          if (result.status !== "fulfilled") return;
+
+          const categoryData = result.value?.data ?? result.value;
+
+          const skills = getRecords(categoryData);
+
+          skills.forEach((skill) => {
+            if (skill?.id != null && skill?.name) {
+              skillNameById.set(Number(skill.id), skill.name);
+            }
+          });
+        });
+
+        // Extract IDs from the user-skills API response.
+        const getSkillIds = (record) => {
+          if (record?.skillId != null) {
+            return [record.skillId];
+          }
+
+          const values = record?.skills ?? record?.skill;
+
+          if (Array.isArray(values)) {
+            return values.map((item) =>
+              typeof item === "object"
+                ? item.id ?? item.skillId
+                : item
+            ).filter((id) => id != null);
+          }
+
+          if (values != null) {
+            return [
+              typeof values === "object"
+                ? values.id ?? values.skillId
+                : values,
+            ].filter((id) => id != null);
+          }
+
+          return [];
+        };
+
+        const getNames = (record) =>
+          getSkillIds(record)
+            .map((id) => skillNameById.get(Number(id)))
+            .filter(Boolean);
+
+        const records = getRecords(userSkillsResult);
+        const allSelectedSkills = [];
+        const learningGoals = [];
+
+        records.forEach((record) => {
+          const names = getNames(record);
+
+          // Show every selected skill in MY SKILLS.
+          allSelectedSkills.push(...names);
+
+          // Keep learning-related skills in MY LEARNING GOALS too.
+          if (
+            record.relationshipType === "LEARNING" ||
+            record.relationshipType === "WANT_TO_IMPROVE"
+          ) {
+            learningGoals.push(...names);
+          }
+        });
+
+        // Also include the user's curiosity selections.
+        getRecords(curiosityResult).forEach((record) => {
+          allSelectedSkills.push(...getNames(record));
+        });
+
+        const unique = (items) => [
+          ...new Map(
+            items
+              .filter(
+                (name) => typeof name === "string" && name.trim()
+              )
+              .map((name) => [name.trim().toLowerCase(), name.trim()])
+          ).values(),
+        ];
+
+        setSidebarSkills(unique(allSelectedSkills));
+        setSidebarGoals(unique(learningGoals));
+      } catch (error) {
+        console.error("[HomeSidebar] Failed to load skills:", error);
+
+        if (!cancelled) {
+          setSidebarSkills([]);
+          setSidebarGoals([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setSkillsLoading(false);
+        }
+      }
+    };
+
+    loadSelectedSkills();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   useEffect(() => {
     let cancelled = false;
     getProfile.getProfile()
@@ -141,9 +250,12 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
   }, []);
 
   // Display real data when loaded, fall back to dev placeholders while loading
-  const displaySkills = sidebarSkills ?? DEV_SKILLS;
-  const displayGoals = sidebarGoals ?? DEV_LEARNING_GOALS;
-  // Scroll-lock: prevent background scroll when drawer is open on mobile
+  const displaySkills = Array.isArray(sidebarSkills)
+    ? sidebarSkills
+    : [];
+  const displayGoals = Array.isArray(sidebarGoals)
+    ? sidebarGoals
+    : [];  // Scroll-lock: prevent background scroll when drawer is open on mobile
   useEffect(() => {
     if (isSidebarOpen) {
       document.body.style.overflow = 'hidden';
@@ -558,22 +670,6 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
           </ul>
         </nav>
 
-        {/* My Skills */}
-        <div className="hp-sidebar-section">
-          <div className="hp-sidebar-section-header">
-            <p className="hp-nav-section-label" style={{ margin: 0 }}>MY SKILLS</p>
-            <button className="hp-sidebar-edit-btn" aria-label="Edit skills">Edit</button>
-          </div>
-          <ul className="hp-skill-list">
-            {displaySkills.map((skill) => (
-              <li key={skill} className="hp-skill-item">
-                <span className="hp-skill-dot" aria-hidden="true" />
-                {skill}
-              </li>
-            ))}
-          </ul>
-        </div>
-
         {/* My Learning Goals */}
         <div className="hp-sidebar-section">
           <div className="hp-sidebar-section-header">
@@ -601,14 +697,6 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
 
         {/* Create button */}
         <div className="hp-sidebar-footer">
-          <button
-            className="hp-create-btn"
-            onClick={() => navigate('/create')}
-            aria-label="Create new content"
-          >
-            <Plus size={20} aria-hidden="true" />
-            <span>Create</span>
-          </button>
 
           {/* User + logout */}
           {user && (
@@ -766,9 +854,14 @@ function InterestTabs({ active, onChange, tabs = INTEREST_TABS }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// CommentPanel — imported from shared/CommentPanel.jsx
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
 // FEED POST
 // ─────────────────────────────────────────────────────────────────────────────
-function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onLearned }) {
+// ─────────────────────────────────────────────────────────────────────────────
+function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onLearned, onDiscuss }) {
   const [showMenu, setShowMenu] = useState(false);
 
   const [activeActionTooltip, setActiveActionTooltip] = useState('');
@@ -1035,7 +1128,7 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
             onMouseLeave={endLongPress}
             onContextMenu={(e) => e.preventDefault()}
             title="Discuss"
-            aria-label="Discuss post"
+            aria-label={`Discuss post (${post.comments ?? 0} comments)`}
           >
             <span className="hp-action-tooltip" role="tooltip">
               {activeActionTooltip === 'Discuss' ? 'Discuss' : ''}
@@ -1044,7 +1137,6 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
               size={20}
               aria-hidden="true"
             />
-
             <span>{formatCount(post.comments ?? 0)}</span>
           </button>
 
@@ -1122,6 +1214,8 @@ function RightSidebar({ user, isOpen, onClose }) {
   const [search, setSearch] = useState('');
   const [followed, setFollowed] = useState(new Set());
   const [growthTab, setGrowthTab] = useState('Learning');
+  const [growthItems, setGrowthItems] = useState([]);
+  const [growthLoading, setGrowthLoading] = useState(true);
 
   // People to learn from — reuses existing CREATORS data
   const filteredPeople = CREATORS.slice(0, 3).filter(c =>
@@ -1154,7 +1248,92 @@ function RightSidebar({ user, isOpen, onClose }) {
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
   }, [isOpen, onClose]);
+  useEffect(() => {
+    let cancelled = false;
 
+    async function loadGrowthSkills() {
+      setGrowthLoading(true);
+
+      try {
+        const [userSkillsResponse, categoryResults] = await Promise.all([
+          profileService.getUserSkills(),
+          Promise.allSettled(
+            Array.from({ length: 20 }, (_, i) =>
+              profileService.getCategorySkills(i + 1)
+            )
+          ),
+        ]);
+
+        const getRecords = (response) => {
+          const value = response?.data ?? response;
+
+          if (Array.isArray(value)) return value;
+          if (Array.isArray(value?.data)) return value.data;
+          if (Array.isArray(value?.skills)) return value.skills;
+          if (Array.isArray(value?.items)) return value.items;
+
+          return [];
+        };
+
+        const namesById = new Map();
+
+        categoryResults.forEach((result) => {
+          if (result.status !== "fulfilled") return;
+
+          getRecords(result.value).forEach((skill) => {
+            if (skill?.id != null && skill?.name) {
+              namesById.set(Number(skill.id), skill.name);
+            }
+          });
+        });
+
+        const records = getRecords(userSkillsResponse);
+
+        const items = records.flatMap((record) => {
+          const raw = record.skillId != null
+            ? [record.skillId]
+            : Array.isArray(record.skills ?? record.skill)
+              ? (record.skills ?? record.skill).map((s) =>
+                typeof s === "object" ? s.id ?? s.skillId : s
+              )
+              : record.skill != null
+                ? [record.skill]
+                : [];
+
+          return raw
+            .map((id) => namesById.get(Number(id)))
+            .filter(Boolean)
+            .map((label) => ({
+              label,
+              relationshipType: record.relationshipType,
+            }));
+        });
+
+        const unique = [
+          ...new Map(
+            items.map((item) => [
+              `${item.label.toLowerCase()}-${item.relationshipType}`,
+              item,
+            ])
+          ).values(),
+        ];
+
+        if (!cancelled) setGrowthItems(unique);
+      } catch (error) {
+        console.error("[RightSidebar] Failed to load growth skills:", error);
+
+        if (!cancelled) setGrowthItems([]);
+      } finally {
+        if (!cancelled) setGrowthLoading(false);
+      }
+    }
+
+    loadGrowthSkills();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   return (
     <>
       <style>{`
@@ -1564,25 +1743,46 @@ body {
               </button>
             ))}
           </div>
-          {GROWTH_PROGRESS.map(({ label, pct, colorClass }) => (
-            <div key={label} className="hp-progress-item">
-              <div className="hp-progress-label">
-                <span>{label}</span>
-                <span className="hp-progress-pct">{pct}%</span>
-              </div>
-              <div className="hp-progress-track">
-                <div
-                  className={`hp-progress-fill${colorClass ? ' ' + colorClass : ''}`}
-                  style={{ width: `${pct}%` }}
-                  role="progressbar"
-                  aria-valuenow={pct}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={`${label}: ${pct}%`}
-                />
-              </div>
-            </div>
-          ))}
+          {growthLoading ? (
+            <p>Loading your growth...</p>
+          ) : (
+            <>
+              {growthItems
+                .filter((item) =>
+                  growthTab === "Learning"
+                    ? item.relationshipType === "LEARNING" ||
+                    item.relationshipType === "WANT_TO_IMPROVE"
+                    : item.relationshipType === "CAN_DO"
+                )
+                .map((item) => (
+                  <div key={`${item.label}-${item.relationshipType}`}
+                    className="hp-progress-item">
+                    <div className="hp-progress-label">
+                      <span>{item.label}</span>
+                      <span className="hp-progress-pct">Selected</span>
+                    </div>
+
+                    <div className="hp-progress-track">
+                      <div
+                        className="hp-progress-fill"
+                        style={{ width: "100%" }}
+                        role="img"
+                        aria-label={`${item.label}, selected skill`}
+                      />
+                    </div>
+                  </div>
+                ))}
+
+              {growthItems.filter((item) =>
+                growthTab === "Learning"
+                  ? item.relationshipType === "LEARNING" ||
+                  item.relationshipType === "WANT_TO_IMPROVE"
+                  : item.relationshipType === "CAN_DO"
+              ).length === 0 && (
+                  <p>No skills selected in this section yet.</p>
+                )}
+            </>
+          )}
         </section>
 
         {/* Recently Learned */}
@@ -2310,7 +2510,9 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [postsAuthError, setPostsAuthError] = useState(null);
-  // ── Real profile avatar for the header (GET /api/profile) ──────────────
+  // ── Comment panel state ─────────────────────────────────────────────────
+  const [openCommentPostId, setOpenCommentPostId] = useState(null);
+  // ── Real profile for the header and author enrichment ──────────────────
   const [feedProfileAvatar, setFeedProfileAvatar] = useState(null);
   const [feedProfileName, setFeedProfileName] = useState(null);
 
@@ -2323,17 +2525,67 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
         setPostsLoading(true);
         setPostsAuthError(null);
 
-        const response = await homePostService.getFeedPosts();
+        // Fetch feed and current user's profile in parallel.
+        // Profile is used to: (a) show the header avatar, (b) enrich feed
+        // posts that the backend returns with only a userId (no creator obj).
+        const [response, profileData] = await Promise.all([
+          homePostService.getFeedPosts(),
+          getProfile.getProfile().catch(() => null),
+        ]);
+
         const backendPosts = response?.posts ?? [];
 
         if (cancelled) return;
 
-        const mappedPosts = backendPosts.map((post) => ({
-          ...homePostService._normalisePost(post),
-          liked: post.liked ?? false,
-          saved: post.saved ?? false,
-          followed: post.followed ?? false,
-        }));
+        // Populate header avatar / name from real profile API.
+        if (profileData) {
+          const avatar = profileData.avatarUrl ?? profileData.avatar ?? null;
+          const name = profileData.fullName ?? profileData.name ?? profileData.username ?? null;
+          if (avatar) setFeedProfileAvatar(avatar);
+          if (name) setFeedProfileName(name);
+        }
+
+        // Determine the authenticated user's ID so we can enrich own posts.
+        const authUser = authService.getCurrentUser();
+        const currentUserId = authUser?.id ?? authUser?.userId ?? authUser?._id ?? null;
+
+        const mappedPosts = backendPosts.map((post) => {
+          const normalised = {
+            ...homePostService._normalisePost(post),
+            liked: post.liked ?? false,
+            saved: post.saved ?? false,
+            followed: post.followed ?? false,
+          };
+
+          // Enrich posts authored by the current user whose creator info the
+          // backend omitted (it only returns userId at the top level).
+          const creatorId =
+            normalised.creator?.id ??
+            post.userId ??
+            post.user_id ??
+            null;
+
+          const missingName = !normalised.creator?.name;
+          const isCurrentUser =
+            currentUserId != null &&
+            creatorId != null &&
+            String(creatorId) === String(currentUserId);
+
+          if (missingName && isCurrentUser && profileData) {
+            return {
+              ...normalised,
+              creator: {
+                ...normalised.creator,
+                id: currentUserId,
+                name: profileData.fullName ?? profileData.name ?? profileData.username ?? authUser?.name ?? '',
+                username: profileData.username ?? authUser?.email?.split('@')[0] ?? '',
+                avatar: profileData.avatarUrl ?? profileData.avatar ?? '',
+              },
+            };
+          }
+
+          return normalised;
+        });
 
         // Display ONLY posts received from the backend.
         setPosts(mappedPosts);
@@ -2358,73 +2610,106 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
   }, []);
 
   // ── Home Tabs from GET /api/home/tabs ──────────────────────────────────
-  const [apiTabs, setApiTabs] = useState(null); // null = loading / not yet resolved
+
+  // ── Home Tabs from GET /api/home/tabs ────────────────────────
+  const [apiTabs, setApiTabs] = useState(null);
   const [tabsError, setTabsError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetchHomeTabs()
-      .then((raw) => {
-        if (cancelled) return;
-        const labels = mapTabsToLabels(raw);
-        if (labels.length > 0) {
-          setApiTabs(['For You', 'Following', ...labels]);
-        } else {
-          // API returned an empty list — fall back to static tabs.
-          setApiTabs(null);
-        }
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        console.warn('[HomeFeed] Could not load home tabs from API:', err.message);
-        setTabsError(err.message);
-        setApiTabs(null); // use fallback
-      });
-    return () => { cancelled = true; };
-  }, []);
 
-  // ── Feed Posts from GET /api/posts ─────────────────────────────────────
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadFeed = async () => {
+    const loadHomeTabs = async () => {
       try {
-        const { posts: backendPosts = [] } =
-          await homePostService.getFeedPosts();
+        const raw = await fetchHomeTabs();
 
-        if (cancelled || backendPosts.length === 0) return;
+        if (cancelled) return;
 
-        const mapped = backendPosts.map((post) =>
-          homePostService._normalisePost(post)
-        );
+        const payload = raw?.data ?? raw;
 
-        setPosts((prev) => {
-          const existingIds = new Set(
-            prev.map((post) => String(post.id))
-          );
+        console.log("[Home Tabs API response]:", payload);
 
-          const newPosts = mapped.filter(
-            (post) => !existingIds.has(String(post.id))
-          );
+        const categoryTabs = Array.isArray(payload?.tabs)
+          ? payload.tabs
+            .map((tab) =>
+              typeof tab === "string"
+                ? tab
+                : tab?.label ?? tab?.name
+            )
+            .filter((label) =>
+              typeof label === "string" && label.trim()
+            )
+          : Array.isArray(payload)
+            ? mapTabsToLabels(payload)
+            : [];
 
-          return [...newPosts, ...prev];
-        });
-      } catch (error) {
-        if (!cancelled) {
-          console.error("Failed to load feed:", error);
-        }
+        const selectedSkillTabs = Array.isArray(payload?.selectedSkills)
+          ? payload.selectedSkills
+            .map((skill) =>
+              typeof skill === "string"
+                ? skill
+                : skill?.name ??
+                skill?.skillName ??
+                skill?.title
+            )
+            .filter((name) =>
+              typeof name === "string" && name.trim()
+            )
+          : [];
+
+        const allTabs = [
+          "For You",
+          "Learning",
+          "Discover",
+          ...categoryTabs,
+          ...selectedSkillTabs,
+        ];
+
+        const uniqueTabs = [
+          ...new Map(
+            allTabs
+              .filter((tab) =>
+                typeof tab === "string" && tab.trim()
+              )
+              .map((tab) => [
+                tab.trim().toLowerCase(),
+                tab.trim(),
+              ])
+          ).values(),
+        ];
+
+        console.log("[Home Tabs]:", uniqueTabs);
+        console.log("[Selected Skills]:", selectedSkillTabs);
+
+        setApiTabs(uniqueTabs);
+        setTabsError(null);
+
+      } catch (err) {
+        if (cancelled) return;
+
+        console.error('[HomeFeed] Could not load home tabs:', err);
+        setTabsError(err.message);
+        setApiTabs(null);
       }
     };
 
-    loadFeed();
+
+    loadHomeTabs();
 
     return () => {
       cancelled = true;
     };
   }, []);
+
+
+  // (duplicate feed fetch removed — single loadFeed effect above handles initial load)
   // Use API tabs when available, fall back to static DOMAIN_TABS
-  const FEED_TABS = apiTabs ?? ['For You', 'Learning', 'Discover', ...INTEREST_TABS.slice(2)];
+
+  const FEED_TABS = apiTabs ?? [
+    'For You',
+    'Learning',
+    'Discover',
+  ];
 
   const handleLike = useCallback((id) => {
     setPosts(prev => prev.map(p =>
@@ -2441,6 +2726,19 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
   const handleFollow = useCallback((postId) => {
     setPosts(prev => prev.map(p =>
       p.id !== postId ? p : { ...p, followed: !p.followed }
+    ));
+  }, []);
+
+  // ── Discuss: open comment panel ─────────────────────────────────────────
+  const handleDiscuss = useCallback((postId) => {
+    setOpenCommentPostId(String(postId));
+  }, []);
+
+  // ── Comment count update from panel ────────────────────────────────────
+  const handleCommentCountChange = useCallback((postId, delta) => {
+    setPosts(prev => prev.map(p =>
+      String(p.id) !== String(postId) ? p
+        : { ...p, comments: Math.max(0, (p.comments ?? 0) + delta) }
     ));
   }, []);
 
@@ -2555,9 +2853,9 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
     }
   }, []);
 
-  // ── Socket.IO — posts-batch and post-updates-batch ─────────────────────
+  // ── Socket.IO — posts-batch, post-updates-batch, comment-updates-batch ──
   useEffect(() => {
-    const socket = socketService.connect();
+    socketService.connect();
 
     // ── posts-batch: new posts emitted by the backend ─────────────────────
     const offPosts = socketService.onPostsBatch((batch) => {
@@ -2588,7 +2886,6 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
       setPosts(prev => {
         let changed = false;
         const next = prev.map(post => {
-          // Collect every update item that targets this post
           const updates = batch.filter(
             u => String(u.postId) === String(post.id)
           );
@@ -2597,7 +2894,6 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
           let updated = { ...post };
           updates.forEach(u => {
             if (u.type === 'reaction') {
-              // If the backend sends authoritative counts, use them directly.
               if (u.counts) {
                 if (typeof u.counts.APPRECIATE === 'number') {
                   updated.appreciations = u.counts.APPRECIATE;
@@ -2619,9 +2915,39 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
       });
     });
 
+    // ── comment-updates-batch: comment creation / update / deletion ────────
+    const offComments = socketService.onCommentUpdatesBatch((batch) => {
+      if (!Array.isArray(batch) || batch.length === 0) return;
+      console.log('[HomeFeed] comment-updates-batch received:', batch.length, 'update(s)');
+
+      setPosts(prev => {
+        let changed = false;
+        const next = prev.map(post => {
+          const updates = batch.filter(u => String(u.postId) === String(post.id));
+          if (updates.length === 0) return post;
+
+          let updatedPost = { ...post };
+          updates.forEach(u => {
+            // If backend sends authoritative count, use it directly
+            if (typeof u.count === 'number') {
+              updatedPost.comments = u.count;
+            } else if (u.action === 'created') {
+              updatedPost.comments = Math.max(0, (updatedPost.comments ?? 0) + 1);
+            } else if (u.action === 'deleted') {
+              updatedPost.comments = Math.max(0, (updatedPost.comments ?? 0) - 1);
+            }
+          });
+          changed = true;
+          return updatedPost;
+        });
+        return changed ? next : prev;
+      });
+    });
+
     return () => {
       offPosts();
       offUpdates();
+      offComments();
       socketService.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2706,10 +3032,21 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
               onAppreciate={handleAppreciate}
               onHelpful={handleHelpful}
               onLearned={handleLearned}
+              onDiscuss={handleDiscuss}
             />
           ))
         )}
       </main>
+
+      {/* Comment panel — rendered at feed level so it overlays the page */}
+      {openCommentPostId && (
+        <CommentPanel
+          postId={openCommentPostId}
+          currentUser={user}
+          onClose={() => setOpenCommentPostId(null)}
+          onCountChange={handleCommentCountChange}
+        />
+      )}
     </div>
   );
 }
