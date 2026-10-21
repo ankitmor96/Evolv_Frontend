@@ -2,10 +2,9 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import HeroHeader from '../HeroHeader';
 import { fetchRecommendedCreators, connectToCreator } from '../../services/creatorService';
 import './ExploreGems.css';
-
-// ─── Draft key — same key the onboarding flow uses ──────────────────────────
+import { profileService } from "../../services/profileService";// ─── Draft key — same key the onboarding flow uses ──────────────────────────
 const DRAFT_KEY = 'evolve-onboarding-draft';
-
+import { authService } from "../../services/authService";
 /** Load the saved onboarding profile from localStorage. */
 function loadProfile() {
   try {
@@ -51,16 +50,109 @@ function deriveInterests(profile) {
 }
 
 // ─── Profile Appearance Modal ──────────────────────────────────────────────────
-function ProfileAppearanceModal({ profile, onClose }) {
+function ProfileAppearanceModal({ onClose }) {
   const [visible, setVisible] = useState(true);
+  const [profile, setProfile] = useState(null);
+  const [interests, setInterests] = useState([]);          // NEW (replaces deriveInterests)
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState("");
+   const t = localStorage.getItem("evolv_auth_token") || sessionStorage.getItem("evolv_auth_token");
+   const { exp } = JSON.parse(atob(t.split(".")[1]));
+   console.log("expires:", new Date(exp * 1000), "expired?", Date.now() > exp * 1000);
+  useEffect(() => {
+    let cancelled = false;
 
-  const interests = deriveInterests(profile);
+    const loadProfile = async () => {
+      try {
+        setProfileLoading(true);
+        setProfileError("");
+
+        const [profileRes, curiosityRes] = await Promise.allSettled([
+          profileService.getProfile(),
+          profileService.getUserCuriosity(),
+        ]);
+
+        if (cancelled) return;
+
+        if (profileRes.status !== "fulfilled") throw profileRes.reason;
+
+        const data = profileRes.value?.data ?? profileRes.value;
+        const userProfile = data?.profile ?? data;
+
+        // role comes from identities[] (primary one)
+        const identities = data?.identities ?? [];
+        const primary = identities.find((i) => i.isPrimary) ?? identities[0];
+
+        // map backend fields -> the field names your JSX already uses
+        setProfile({
+          ...userProfile,
+          profilePhoto: userProfile?.avatarUrl,
+          role: primary?.identityType?.name ?? "",
+        });
+
+        const isVisible = data?.visible ?? data?.isVisible ?? data?.showProfile;
+        if (typeof isVisible === "boolean") setVisible(isVisible);
+
+        // interests come from the curiosity endpoint
+        if (curiosityRes.status === "fulfilled") {
+          const payload = curiosityRes.value;
+          const list = Array.isArray(payload)
+            ? payload
+            : payload?.data ?? payload?.skills ?? payload?.curiosities ?? [];
+
+          const idToName = await profileService
+            .fetchSkillIdToNameMap()
+            .catch(() => ({}));
+
+          const names = list
+            .map((item) =>
+              typeof item === "string"
+                ? item
+                : typeof item === "number"
+                  ? idToName[item]
+                  : item?.skill?.name ??
+                  item?.name ??
+                  idToName[item?.skillId] ??
+                  idToName[item?.id]
+            )
+            .filter(Boolean);
+
+          if (!cancelled) setInterests(names);
+        } else {
+          console.warn("Failed to load interests:", curiosityRes.reason);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to load profile:", error);
+          setProfileError(error.message || "Unable to load profile.");
+        }
+      } finally {
+        if (!cancelled) setProfileLoading(false);
+      }
+    };
+
+    loadProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+const authUser = authService.getCurrentUser();
+const displayName = profile?.name || authUser?.name || profile?.username || "Your Name";
 
   return (
     <div className="eg-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="pa-title">
       <div className="eg-modal-card">
         <button className="eg-modal-close" aria-label="Close" onClick={onClose}>×</button>
+        {profileLoading && (
+          <p className="eg-modal-sub">Loading your profile...</p>
+        )}
 
+        {profileError && (
+          <p role="alert" className="eg-modal-empty">
+            {profileError}
+          </p>
+        )}
         <h2 id="pa-title" className="eg-modal-title">Profile Appearance</h2>
         <p className="eg-modal-sub">Control how other EVOLV members see you.</p>
 
@@ -77,7 +169,7 @@ function ProfileAppearanceModal({ profile, onClose }) {
             </div>
           )}
           <div className="eg-modal-avatar-info">
-            <strong>{profile?.name || 'Your Name'}</strong>
+            <strong>{displayName}</strong>
             <span>@{profile?.username || 'username'}</span>
           </div>
         </div>

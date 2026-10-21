@@ -16,12 +16,27 @@
  */
 
 const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? "";
-const TOKEN_KEY = "evolv_auth_token";
 
-const getToken = () =>
-  localStorage.getItem(TOKEN_KEY) ||
-  sessionStorage.getItem(TOKEN_KEY) ||
-  null;
+const TOKEN_KEYS = [
+  "evolv_auth_token",
+  "token",
+  "accessToken",
+  "access_token",
+];
+
+const getToken = () => {
+  for (const key of TOKEN_KEYS) {
+    const token =
+      localStorage.getItem(key) ||
+      sessionStorage.getItem(key);
+
+    if (token) {
+      return token;
+    }
+  }
+
+  return null;
+};
 
 /**
  * Fetch home tabs from the backend.
@@ -86,16 +101,27 @@ export async function fetchHomeTabs() {
  * @param {Array} tabs  – raw backend objects from fetchHomeTabs()
  * @returns {string[]}  – unique category name labels, e.g. ["Technology", "Design", …]
  */
+
 export function mapTabsToLabels(tabs) {
-  if (!Array.isArray(tabs) || tabs.length === 0) return [];
+  if (!Array.isArray(tabs)) return [];
 
   const seen = new Set();
   const labels = [];
 
   for (const tab of tabs) {
-    const label = tab.categoryName || tab.name || "";
-    if (label && !seen.has(label)) {
-      seen.add(label);
+    const label = String(
+      tab?.categoryName ||
+      tab?.name ||
+      tab?.category?.name ||
+      ""
+    ).trim();
+
+    if (!label) continue;
+
+    const key = label.toLowerCase();
+
+    if (!seen.has(key)) {
+      seen.add(key);
       labels.push(label);
     }
   }

@@ -1,4 +1,4 @@
-import React, { useMemo, useState ,useEffect} from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Search,
   ChevronDown,
@@ -13,25 +13,6 @@ import {
   Clock,
   ArrowRight
 } from 'lucide-react';
-
-const DOMAINS = [
-  'All Domains',
-  'Technology',
-  'Design & Creative',
-  'Media & Content',
-  'Business & Entrepreneurship',
-  'Finance & Economics',
-  'Science & Research',
-  'Thinking & Intellectual',
-  'Communication',
-  'Languages & Culture',
-  'Arts & Performance',
-  'Practical & Craft',
-  'Physical & Outdoor',
-  'Leadership & Social',
-  'Education & Teaching',
-  'Life & Personal Development',
-];
 
 const CONTENT_CATEGORIES = [
   'All Categories',
@@ -59,7 +40,7 @@ const CONTENT_TYPES = [
 
 const DEMO_CONTENT = [];
 import { homePostService } from "../../services/homePostService";
-  
+import { fetchHomeTabs, mapTabsToLabels } from "../../services/homeTabService";
 function getTypeIcon(type) {
   if (type === 'Article') return FileText;
   if (type === 'Document') return File;
@@ -67,12 +48,13 @@ function getTypeIcon(type) {
 }
 
 export default function DiscoverPage() {
-  const [domain, setDomain] = useState('All Domains');
+  const [contentItems, setContentItems] = useState([]);
+  const [domains, setDomains] = useState(["All Domains"]);
+  const [domain, setDomain] = useState("All Domains");
+  const [domainsLoading, setDomainsLoading] = useState(true);
   const [category, setCategory] = useState('All Categories');
   const [contentType, setContentType] = useState('All');
   const [search, setSearch] = useState('');
-const [contentItems, setContentItems] = useState(DEMO_CONTENT);
-const [documentsLoading, setDocumentsLoading] = useState(true);
 
   const filteredContent = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -104,44 +86,93 @@ const [documentsLoading, setDocumentsLoading] = useState(true);
     });
   }, [domain, category, contentType, search]);
 
+  useEffect(() => {
+    let cancelled = false;
 
+    const loadDiscoverDomains = async () => {
+      try {
+        const raw = await fetchHomeTabs();
 
-useEffect(() => {
-    const loadDocuments = async () => {
-        try {
-            const documents = await homePostService.getDocumentPosts();
+        if (cancelled) return;
 
-            setContentItems([
-                ...documents.map((doc, index) => ({
-                    id: doc.id ?? doc._id ?? `document-${index}`,
-                    domain: doc.domain || "Technology",
-                    category: doc.category || "Resources",
-                    type: "Document",
-                    title: doc.title || doc.name || "Untitled Document",
-                    description: doc.description || doc.content || "",
-                    author: doc.author?.name || doc.author || "EVOLV Member",
-                    time: doc.createdAt
-                        ? new Date(doc.createdAt).toLocaleDateString()
-                        : "Document",
-                    tags: Array.isArray(doc.tags) ? doc.tags : [],
-                    documentUrl: doc.documentUrl || doc.fileUrl || doc.url || "",
-                })),
-                ...DEMO_CONTENT,
-            ]);
-        } catch (error) {
-            console.error("Failed to load document posts:", error.message);
+        const payload = raw?.data ?? raw;
+
+        // Use the same tabs array that provides Home's interests.
+        const apiTabs = Array.isArray(payload?.tabs)
+          ? payload.tabs
+          : Array.isArray(payload)
+            ? payload
+            : Array.isArray(payload?.selectedSkills)
+              ? payload.selectedSkills
+              : [];
+
+        // Keep individual skill labels instead of grouping by category.
+        const seen = new Set();
+
+        const labels = apiTabs
+          .map((item) =>
+            String(
+              item?.label ||
+              item?.name ||
+              item?.categoryName ||
+              ""
+            ).trim()
+          )
+          .filter((label) => {
+            if (!label) return false;
+
+            const key = label.toLowerCase();
+
+            // Avoid duplicating the All Domains button.
+            if (key === "all domains") return false;
+
+            if (seen.has(key)) return false;
+
+            seen.add(key);
+            return true;
+          });
+
+        const nextDomains = ["All Domains", ...labels];
+
+        setDomains(nextDomains);
+
+        setDomain((current) =>
+          nextDomains.includes(current)
+            ? current
+            : "All Domains"
+        );
+      } catch (error) {
+        console.error(
+          "Failed to load Discover domains:",
+          error.message
+        );
+      } finally {
+        if (!cancelled) {
+          setDomainsLoading(false);
         }
+      }
     };
 
-    loadDocuments();
-}, []);
+    loadDiscoverDomains();
 
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filteredPosts = contentItems.filter((post) => {
+    if (domain === "All Domains") return true;
+
+    return (
+      post.domain?.toLowerCase() === domain.toLowerCase()
+    );
+  });
 
   return (
     <>
       <style>{
         `
-                    .discover-page {
+  .discover-page {
   min-height: 100vh;
   background: #faf9fc;
   color: #21172d;
@@ -676,18 +707,29 @@ useEffect(() => {
             </div>
           </div>
 
+
           <div className="discover-domain-scroll">
-            {DOMAINS.map((item) => (
-              <button
-                key={item}
-                className={`discover-domain-chip ${domain === item ? 'active' : ''
-                  }`}
-                onClick={() => setDomain(item)}
-              >
-                {item}
-              </button>
-            ))}
+            {domainsLoading ? (
+              <span className="discover-domain-loading">
+                Loading domains...
+              </span>
+            ) : (
+              domains.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className={`discover-domain-chip ${domain === item ? "active" : ""
+                    }`}
+                  onClick={() => setDomain(item)}
+                  aria-pressed={domain === item}
+                >
+                  {item}
+                </button>
+
+              ))
+            )}
           </div>
+
         </section>
 
         {/* Filters */}

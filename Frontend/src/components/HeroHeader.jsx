@@ -185,18 +185,6 @@ export default function HeroHeader() {
                     <span className="mobile-group-icon">{service.icon}</span>
                     <span>{service.label}</span>
                   </div>
-                  <div className="mobile-sublinks">
-                    {service.items.map((item) => (
-                      <a
-                        key={item.name}
-                        href={item.href}
-                        className="mobile-sublink"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        {item.name}
-                      </a>
-                    ))}
-                  </div>
                 </motion.div>
               ))}
 

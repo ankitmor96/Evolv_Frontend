@@ -280,18 +280,10 @@ async createProfile(data, file) {
     return payload;
   },
 
-  // ═══════════════════════════════════════════════
-  // COMPLETE PROFILE
-  // ═══════════════════════════════════════════════
-
   /** GET /api/profile/complete */
   getCompleteProfile() {
     return request("/api/profile/complete");
   },
-
-  // ═══════════════════════════════════════════════
-  // BIO
-  // ═══════════════════════════════════════════════
 
   /** GET /api/profile/bio */
   getBio() {
@@ -300,8 +292,6 @@ async createProfile(data, file) {
 
   /**
    * POST /api/profile/bio – creates the bio record for the first time.
-   * Requires the parent profile to already exist.
-   * body: { bio }
    */
   createBio(bio) {
     return request("/api/profile/bio", { method: "POST", body: { bio } });
@@ -309,7 +299,6 @@ async createProfile(data, file) {
 
   /**
    * PATCH /api/profile/bio – updates an existing bio record.
-   * body: { bio }
    */
   updateBio(bio) {
     return request("/api/profile/bio", { method: "PATCH", body: { bio } });
@@ -335,10 +324,6 @@ async createProfile(data, file) {
       throw createErr;
     }
   },
-
-  // ═══════════════════════════════════════════════
-  // IDENTITY TYPES
-  // ═══════════════════════════════════════════════
 
   /** GET /api/identity-types – all available identity type options */
   getIdentityTypes() {
@@ -406,10 +391,6 @@ async createProfile(data, file) {
     });
   },
 
-  /**
-   * PATCH /api/skills/curiosity
-   * body: { skillIds: number[] }
-   */
   updateUserCuriosity(skillIds) {
     return request("/api/skills/curiosity", {
       method: "PATCH",
@@ -417,29 +398,15 @@ async createProfile(data, file) {
     });
   },
 
-  /**
-   * DELETE /api/skills/curiosity/:skillId
-   * Deletes a single curiosity entry by its skill ID.
-   */
   deleteUserCuriosity(skillId) {
     return request(`/api/skills/curiosity/${skillId}`, { method: "DELETE" });
   },
-
-  // ═══════════════════════════════════════════════
-  // USER SKILLS
-  // ═══════════════════════════════════════════════
 
   /** GET /api/skills/user-skills */
   getUserSkills() {
     return request("/api/skills/user-skills");
   },
 
-  /**
-   * POST /api/skills/user-skills
-   * body: { skill: number[], relationshipType: "CAN_DO" | "LEARNING" | "WANT_TO_IMPROVE" }
-   *
-   * Note: the backend field name is "skill" (not "skillIds") — exact from Postman.
-   */
   addUserSkill(skillIds, relationshipType) {
     return request("/api/skills/user-skills", {
       method: "POST",
@@ -449,7 +416,6 @@ async createProfile(data, file) {
 
   /**
    * PATCH /api/skills/user-skills/:id
-   * body: { skill: number[], relationshipType: string }
    */
   updateUserSkill(id, skillIds, relationshipType) {
     return request(`/api/skills/user-skills/${id}`, {
@@ -462,17 +428,8 @@ async createProfile(data, file) {
   deleteUserSkill(id) {
     return request(`/api/skills/user-skills/${id}`, { method: "DELETE" });
   },
-
-  // ═══════════════════════════════════════════════
-  // POST COUNTS
-  // ═══════════════════════════════════════════════
-
   /**
    * GET /api/posts/my-posts/counts
-   *
-   * Returns the post counts for the currently authenticated user.
-   * Response envelope: { success: true, data: { totalPosts, imageCount, videoCount, documentCount } }
-   *
    * @returns {Promise<{ totalPosts: number, imageCount: number, videoCount: number, documentCount: number }>}
    */
   async getMyPostCounts() {
@@ -486,14 +443,8 @@ async createProfile(data, file) {
       documentCount: Number(data?.documentCount ?? 0),
     };
   },
-
-  // ═══════════════════════════════════════════════
-  // NAME → ID MAPPING HELPERS
-  // ═══════════════════════════════════════════════
-
   /**
    * Builds a { "skill name (lower-cased)": backendId }
-   *
    * @returns {Promise<Record<string, number>>}
    */
   async fetchSkillNameToIdMap() {
@@ -584,10 +535,6 @@ async createProfile(data, file) {
     return match?.id ?? null;
   },
 
-  // ═══════════════════════════════════════════════
-  // ONBOARDING SUBMISSION
-  // ═══════════════════════════════════════════════
-
   /**
    * Submit the complete onboarding draft to the backend.
    * @param {object} draft  – the full onboarding draft object
@@ -629,13 +576,7 @@ async createProfile(data, file) {
     }
 
     // ── 3. Create or update the user's profile record ────────────────────
-    //
-    // The backend returns 404 from PATCH /api/profile when no record exists
-    // for the authenticated user. We must POST to create it first.
-    // Using ensureProfile() which does GET → POST (create) or PATCH (update).
-    //
-    // Bio and skills depend on this step. If it fails, we skip them to avoid
-    // cascading "User profile not found" errors.
+
     const roleName =
       draft.role === "Other"
         ? (draft.customRole ?? "").trim()
