@@ -25,6 +25,14 @@ function ReelItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
   const videoRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isLandscape, setIsLandscape] = useState(false);
+
+  useEffect(() => {
+  const v = videoRef.current;
+  if (v && v.readyState >= 1) {
+    setIsLandscape(v.videoWidth > v.videoHeight);
+  }
+}, []);
 
   // Play only the reel that is mostly visible
   useEffect(() => {
@@ -60,21 +68,34 @@ function ReelItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
   return (
     <section className="rl-item" ref={itemRef} data-post-id={post.id}>
       <div className="rl-card">
-        <video
-          ref={videoRef}
-          src={post.media.src}
-          poster={post.media.poster}
-          className="rl-video"
-          loop
-          playsInline
-          muted={muted}
-          preload="metadata"
-          onClick={togglePlay}
-          onTimeUpdate={(e) => {
-            const v = e.currentTarget;
-            setProgress(v.duration ? (v.currentTime / v.duration) * 100 : 0);
-          }}
-        />
+        <div className="rl-media">
+          {isLandscape && post.media.poster && (
+            <div
+              className="rl-backdrop"
+              style={{ backgroundImage: `url(${post.media.poster})` }}
+            />
+          )}
+
+          <video
+            ref={videoRef}
+            src={post.media.src}
+            poster={post.media.poster}
+            className={`rl-video ${isLandscape ? 'rl-video--landscape' : ''}`}
+            loop
+            playsInline
+            muted={muted}
+            preload="metadata"
+            onClick={togglePlay}
+            onLoadedMetadata={(e) => {
+              const v = e.currentTarget;
+              setIsLandscape(v.videoWidth > v.videoHeight);
+            }}
+            onTimeUpdate={(e) => {
+              const v = e.currentTarget;
+              setProgress(v.duration ? (v.currentTime / v.duration) * 100 : 0);
+            }}
+          />
+        </div>
 
         {!playing && (
           <button type="button" className="rl-play" onClick={togglePlay} aria-label="Play">

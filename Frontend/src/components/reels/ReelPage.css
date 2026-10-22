@@ -21,16 +21,57 @@
   display: flex; align-items: center; justify-content: center;
 }
 
+.rl-video {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; border-radius: inherit; cursor: pointer;
+}
+.rl-card {
+  position: relative;
+  overflow: hidden;
+  background: #000;           /* bars color for landscape videos */
+}
 .rl-card {
   position: relative;
   height: min(calc(100dvh - 48px), 860px);
   aspect-ratio: 9 / 16; max-width: 100vw;
   border-radius: 28px; background: #000;
   box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  /* no overflow:hidden here, or the desktop action buttons get clipped */
 }
+
 .rl-video {
-  position: absolute; inset: 0; width: 100%; height: 100%;
-  object-fit: cover; border-radius: inherit; cursor: pointer;
+  position: absolute; inset: 0; z-index: 1;
+  width: 100%; height: 100%;
+  object-fit: cover;            /* portrait: fill */
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Landscape videos: show the full frame, centered */
+.rl-video--landscape {
+  object-fit: contain;
+}
+
+/* Blurred fill behind landscape videos */
+.rl-backdrop {
+  position: absolute; inset: 0; z-index: 0;
+  background-size: cover; background-position: center;
+  filter: blur(24px) brightness(0.6);
+  transform: scale(1.2);
+}
+.rl-media {
+  position: absolute; inset: 0;
+  overflow: hidden; border-radius: inherit;
+  background: #000;
+}
+
+/* Keep the controls above the video */
+.rl-play,
+.rl-mute,
+.rl-overlay,
+.rl-progress,
+.rl-actions {
+  z-index: 2;
 }
 
 .rl-play {
