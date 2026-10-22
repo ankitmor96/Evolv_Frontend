@@ -65,7 +65,19 @@ function navigate(path) {
   window.location.hash = path;
   window.dispatchEvent(new Event('navigated'));
 }
+function openReel(postId) {
+  sessionStorage.setItem('evolv-reel-start', String(postId));
+  sessionStorage.setItem('evolv-reel-back', window.location.hash.replace(/^#/, '') || '/home');
+  window.location.hash = '/reels';
+  window.dispatchEvent(new Event('navigated'));
+}
 
+function openImage(postId) {
+  sessionStorage.setItem('evolv-image-start', String(postId));
+  sessionStorage.setItem('evolv-image-back', window.location.hash.replace(/^#/, '') || '/home');
+  window.location.hash = '/image';
+  window.dispatchEvent(new Event('navigated'));
+}
 // ─── Sidebar nav items ───────────────────────────────────────────────────────
 const MAIN_NAV = [
   { id: 'home', label: 'Home', icon: Home, href: '/home' },
@@ -256,14 +268,14 @@ function ProfileSidebar({ user, profile, isSidebarOpen, setIsSidebarOpen }) {
 }
 
 // ─── Right panel ──────────────────────────────────────────────────────────────
-function ProfileRightPanel({  
+function ProfileRightPanel({
   profile,
   skills = { canDo: [], learning: [], curiosity: [] },
   identities = [],
   postCount = 0,
   posts = [],
   isOpen = false,
-  onClose = () => {},
+  onClose = () => { },
 }) {
   // ── Compute real stats from the user's own posts ────────────────────────
   // _normalisePost sets these fields from backend reaction data (REST + Socket).
@@ -725,6 +737,13 @@ function ContentSection({ posts, onDiscuss }) {
     }
   };
 
+  const openPost = (post) => {
+    const isVideo = post.media?.type === 'video' || post.type === 'reel';
+    if (isVideo && post.media?.src) openReel(post.id);
+    else if (post.media?.type === 'image' && post.media?.src) openImage(post.id);
+    else setSelectedPost(post);   
+  };
+
   const filtered = getFiltered();
 
   return (
@@ -793,13 +812,7 @@ function ContentSection({ posts, onDiscuss }) {
               <div
                 key={post.id}
                 className="pp-grid-clickable"
-                onClick={() => setSelectedPost(post)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    setSelectedPost(post);
-                  }
-                }}
+                onClick={() => openPost(post)}
                 role="button"
                 tabIndex={0}
                 aria-label={`Open post: ${post.caption || 'Untitled'}`}
@@ -950,7 +963,7 @@ function ProfileHero({ profile, user, identities, showToast, onOpenSettings, pos
 
         {bio && <p className="pp-hero-bio">{bio}</p>}
 
-        {/* Stats row — "Followers" → "Connections" */}
+        {/* Stats row → "Connections" */}
         <div className="pp-stats-row" role="list" aria-label="Profile statistics">
           <div className="pp-stat" role="listitem">
             <span className="pp-stat-value" aria-live="polite" aria-atomic="true">
@@ -1270,42 +1283,14 @@ function EditSkillsModal({ skills, onClose, onSaved }) {
     setSuccess(false);
 
     try {
-      // 1. Fetch backend name→ID map
-      const nameToId = await profileService.fetchSkillNameToIdMap();
-
-      // 2. Build ID lists by relationship type
-      //    Preserve CAN_DO for skills already in canDo; default others to LEARNING
-      const canDoIds = [];
-      const learningIds = [];
-
-      for (const name of selectedNames) {
-        const id = nameToId[name.toLowerCase().trim()];
-        if (id == null) continue; // not in backend catalogue → skip
-        if (skills.canDo.includes(name)) {
-          canDoIds.push(id);
-        } else {
-          learningIds.push(id);
-        }
-      }
-
-      // 3. POST each non-empty relationship type
-      const saves = [];
-      if (canDoIds.length > 0) {
-        saves.push(profileService.addUserSkill(canDoIds, 'CAN_DO'));
-      }
-      if (learningIds.length > 0) {
-        saves.push(profileService.addUserSkill(learningIds, 'LEARNING'));
-      }
-      if (saves.length > 0) {
-        await Promise.all(saves);
-      }
-
+      await profileService.applySkillSelection(selectedNames);
       setSuccess(true);
-      await onSaved(); // refresh parent
+      await onSaved();
       setTimeout(() => onClose(), 800);
     } catch (err) {
       console.error('[EditSkillsModal] Save failed:', err);
-      setError(err.message || 'Failed to save skills. Please try again.');
+      setError("We couldn't save every change. Please try again.");
+      await onSaved({ silent: true });
     } finally {
       setSaving(false);
     }
@@ -1941,10 +1926,13 @@ export default function ProfilePage() {
   const handleOpenSkillsModal = useCallback(() => setShowSkillsModal(true), []);
   const handleCloseSkillsModal = useCallback(() => setShowSkillsModal(false), []);
 
-  const handleSkillsSaved = useCallback(async () => {
-    await loadSkills();
-    showToast('Skills updated!');
-  }, [loadSkills, showToast]);
+  const handleSkillsSaved = useCallback(
+    async ({ silent = false } = {}) => {
+      await loadSkills();
+      if (!silent) showToast('Skills updated!');
+    },
+    [loadSkills, showToast]
+  );
 
   // ── Comment panel handlers ──────────────────────────────────────────────────
   const handleDiscuss = useCallback((postId) => {
@@ -1986,7 +1974,18 @@ export default function ProfilePage() {
           </div>
 
           <div className="pp-topbar-actions">
-            {/* Avatar button — consistent with HomePage header */}
+            <button
+              type="button"
+              className="pp-mobile-overview-btn"
+              onClick={() => setIsRightPanelOpen(true)}
+              aria-label="Open profile overview"
+              aria-expanded={isRightPanelOpen}
+              title="Quick Overview"
+            >
+              <BarChart3 size={18} aria-hidden="true" />
+              <span>Overview</span>
+            </button>
+
             <button
               type="button"
               className="pp-topbar-avatar-btn"
@@ -1994,31 +1993,14 @@ export default function ProfilePage() {
               aria-label="My profile"
               title="My profile"
             >
-
-              <button
-                type="button"
-                className="pp-mobile-overview-btn"
-                onClick={() => setIsRightPanelOpen(true)}
-                aria-label="Open profile overview"
-                aria-expanded={isRightPanelOpen}
-                title="Quick Overview"
-              >
-                <BarChart3 size={18} aria-hidden="true" />
-                <span>Overview</span>
-              </button>
-
               <Avatar
                 src={profileData?.avatarUrl || authUser?.avatar || ''}
                 name={profileData?.fullName || authUser?.name || 'You'}
                 size={32}
               />
             </button>
-            <button
-              className="pp-icon-btn"
-              onClick={() => setShowSettingsModal(true)}
-              aria-label="Profile settings"
-              title="Settings"
-            >
+
+            <button className="pp-icon-btn" onClick={() => setShowSettingsModal(true)} aria-label="Profile settings" title="Settings">
               <Settings size={16} aria-hidden="true" />
             </button>
           </div>

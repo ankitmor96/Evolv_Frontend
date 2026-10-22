@@ -94,11 +94,28 @@ function getGateReason(step, draft) {
       return null;
   }
 }
+function describeSubmitError(errors) {
+  const text = errors.map((e) => e.message).join(' ').toLowerCase();
 
+  if (text.includes('auth token'))
+    return { message: 'Your session has expired. Please log in again.' };
+  if (text.includes('username') && /(taken|exist|already)/.test(text))
+    return { message: 'That username is already taken. Please choose another.', goToStep: 1 };
+  if (text.includes('avatar'))
+    return { message: 'Please add a profile photo to continue.', goToStep: 1 };
+  if (text.includes('identitytypeids'))
+    return { message: 'Please re-select what describes you.', goToStep: 1 };
+
+  return { message: "We couldn't save your profile. Please try again." };
+}
 export default function Onboarding() {
   const [step, setStep] = useState(1); // 1–3; 4 = completion
   const [draft, setDraft] = useState(loadDraft);
   const [showErrors, setShowErrors] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [isEdit, setIsEdit] = useState(false);
+  const [loadingEdit, setLoadingEdit] = useState(true);
 
   // Two-phase step transition: leave pose → swap content → enter pose.
   // Deterministic (no presence bookkeeping), matches the homepage motion spec.
@@ -121,6 +138,7 @@ export default function Onboarding() {
     }, 400);
     return () => clearTimeout(persistTimer.current);
   }, [draft]);
+
 
   const isComplete = step > TOTAL_STEPS;
   const canContinue = isStepComplete(Math.min(step, TOTAL_STEPS), draft);
@@ -165,31 +183,57 @@ export default function Onboarding() {
   }, [phase]);
 
   const handleEnter = useCallback(async () => {
-    // Prevent duplicate submissions on rapid double-click.
     if (isSubmitting.current) return;
     isSubmitting.current = true;
+    setSubmitting(true);
+    setSubmitError('');
 
-    // Submit the completed onboarding draft to the real backend.
-    // Each section (profile, curiosity, skills, bio) is submitted
-    // independently. Errors are logged to the console but never block
-    // navigation — the user is always moved forward.
     try {
-      await profileService.submitOnboardingDraft(draft);
+      const { errors } = await profileService.submitOnboardingDraft(draft, { isEdit });
+      const critical = errors.filter((e) => e.section === 'auth' || e.section === 'profile');
+
+      if (critical.length > 0) {
+        console.error('[Onboarding] Critical errors:', critical); // raw details stay in the console
+        const { message, goToStep } = describeSubmitError(critical);
+        setSubmitError(message);
+        if (goToStep) {
+          setShowErrors(true);
+          setStep(goToStep); // jump to the step that needs fixing; the draft is kept
+        }
+        return; // finally{} resets the flags
+      }
     } catch (err) {
-      console.error('[Onboarding] Unexpected submission error:', err);
+      console.error('[Onboarding] Unexpected error:', err);
+      setSubmitError('Something went wrong. Please try again.');
+      return;
+    } finally {
+      isSubmitting.current = false;
+      setSubmitting(false);
     }
 
-    isSubmitting.current = false;
-
-    // Clear the local draft now that it has been sent to the backend.
-    try {
-      window.localStorage.removeItem(DRAFT_KEY);
-    } catch { /* storage unavailable — ignore */ }
-
-    // Navigate to the Explore Gems discovery page.
-    window.location.hash = '/explore-gems';
+    try { window.localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+    window.location.hash = isEdit ? '/profile' : '/explore-gems';
     window.dispatchEvent(new Event('navigated'));
-  }, [draft]);
+  }, [draft, isEdit]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const saved = await profileService.loadDraftFromBackend();
+        if (cancelled) return;
+        if (saved) {
+          setDraft(saved);   // replaces any stale localStorage draft
+          setIsEdit(true);
+        }
+      } catch (err) {
+        console.error('[Onboarding] Could not load profile for editing', err);
+      } finally {
+        if (!cancelled) setLoadingEdit(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <main className="ob-page" role="main">
@@ -207,22 +251,24 @@ export default function Onboarding() {
             transition={{ duration: 0.5, ease: EASE_SMOOTH }}
           >
             {isComplete ? (
-              <>
-                You&apos;re ready
-                <br />
-                to EVOLV.
-              </>
+              isEdit ? (
+                <>Review your<br />changes.</>
+              ) : (
+                <>You&apos;re ready<br />to EVOLV.</>
+              )
             ) : (
-              <>
-                Build your
-                <br />
-                EVOLV identity.
-              </>
+              isEdit ? (
+                <>Edit your<br />EVOLV identity.</>
+              ) : (
+                <>Build your<br />EVOLV identity.</>
+              )
             )}
           </motion.h1>
           <p className="ob-hero-sub">
             {isComplete
-              ? 'Your profile is taking shape.'
+              ? isEdit
+                ? 'Almost done. Review and save your updates.'
+                : 'Your profile is taking shape.'
               : "Tell us who you are, what you're curious about, and what you're focusing on."}
           </p>
         </div>
@@ -244,8 +290,10 @@ export default function Onboarding() {
             {/* Form column */}
             <div className="ob-form-col">
               <div className={`ob-step-slot ${phase}`}>
-                {isComplete ? (
-                  <CompletionScreen draft={draft} onEnter={handleEnter} />
+                {loadingEdit ? (
+                  <p className="step-sub">Loading your profile…</p>
+                ) : isComplete ? (
+                  <CompletionScreen draft={draft} onEnter={handleEnter} error={submitError} submitting={submitting} isEdit={isEdit} />
                 ) : (
                   <StepComponent draft={draft} setDraft={setDraft} showErrors={showErrors} />
                 )}
@@ -265,13 +313,15 @@ export default function Onboarding() {
               {gateReason && !canContinue && (
                 <span className="ob-gate-reason">{gateReason}</span>
               )}
-
+              {submitError && !isComplete && <span className="ob-inline-error" role="alert">{submitError}</span>}
               <motion.button
                 type="button"
                 className={`ob-primary-btn ${canContinue ? '' : 'disabled'}`}
                 onClick={goNext}
-                disabled={!canContinue}
+                disabled={!canContinue || submitting}          // <- prevent clicks while submitting
                 whileTap={canContinue ? { scale: 0.98 } : undefined}
+                aria-busy={submitting}
+                aria-disabled={!canContinue || submitting}
               >
                 Continue →
               </motion.button>

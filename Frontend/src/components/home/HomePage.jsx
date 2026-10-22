@@ -476,16 +476,13 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
     padding: 8px 0;
     white-space: nowrap;
   }
-
-  /* Hide only action names */
-  .hp-post-actions-left .hp-action-btn > span:nth-of-type(2) {
-    display: none !important;
-  }
-
-  /* Keep counts visible */
-  .hp-post-actions-left .hp-action-btn > span:nth-of-type(3) {
+  /* Counts: always visible */
+  .hp-post-actions-left .hp-action-btn > .hp-action-count {
     display: inline-block !important;
     margin-left: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1;
   }
 
   /* Keep icons visible */
@@ -853,10 +850,63 @@ function InterestTabs({ active, onChange, tabs = INTEREST_TABS }) {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CommentPanel — imported from shared/CommentPanel.jsx
-// ─────────────────────────────────────────────────────────────────────────────
+function openReel(postId) {
+  sessionStorage.setItem('evolv-reel-start', String(postId));
+  sessionStorage.setItem('evolv-reel-back', window.location.hash.replace(/^#/, '') || '/home');
+  window.location.hash = '/reels';
+  window.dispatchEvent(new Event('navigated'));
+}
 
+function openImage(postId) {
+  sessionStorage.setItem('evolv-image-start', String(postId));
+  sessionStorage.setItem('evolv-image-back', window.location.hash.replace(/^#/, '') || '/home');
+  window.location.hash = '/image';
+  window.dispatchEvent(new Event('navigated'));
+}
+
+// Portrait box, autoplays muted when visible, click opens the Reels page
+function FeedVideo({ post }) {
+  const boxRef = useRef(null);
+  const videoRef = useRef(null);
+  const [landscape, setLandscape] = useState(false);
+
+  useEffect(() => {
+    const box = boxRef.current;
+    const video = videoRef.current;
+    if (!box || !video) return undefined;
+    const io = new IntersectionObserver(
+      ([e]) => { e.intersectionRatio >= 0.6 ? video.play().catch(() => { }) : video.pause(); },
+      { threshold: [0, 0.6] }
+    );
+    io.observe(box);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={boxRef}
+      className={`hp-video-frame ${landscape ? 'landscape' : ''}`}
+      onClick={() => openReel(post.id)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter') openReel(post.id); }}
+      aria-label="Open video in Reels"
+    >
+      <video
+        ref={videoRef}
+        src={post.media.src}
+        poster={post.media.poster}
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        onLoadedMetadata={(e) =>
+          setLandscape(e.currentTarget.videoWidth > e.currentTarget.videoHeight)}
+      />
+      <span className="hp-video-badge"><Play size={12} fill="currentColor" /> Watch reel</span>
+    </div>
+  );
+}
 // ─────────────────────────────────────────────────────────────────────────────
 // FEED POST
 // ─────────────────────────────────────────────────────────────────────────────
@@ -975,8 +1025,6 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
       <p className="hp-post-caption">{post.caption}</p>
 
       {/* Media */}
-
-      {/* Media */}
       {post.media.type === 'document' ? (
         <div className="hp-document-card">
           <div className="hp-document-icon">
@@ -1003,25 +1051,18 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
           )}
         </div>
       ) : post.media.type === 'video' ? (
-        <div className="hp-post-video-wrapper">
-          <video
-            src={post.media.src || '/example.mp4'}
-            poster={post.media.poster}
-            className="hp-post-media-img"
-            controls
-            preload="metadata"
-          >
-            Your browser does not support the video tag.
-          </video>
-        </div>
+        <FeedVideo post={post} />
       ) : post.media.type === 'image' && post.media.src ? (
-        <div className="hp-post-image-wrapper">
-          <img
-            src={post.media.src}
-            alt="Post content"
-            className="hp-post-media-img"
-            loading="lazy"
-          />
+        <div
+          className="hp-post-image-wrapper hp-image-clickable"
+          onClick={() => openImage(post.id)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter') openImage(post.id); }}
+          aria-label="View full image"
+        >
+          <img src={post.media.src} alt="Post content" className="hp-post-media-img" loading="lazy" />
+          <span className="hp-image-badge">Tap to view full image</span>
         </div>
       ) : null}
 
@@ -1058,7 +1099,7 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
             />
 
 
-            <span>{formatCount(post.appreciations ?? 0)}</span>
+            <span className="hp-action-count">{formatCount(post.appreciations ?? 0)}</span>
           </button>
 
 
@@ -1086,7 +1127,8 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
               aria-hidden="true"
             />
 
-            <span>{formatCount(post.helpfulCount ?? 0)}</span>
+            <span className="hp-action-count">{formatCount(post.helpfulCount ?? 0)}</span>
+
           </button>
 
           {/* Learned */}
@@ -1113,7 +1155,8 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
               aria-hidden="true"
             />
 
-            <span>{formatCount(post.learnedCount ?? 0)}</span>
+            <span className="hp-action-count">{formatCount(post.learnedCount ?? 0)}</span>
+
           </button>
 
           {/* Discuss */}
@@ -1137,7 +1180,7 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
               size={20}
               aria-hidden="true"
             />
-            <span>{formatCount(post.comments ?? 0)}</span>
+            <span className="hp-action-count">{formatCount(post.comments ?? 0)}</span>
           </button>
 
         </div>

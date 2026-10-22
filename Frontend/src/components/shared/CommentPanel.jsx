@@ -21,21 +21,33 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { homePostService } from '../../services/homePostService.js';
+import { profileService } from '../../services/profileService.js';
+
+const authorCache = new Map();
+
+function authorFromComment(c) {
+  const u = c.user ?? c.author ?? c.creator ?? c.profile ?? null;
+  if (!u) return null;
+  const name = u.username || u.fullName || u.name;
+  const avatar = u.avatarUrl || u.avatar || u.profile?.avatarUrl || '';
+  return name ? { name, avatar } : null;
+}
 
 export default function CommentPanel({ postId, currentUser, onClose, onCountChange }) {
-  const [comments, setComments]       = useState([]);
-  const [loading, setLoading]         = useState(true);
+  const [comments, setComments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [submitError, setSubmitError] = useState('');
-  const [newText, setNewText]         = useState('');
-  const [submitting, setSubmitting]   = useState(false);
-  const [editingId, setEditingId]     = useState(null);
-  const [editText, setEditText]       = useState('');
-  const [editError, setEditError]     = useState('');
-  const [editSaving, setEditSaving]   = useState(false);
+  const [newText, setNewText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState('');
+  const [editError, setEditError] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
+  const [authors, setAuthors] = useState({});
   const pendingSubmit = useRef(false);
-  const textareaRef   = useRef(null);
+  const textareaRef = useRef(null);
 
   // Load comments when panel opens
   useEffect(() => {
@@ -52,6 +64,33 @@ export default function CommentPanel({ postId, currentUser, onClose, onCountChan
 
     return () => { cancelled = true; };
   }, [postId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const ids = [...new Set(comments.map((c) => c.userId).filter((id) => id != null))];
+
+    ids.forEach(async (id) => {
+      const key = String(id);
+      if (authorCache.has(key)) {
+        setAuthors((a) => (a[key] ? a : { ...a, [key]: authorCache.get(key) }));
+        return;
+      }
+      try {
+        const p = await profileService.getPublicProfile(id);
+        const info = {
+          name: p?.username || p?.fullName || p?.name || '',
+          avatar: p?.avatarUrl || p?.avatar || '',
+        };
+        if (!info.name) return;
+        authorCache.set(key, info);
+        if (!cancelled) setAuthors((a) => ({ ...a, [key]: info }));
+      } catch {
+        /* endpoint missing or user not found: fallback label is used */
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [comments]);
 
   // Focus textarea after comments load
   useEffect(() => {
@@ -73,7 +112,7 @@ export default function CommentPanel({ postId, currentUser, onClose, onCountChan
     setSubmitError('');
 
     try {
-      const result  = await homePostService.createComment(postId, text);
+      const result = await homePostService.createComment(postId, text);
       const created = result?.data ?? result;
       if (created?.id) {
         setComments((prev) => {
@@ -105,7 +144,7 @@ export default function CommentPanel({ postId, currentUser, onClose, onCountChan
     setEditError('');
 
     try {
-      const result  = await homePostService.updateComment(commentId, text);
+      const result = await homePostService.updateComment(commentId, text);
       const updated = result?.data ?? result;
       setComments((prev) =>
         prev.map((c) =>
@@ -209,8 +248,12 @@ export default function CommentPanel({ postId, currentUser, onClose, onCountChan
             </p>
           ) : (
             comments.map((comment) => {
-              const isOwn     = currentUserId != null && String(comment.userId) === String(currentUserId);
+              const isOwn = currentUserId != null && String(comment.userId) === String(currentUserId);
               const isEditing = editingId === comment.id;
+              const author =
+                authorFromComment(comment) ||
+                authors[String(comment.userId)] ||
+                { name: `User ${comment.userId}`, avatar: '' };
               return (
                 <div
                   key={comment.id}
@@ -221,20 +264,31 @@ export default function CommentPanel({ postId, currentUser, onClose, onCountChan
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+
                     <div
                       aria-hidden="true"
                       style={{
-                        width: 30, height: 30, borderRadius: '50%',
+                        width: 30, height: 30, borderRadius: '50%', overflow: 'hidden',
                         background: '#e8d5ff', display: 'flex',
                         alignItems: 'center', justifyContent: 'center',
                         fontSize: 12, fontWeight: 700, color: '#7c3aed', flexShrink: 0,
                       }}
                     >
-                      {String(comment.userId || '?').charAt(0).toUpperCase()}
+                      {author.avatar ? (
+                        <img
+                          src={author.avatar}
+                          alt=""
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      ) : (
+                        author.name.charAt(0).toUpperCase()
+                      )}
                     </div>
+
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ fontSize: 12, fontWeight: 600, color: '#2d1b4e' }}>
-                        User {comment.userId}
+                        {author.name}
                       </span>
                       <span style={{ fontSize: 11, color: '#9688a5', marginLeft: 6 }}>
                         {comment.createdAt

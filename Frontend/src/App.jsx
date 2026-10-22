@@ -7,6 +7,8 @@ import HomePage from './components/home/HomePage';
 import MessagesPage from './components/messages/MessagesPage';
 import DiscoverPage from './components/discover/DiscoverPage';
 import ProfilePage from './components/profile/ProfilePage';
+import ReelsPage from './components/reels/ReelPage.jsx';
+import ImageViewerPage from './components/image/ImageViewerPage.jsx';
 
 /**
  * The backend Google OAuth callback redirects to a plain pathname URL like
@@ -99,6 +101,14 @@ export default function App() {
 
   if (route === '/profile') {
     return <ProfilePage />;
+  }
+
+  if (route === '/reels') {
+    return <ReelsPage />;
+  }
+
+  if (route === '/image') {
+    return <ImageViewerPage />;
   }
 
   return <Hero />;

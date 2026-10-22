@@ -50,7 +50,7 @@
  *   - Correct submission order: create/confirm profile → save bio → save skills.
  */
 
-import { getCountryCode } from "../components/onboarding/onboardingData.js";
+import { getCountryCode, COUNTRIES } from "../components/onboarding/onboardingData.js";
 
 const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? "";
 
@@ -104,8 +104,8 @@ const request = async (path, options = {}) => {
     const msg = Array.isArray(message)
       ? message.join(" ")
       : typeof message === "string" && message.trim()
-      ? message
-      : payload?.error ?? `Request failed with status ${response.status}.`;
+        ? message
+        : payload?.error ?? `Request failed with status ${response.status}.`;
 
     const err = new Error(msg);
     err.status = response.status;
@@ -124,6 +124,76 @@ let _skillIdToNameCache = null;
 // ─── Public service object ────────────────────────────────────────────────────
 
 export const profileService = {
+  /**
+ * Load the saved profile and convert it to the onboarding draft shape.
+ * Returns null if the user has no profile yet (new user).
+ */
+  async loadDraftFromBackend() {
+    let profile;
+    try {
+      const res = await profileService.getProfile();
+      profile = res?.data ?? res?.profile ?? res;
+    } catch (err) {
+      if (err.status === 404) return null;
+      throw err;
+    }
+
+    const unwrap = (r) => (Array.isArray(r) ? r : r?.data ?? r?.items ?? []);
+    const val = (r) => (r.status === "fulfilled" ? r.value : null);
+
+    const [bioRes, idsRes, curRes, skillsRes, typesRes, idToName] = await Promise.allSettled([
+      profileService.getBio(),
+      profileService.getUserIdentities(),
+      profileService.getUserCuriosity(),
+      profileService.getUserSkills(),
+      profileService.getIdentityTypes(),
+      profileService.fetchSkillIdToNameMap(),
+    ]);
+    const skillName = (id) => (val(idToName) ?? {})[Number(id)] ?? "";
+
+    // role: identityTypeId -> name
+    const identities = unwrap(val(idsRes));
+    const primary = identities.find((i) => i.isPrimary) ?? identities[0];
+    const types = unwrap(val(typesRes));
+    const role = types.find((t) => t.id === primary?.identityTypeId)?.name ?? "";
+
+    // country: code -> name
+    const code = profile?.countryCode ?? "";
+    const country = COUNTRIES.find((c) => getCountryCode(c) === code) ?? "";
+
+    // curiosities
+    const curiosities = unwrap(val(curRes)).map((r) => skillName(r.skillId)).filter(Boolean);
+
+    // user skills grouped by relationshipType
+    const skills = { canDo: [], learning: [], wantToImprove: [] };
+    const keyOf = { CAN_DO: "canDo", LEARNING: "learning", WANT_TO_IMPROVE: "wantToImprove" };
+    unwrap(val(skillsRes)).forEach((row) => {
+      const key = keyOf[row.relationshipType];
+      const n = skillName(row.skillId);
+      if (key && n) skills[key].push(n);
+    });
+
+    const bioRaw = val(bioRes);
+    const bio = bioRaw?.bio ?? bioRaw?.data?.bio ?? profile?.bio ?? "";
+
+    return {
+      name: profile?.name ?? profile?.username ?? "",
+      username: profile?.username ?? "",
+      profilePhoto: profile?.avatarUrl ?? null,
+      profilePhotoFile: null,
+      role,
+      customRole: "",
+      country,
+      ageRange: profile?.ageRange ?? "",
+      curiosities,
+      customCuriosity: "",
+      skills,
+      focusDomains: [],
+      focusSkills: [],
+      focusGoal: bio,
+      bio,
+    };
+  },
 
   // ═══════════════════════════════════════════════
   // USER PROFILE
@@ -138,46 +208,44 @@ export const profileService = {
    * POST /api/profile – creates the profile record for a brand-new user.
    * body: { username, ageRange, identityTypeIds, primaryIdentityTypeId }
    */
-  
 
-async createProfile(data, file) {
-  const url = `${API_BASE_URL}/api/profile`;
-  const token = getToken();
 
-  const formData = new FormData();
+  async createProfile(data, file) {
+    const url = `${API_BASE_URL}/api/profile`;
+    const token = getToken();
+    const formData = new FormData();
 
-  Object.entries(data).forEach(([key, value]) => {
-    if (value === undefined || value === null) return;
+    Object.entries(data).forEach(([key, value]) => {
+      if (value === undefined || value === null) return;
+      if (Array.isArray(value)) {
+        value.forEach((v) => formData.append(`${key}[]`, String(v)));
+      } else {
+        formData.append(key, String(value));
+      }
+    });
 
-    formData.append(
-      key,
-      Array.isArray(value) ? JSON.stringify(value) : String(value)
-    );
-  });
+    if (file instanceof File) formData.append("file", file);
 
-  // Backend requires the avatar during initial profile creation.
-  if (file instanceof File) {
-    formData.append("file", file);
-  }
+    const response = await fetch(url, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: token
-      ? { Authorization: `Bearer ${token}` }
-      : {},
-    body: formData,
-  });
+    const payload = await response.json().catch(() => ({}));
+    console.debug("[profileService] createProfile", response.status, payload);
 
-  const payload = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    throw new Error(
-      payload.message || "Profile creation failed."
-    );
-  }
-
-  return payload;
-},
+    if (!response.ok) {
+      const msg = Array.isArray(payload.message)
+        ? payload.message.join(" ")
+        : payload.message || "Profile creation failed.";
+      const err = new Error(msg);
+      err.status = response.status;
+      err.payload = payload;
+      throw err;
+    }
+    return payload;
+  },
 
   /**
    * PATCH /api/profile – updates an existing profile record.
@@ -193,42 +261,28 @@ async createProfile(data, file) {
    * @param {object} data – profile payload
    * @returns {Promise<any>}
    */
- async ensureProfile(data, file) {
-  let profileExists = false;
+  async ensureProfile(data, file) {
+    let profileExists = false;
 
-  // 1. Check whether the profile already exists.
-  try {
-    await profileService.getProfile();
-    profileExists = true;
-  } catch (err) {
-    // Only create a profile when the backend confirms it doesn't exist.
-    if (err.status !== 404) {
-      throw err;
+    try {
+      await profileService.getProfile();
+      profileExists = true;
+    } catch (err) {
+      if (err.status !== 404) throw err;
     }
-  }
 
-  // 2. Update an existing profile.
-  if (profileExists) {
-    console.debug(
-      "[profileService] Profile exists — updating with PATCH"
-    );
+    if (profileExists) {
+      const updated = await profileService.updateProfile(data);
+      return { created: false, data: updated };
+    }
 
-    return await profileService.updateProfile(data);
-  }
+    if (!(file instanceof File)) {
+      throw new Error("Avatar image is required. Please select a profile photo.");
+    }
 
-  // 3. Create a new profile with its required avatar.
-  if (!(file instanceof File)) {
-    throw new Error(
-      "Avatar image is required. Please select a profile photo."
-    );
-  }
-
-  console.debug(
-    "[profileService] Profile does not exist — creating with POST"
-  );
-
-  return await profileService.createProfile(data, file);
-},
+    const created = await profileService.createProfile(data, file);
+    return { created: true, data: created };
+  },
 
   /** DELETE /api/profile */
   deleteProfile() {
@@ -308,19 +362,21 @@ async createProfile(data, file) {
    * @param {string} bio
    * @returns {Promise<any>}
    */
-  async saveBio(bio) {
+  async saveBio(bio, isEdit = false) {
+    if (isEdit) {
+      try {
+        return await profileService.updateBio(bio);
+      } catch (err) {
+        if (err.status !== 404) throw err;
+        return profileService.createBio(bio);
+      }
+    }
     try {
       return await profileService.createBio(bio);
     } catch (createErr) {
       if (createErr.status === 409 || createErr.status === 400) {
-        console.debug("[profileService] Bio already exists — falling back to PATCH");
         return profileService.updateBio(bio);
       }
-      console.error(
-        `[profileService] POST /api/profile/bio failed (status ${createErr.status}):`,
-        createErr.message,
-        createErr.payload
-      );
       throw createErr;
     }
   },
@@ -402,6 +458,81 @@ async createProfile(data, file) {
     return request(`/api/skills/curiosity/${skillId}`, { method: "DELETE" });
   },
 
+  /** Skill IDs currently saved as curiosity. */
+  async getCuriositySkillIds() {
+    const res = await profileService.getUserCuriosity();
+    const rows = Array.isArray(res) ? res : res?.data ?? res?.items ?? [];
+    return rows.map((r) => Number(r.skillId)).filter((n) => !Number.isNaN(n));
+  },
+
+  /** Make saved curiosity match `skillIds` exactly, without using PATCH. */
+ async syncCuriosity(skillIds) {
+  const wanted = [...new Set(skillIds.map(Number))];
+
+  const res = await profileService.getUserCuriosity();
+  const rows = Array.isArray(res) ? res : res?.data ?? res?.items ?? [];
+  const current = rows.map((r) => Number(r.skillId)).filter((n) => !Number.isNaN(n));
+
+  const toAdd = wanted.filter((id) => !current.includes(id));
+  const rowsToRemove = rows.filter((r) => !wanted.includes(Number(r.skillId)));
+
+  // Add first, so a failure never leaves the user with an empty list.
+  if (toAdd.length > 0) await profileService.createUserCuriosity(toAdd);
+
+  // Delete one by one (no parallel requests).
+  for (const row of rowsToRemove) {
+    try {
+      await profileService.deleteUserCuriosity(row.skillId);
+    } catch (err) {
+      // Fallback: backend may expect the row id. Guard so we never
+      // accidentally delete a skill the user wants to keep.
+      const canTryRowId =
+        err.status === 500 &&
+        row.id != null &&
+        Number(row.id) !== Number(row.skillId) &&
+        !wanted.includes(Number(row.id));
+
+      if (canTryRowId) {
+        await profileService.deleteUserCuriosity(row.id);
+      } else {
+        throw err;
+      }
+    }
+  }
+},
+
+  /** For the profile modal: takes skill names, saves curiosity. */
+  async saveCuriosityByNames(names) {
+    const map = await profileService.fetchSkillNameToIdMap();
+    const ids = profileService.mapNamesToIds(names, map);
+    await profileService.syncCuriosity(ids);
+    return ids;
+  },
+
+  /**
+   * Sync "can do / learning / want to improve".
+   * wanted = { CAN_DO: number[], LEARNING: number[], WANT_TO_IMPROVE: number[] }
+   */
+  async syncUserSkills(wanted) {
+    const res = await profileService.getUserSkills();
+    const rows = Array.isArray(res) ? res : res?.data ?? [];
+    const keyOf = (type, id) => `${type}:${Number(id)}`;
+
+    const have = new Map(rows.map((r) => [keyOf(r.relationshipType, r.skillId), r.id]));
+    const want = new Set();
+    Object.entries(wanted).forEach(([type, ids]) =>
+      ids.forEach((id) => want.add(keyOf(type, id)))
+    );
+
+    for (const [type, ids] of Object.entries(wanted)) {
+      const toAdd = [...new Set(ids.map(Number))].filter((id) => !have.has(keyOf(type, id)));
+      if (toAdd.length > 0) await profileService.addUserSkill(toAdd, type);
+    }
+
+    const toRemove = [...have.entries()].filter(([k]) => !want.has(k)).map(([, rowId]) => rowId);
+    await Promise.all(toRemove.map((rowId) => profileService.deleteUserSkill(rowId)));
+  },
+
   /** GET /api/skills/user-skills */
   getUserSkills() {
     return request("/api/skills/user-skills");
@@ -429,6 +560,66 @@ async createProfile(data, file) {
     return request(`/api/skills/user-skills/${id}`, { method: "DELETE" });
   },
   /**
+ * Make saved skills match the profile-page modal selection.
+ * - Deselected skills are removed everywhere they appear.
+ * - Skills already saved keep their category (can do / learning / interest).
+ * - Newly selected skills are added as `newSkillAs`
+ *   ("curiosity" | "CAN_DO" | "LEARNING" | "WANT_TO_IMPROVE").
+ */
+async applySkillSelection(selectedNames, { newSkillAs = "curiosity" } = {}) {
+  const [nameToId, idToName, usRes, curRes] = await Promise.all([
+    profileService.fetchSkillNameToIdMap(),
+    profileService.fetchSkillIdToNameMap(),
+    profileService.getUserSkills(),
+    profileService.getUserCuriosity(),
+  ]);
+  const rowsOf = (r) => (Array.isArray(r) ? r : r?.data ?? r?.items ?? []);
+  const userSkillRows = rowsOf(usRes);
+  const curiosityRows = rowsOf(curRes);
+
+  const selected = new Set(profileService.mapNamesToIds([...selectedNames], nameToId));
+  const saved = new Set([
+    ...userSkillRows.map((r) => Number(r.skillId)),
+    ...curiosityRows.map((r) => Number(r.skillId)),
+  ]);
+
+  // Only remove skills the user could actually see (the id resolves to a name).
+  const visible = (id) => idToName[Number(id)] != null;
+  const toAdd = [...selected].filter((id) => !saved.has(id));
+  const userSkillsToRemove = userSkillRows.filter(
+    (r) => visible(r.skillId) && !selected.has(Number(r.skillId))
+  );
+  const curiosityToRemove = curiosityRows.filter(
+    (r) => visible(r.skillId) && !selected.has(Number(r.skillId))
+  );
+
+  const failures = [];
+
+  // Add first, so a failure never leaves the user with fewer skills than before.
+  if (toAdd.length > 0) {
+    try {
+      if (newSkillAs === "curiosity") await profileService.createUserCuriosity(toAdd);
+      else await profileService.addUserSkill(toAdd, newSkillAs);
+    } catch (e) {
+      failures.push(e);
+    }
+  }
+
+  const removals = await Promise.allSettled([
+    // user-skills: DELETE /api/skills/user-skills/:id takes the row id
+    ...userSkillsToRemove.map((r) => profileService.deleteUserSkill(r.id)),
+    // curiosity: DELETE /api/skills/curiosity/:skillId takes the skill id
+    ...curiosityToRemove.map((r) => profileService.deleteUserCuriosity(r.skillId)),
+  ]);
+  removals.forEach((r) => r.status === "rejected" && failures.push(r.reason));
+
+  if (failures.length > 0) {
+    console.error("[profileService] applySkillSelection failures:", failures);
+    throw failures[0];
+  }
+  return { added: toAdd.length, removed: userSkillsToRemove.length + curiosityToRemove.length };
+},
+  /**
    * GET /api/posts/my-posts/counts
    * @returns {Promise<{ totalPosts: number, imageCount: number, videoCount: number, documentCount: number }>}
    */
@@ -437,9 +628,9 @@ async createProfile(data, file) {
     // Backend returns { success, data: { totalPosts, imageCount, videoCount, documentCount } }
     const data = payload?.data ?? payload;
     return {
-      totalPosts:    Number(data?.totalPosts    ?? 0),
-      imageCount:    Number(data?.imageCount    ?? 0),
-      videoCount:    Number(data?.videoCount    ?? 0),
+      totalPosts: Number(data?.totalPosts ?? 0),
+      imageCount: Number(data?.imageCount ?? 0),
+      videoCount: Number(data?.videoCount ?? 0),
       documentCount: Number(data?.documentCount ?? 0),
     };
   },
@@ -465,10 +656,10 @@ async createProfile(data, file) {
       const skills = Array.isArray(data)
         ? data
         : Array.isArray(data?.data)
-        ? data.data
-        : Array.isArray(data?.skills)
-        ? data.skills
-        : [];
+          ? data.data
+          : Array.isArray(data?.skills)
+            ? data.skills
+            : [];
 
       for (const skill of skills) {
         if (skill?.name && skill?.id != null) {
@@ -540,7 +731,7 @@ async createProfile(data, file) {
    * @param {object} draft  – the full onboarding draft object
    * @returns {Promise<{ errors: Array<{section: string, status: number|null, message: string}> }>}
    */
-  async submitOnboardingDraft(draft) {
+  async submitOnboardingDraft(draft, { isEdit = false } = {}) {
     /** @type {Array<{section: string, status: number|null, message: string}>} */
     const errors = [];
 
@@ -576,7 +767,16 @@ async createProfile(data, file) {
     }
 
     // ── 3. Create or update the user's profile record ────────────────────
-
+    // Rebuild the File if the page was reloaded (File objects can't be saved in localStorage)
+    let photoFile = draft.profilePhotoFile;
+    if (!(photoFile instanceof File) && draft.profilePhoto?.startsWith("data:")) {
+      try {
+        const blob = await (await fetch(draft.profilePhoto)).blob();
+        photoFile = new File([blob], "avatar.jpg", { type: blob.type || "image/jpeg" });
+      } catch (e) {
+        console.error("[profileService] Could not rebuild photo file", e);
+      }
+    }
     const roleName =
       draft.role === "Other"
         ? (draft.customRole ?? "").trim()
@@ -585,8 +785,8 @@ async createProfile(data, file) {
     const identityTypeId = roleName
       ? profileService.mapRoleToIdentityTypeId(roleName, identityTypes)
       : null;
-
     let profileSaved = false;
+    let profileCreated = false;
 
     if (draft.username?.trim()) {
       const countryCode = getCountryCode(draft.country);
@@ -596,15 +796,16 @@ async createProfile(data, file) {
         ...(draft.ageRange ? { ageRange: draft.ageRange } : {}),
         ...(identityTypeId != null
           ? {
-              identityTypeIds: [identityTypeId],
-              primaryIdentityTypeId: identityTypeId,
-            }
+            identityTypeIds: [identityTypeId],
+            primaryIdentityTypeId: identityTypeId,
+          }
           : {}),
       };
 
       try {
-        await profileService.ensureProfile(profileBody, draft.profilePhotoFile);
+        const res = await profileService.ensureProfile(profileBody, photoFile);
         profileSaved = true;
+        profileCreated = res.created;
         console.debug("[profileService] ✓ Profile created/updated");
       } catch (err) {
         console.error(
@@ -623,10 +824,9 @@ async createProfile(data, file) {
 
     // ── 3.5. Avatar upload ───────────────────────────────────────────────
     //   POST /api/profile/avatar  (multipart/form-data, field: "avatar")
-    if (draft.profilePhotoFile instanceof File) {
+    if (profileSaved && !profileCreated && photoFile instanceof File) {
       try {
-        const avatarResult = await profileService.uploadAvatar(draft.profilePhotoFile);
-        console.debug(
+        const avatarResult = await profileService.uploadAvatar(photoFile); console.debug(
           "[profileService] ✓ Avatar uploaded →",
           avatarResult?.avatarUrl ??
           avatarResult?.profile?.avatarUrl ??
@@ -649,12 +849,13 @@ async createProfile(data, file) {
         "Avatar will not be uploaded. The user can re-select the photo after reload."
       );
     }
+
     // ── 4. Bio ────────────────────────────────────────────────────────────
     const bioText = (draft.bio ?? draft.focusGoal ?? "").trim();
 
     if (bioText && profileSaved) {
       try {
-        await profileService.saveBio(bioText);
+        await profileService.saveBio(bioText, isEdit);
         console.debug("[profileService] ✓ Bio saved");
       } catch (err) {
         console.error(
@@ -678,37 +879,44 @@ async createProfile(data, file) {
 
     if (curiosityIds.length > 0) {
       try {
-        await profileService.createUserCuriosity(curiosityIds);
-        console.debug("[profileService] ✓ Curiosity skills submitted");
-      } catch (err) {
-        // 409 / 400 = curiosity row already exists → update instead
-        if (err.status === 409 || err.status === 400) {
-          try {
-            await profileService.updateUserCuriosity(curiosityIds);
-            console.debug("[profileService] ✓ Curiosity skills updated (PATCH)");
-          } catch (patchErr) {
-            console.error(
-              `[profileService] Curiosity PATCH failed (status ${patchErr.status ?? "?"}):\n` +
-              `  message: ${patchErr.message}`
-            );
-            errors.push({ section: "curiosity", status: patchErr.status ?? null, message: patchErr.message });
-          }
+        if (isEdit) {
+          await profileService.syncCuriosity(curiosityIds);
         } else {
-          console.error(
-            `[profileService] POST /api/skills/curiosity failed (status ${err.status ?? "?"}):\n` +
-            `  message: ${err.message}`
-          );
-          errors.push({ section: "curiosity", status: err.status ?? null, message: err.message });
+          try {
+            await profileService.createUserCuriosity(curiosityIds);
+          } catch (err) {
+            // 409/400 = rows already exist, so sync instead of PATCH
+            if (err.status === 409 || err.status === 400) {
+              await profileService.syncCuriosity(curiosityIds);
+            } else {
+              throw err;
+            }
+          }
         }
+        console.debug("[profileService] ✓ Curiosity skills saved");
+      } catch (err) {
+        console.error(
+          `[profileService] Curiosity save failed (status ${err.status ?? "?"}): ${err.message}`
+        );
+        errors.push({ section: "curiosity", status: err.status ?? null, message: err.message });
       }
     }
 
     // ── 6. User skills (canDo / learning / wantToImprove) ────────────────
     const skillSections = [
-      { key: "canDo",         relationshipType: "CAN_DO" },
-      { key: "learning",      relationshipType: "LEARNING" },
+      { key: "canDo", relationshipType: "CAN_DO" },
+      { key: "learning", relationshipType: "LEARNING" },
       { key: "wantToImprove", relationshipType: "WANT_TO_IMPROVE" },
     ];
+    if (isEdit) {
+      try {
+        const existing = await profileService.getUserSkills();
+        const rows = Array.isArray(existing) ? existing : existing?.data ?? [];
+        await Promise.allSettled(rows.map((r) => profileService.deleteUserSkill(r.id)));
+      } catch (e) {
+        console.error('[profileService] Could not clear old user skills', e);
+      }
+    }
 
     for (const { key, relationshipType } of skillSections) {
       const ids = profileService.mapNamesToIds(
