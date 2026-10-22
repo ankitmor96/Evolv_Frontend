@@ -464,8 +464,6 @@ export const homePostService = {
   // ── Learned ───────────────────────────────────────────────────────────────
   /**
    * PUT /api/posts/:postId/learned
-   * Marks the current user as having learned from this post.
-   *
    * @param {string|number} postId
    * @returns {Promise<object>}  Raw server response.
    * @throws {Error} On auth failure, network error, or server error.
@@ -476,8 +474,6 @@ export const homePostService = {
 
   /**
    * DELETE /api/posts/:postId/learned
-   * Unmarks the current user's learned status for this post.
-   *
    * @param {string|number} postId
    * @returns {Promise<object>}  Raw server response.
    * @throws {Error} On auth failure, network error, or server error.
@@ -490,9 +486,6 @@ export const homePostService = {
 
   /**
    * GET /api/posts/:postId/comments
-   * Returns the comment list for a specific post.
-   * Verified: Postman shows array of { id, content, userId, postId, createdAt, updatedAt, deletedAt }
-   *
    * @param {string|number} postId
    * @returns {Promise<Array>} Comments array, or [] on failure.
    */
@@ -513,10 +506,6 @@ export const homePostService = {
 
   /**
    * POST /api/posts/:postId/comments
-   * Creates a new comment on a specific post.
-   * Request body: { content: string }
-   * Verified: Postman shows 201 response with the created comment object.
-   *
    * @param {string|number} postId
    * @param {string} content
    * @returns {Promise<object>} Created comment object.
@@ -531,9 +520,6 @@ export const homePostService = {
 
   /**
    * PATCH /api/comments/:commentId
-   * Updates the content of an existing comment.
-   * Verified: Postman shows { success, message, data: { id, content, ... } }
-   *
    * @param {string|number} commentId
    * @param {string} content  – New comment content.
    * @returns {Promise<object>} Updated comment response.
@@ -548,9 +534,6 @@ export const homePostService = {
 
   /**
    * DELETE /api/comments/:commentId
-   * Deletes a comment by its ID.
-   * Verified: Postman shows { success: true, message: 'Comment deleted successfully' }
-   *
    * @param {string|number} commentId
    * @returns {Promise<object>} Deletion confirmation.
    * @throws {Error} On auth failure, network error, or server error.
@@ -561,9 +544,6 @@ export const homePostService = {
 
   /**
    * GET /api/posts/:postId/comments/count
-   * Returns the comment count for a specific post.
-   * Verified: Postman shows { success: true, postId: number, count: number }
-   *
    * @param {string|number} postId
    * @returns {Promise<number>} Comment count, or 0 on failure.
    */
@@ -576,12 +556,21 @@ export const homePostService = {
       return 0;
     }
   },
-
+  /**
+   * Uses GET /api/posts/:id/comments/count (one call per post, in parallel).
+   */
+  async attachCommentCounts(posts) {
+    return Promise.all(
+      posts.map(async (p) => {
+        // Skip if the feed already gave us a count
+        if (p.comments > 0) return p;
+        const count = await this.getCommentCount(p.id);
+        return { ...p, comments: count };
+      })
+    );
+  },
   /**
    * GET /api/comments/my-comments
-   * Returns the current authenticated user's comments.
-   * Verified: Postman shows { success: true, count: number, data: [...] }
-   *
    * @returns {Promise<Array>} User's comments array, or [] on failure.
    */
   async getMyComments() {
@@ -937,9 +926,12 @@ export const homePostService = {
         (typeof p.learned === 'number' ? p.learned : 0)
       ),
       comments: Number(
-        p.commentsCount ??
         p.commentCount ??
-        (Array.isArray(p.comments) ? p.comments.length : (typeof p.comments === 'number' ? p.comments : 0))
+        p.commentsCount ??
+        p.comments_count ??
+        p._count?.comments ??
+        (Array.isArray(p.comments) ? p.comments.length : p.comments) ??
+        0
       ),
       likes: Number(
         p.likes ??

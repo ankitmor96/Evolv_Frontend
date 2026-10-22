@@ -28,11 +28,11 @@ function ReelItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
   const [isLandscape, setIsLandscape] = useState(false);
 
   useEffect(() => {
-  const v = videoRef.current;
-  if (v && v.readyState >= 1) {
-    setIsLandscape(v.videoWidth > v.videoHeight);
-  }
-}, []);
+    const v = videoRef.current;
+    if (v && v.readyState >= 1) {
+      setIsLandscape(v.videoWidth > v.videoHeight);
+    }
+  }, []);
 
   // Play only the reel that is mostly visible
   useEffect(() => {
@@ -169,27 +169,55 @@ export default function ReelsPage() {
   const feedRef = useRef(null);
   const pending = useRef(new Set());
 
-  // Load feed + my posts, keep only videos
   useEffect(() => {
     let cancelled = false;
+
     (async () => {
       try {
-        const userId = user?.id ?? user?.userId ?? user?._id ?? null;
+        const userId =
+          user?.id ?? user?.userId ?? user?._id ?? null;
+
         const [feedRes, mine] = await Promise.all([
           homePostService.getFeedPosts().catch(() => ({ posts: [] })),
           homePostService.getMyPosts(userId).catch(() => []),
         ]);
-        const feed = (feedRes?.posts ?? []).map((p) => homePostService._normalisePost(p));
+
+        const feed = (feedRes?.posts ?? []).map((p) =>
+          homePostService._normalisePost(p)
+        );
+
         const map = new Map();
-        [...(mine || []), ...feed].forEach((p) => { if (p?.id && isVideo(p)) map.set(String(p.id), p); });
-        if (!cancelled) setPosts([...map.values()]);
+
+        [...(mine || []), ...feed].forEach((p) => {
+          if (p?.id && isVideo(p)) {
+            map.set(String(p.id), p);
+          }
+        });
+
+        // Attach actual comment counts before updating the UI
+        const uniquePosts = [...map.values()];
+
+        const withCounts =
+          await homePostService.attachCommentCounts(uniquePosts);
+
+        if (!cancelled) {
+          setPosts(withCounts);
+        }
+      } catch (error) {
+        console.error("Failed to load reels:", error);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     })();
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    return () => {
+      cancelled = true;
+    };
+
   }, []);
+
 
   // Jump to the reel that was clicked
   useEffect(() => {
@@ -242,9 +270,30 @@ export default function ReelsPage() {
   const onLearned = (id) => toggle(id, 'learned', 'learnedCount',
     () => homePostService.markLearned(id), () => homePostService.unmarkLearned(id));
 
+  const onCommentSync = useCallback((postId, total) => {
+    setPosts((ps) =>
+      ps.map((p) =>
+        String(p.id) !== String(postId)
+          ? p
+          : { ...p, comments: total }
+      )
+    );
+  }, []);
+
   const onCommentCount = useCallback((postId, delta) => {
-    setPosts((ps) => ps.map((p) =>
-      String(p.id) !== String(postId) ? p : { ...p, comments: Math.max(0, (p.comments ?? 0) + delta) }));
+    setPosts((ps) =>
+      ps.map((p) =>
+        String(p.id) !== String(postId)
+          ? p
+          : {
+            ...p,
+            comments: Math.max(
+              0,
+              (Number(p.comments) || 0) + delta
+            ),
+          }
+      )
+    );
   }, []);
 
   if (!user) return null;
@@ -282,6 +331,7 @@ export default function ReelsPage() {
           currentUser={user}
           onClose={() => setCommentPostId(null)}
           onCountChange={onCommentCount}
+          onCountSync={onCommentSync}
         />
       )}
     </div>

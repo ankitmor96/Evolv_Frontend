@@ -49,22 +49,22 @@ export default function CommentPanel({ postId, currentUser, onClose, onCountChan
   const pendingSubmit = useRef(false);
   const textareaRef = useRef(null);
 
-  // Load comments when panel opens
   useEffect(() => {
-    if (!postId) return;
-    let cancelled = false;
-    setLoading(true);
+  if (!postId) return;
+  let cancelled = false;
+  setLoading(true);
 
-    homePostService.getComments(postId).then((data) => {
-      if (!cancelled) {
-        setComments(data);
-        setLoading(false);
-      }
-    });
+  homePostService.getComments(postId).then((data) => {
+    if (!cancelled) {
+      const list = Array.isArray(data) ? data : [];
+      setComments(list);
+      setLoading(false);
+      onCountSync?.(postId, list.length); 
+    }
+  });
 
-    return () => { cancelled = true; };
-  }, [postId]);
-
+  return () => { cancelled = true; };
+}, [postId]);
   useEffect(() => {
     let cancelled = false;
     const ids = [...new Set(comments.map((c) => c.userId).filter((id) => id != null))];

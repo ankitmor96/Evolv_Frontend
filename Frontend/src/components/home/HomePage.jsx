@@ -2559,6 +2559,12 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
   const [feedProfileAvatar, setFeedProfileAvatar] = useState(null);
   const [feedProfileName, setFeedProfileName] = useState(null);
 
+  const handleCommentCountSync = useCallback((postId, count) => {
+  setPosts(prev => prev.map(p =>
+    String(p.id) !== String(postId) ? p : { ...p, comments: count }
+  ));
+}, []);
+
   // ── Feed Posts from Backend API ──
   useEffect(() => {
     let cancelled = false;
@@ -3088,6 +3094,7 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
           currentUser={user}
           onClose={() => setOpenCommentPostId(null)}
           onCountChange={handleCommentCountChange}
+          onCountSync={handleCommentCountSync}
         />
       )}
     </div>

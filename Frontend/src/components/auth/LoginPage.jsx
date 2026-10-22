@@ -182,17 +182,6 @@ const LoginPage = () => {
   const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
-  // Google OAuth sends the user back to /login with the session (or an error)
-  // in the query string. Read it once on mount, then clean the URL so a reload
-  // never replays it.
-  const GOOGLE_ERRORS = {
-    google_cancelled: "Google sign-in was cancelled.",
-    google_code_reused:
-      "That Google sign-in link was already used. Please try again.",
-    google_unauthorized: "Google sign-in failed. Please try again.",
-    google_failed: "Google sign-in failed. Please try again.",
-  };
-
   const [googleRedirect] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const authError = params.get("authError");
@@ -220,13 +209,14 @@ const LoginPage = () => {
       const user = authService.completeGoogleRedirect(
         googleRedirect
       );
+      window.history.replaceState(null, "", window.location.pathname);
 
       setGoogleUser(user);
     } catch (error) {
       console.error("Google login failed:", error);
 
       window.location.replace(
-        `${window.location.origin}/#/login`
+        `${window.location.origin}/#/signup`
       );
     }
   }, [
@@ -235,6 +225,23 @@ const LoginPage = () => {
     googleRedirect?.name,
     googleRedirect?.authError,
   ]);
+
+  useEffect(() => {
+    if (googleRedirect?.authError && googleRedirect.authError !== "google_not_registered") {
+      window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+    }
+  }, [googleRedirect?.authError]);
+
+useEffect(() => {
+  if (googleRedirect?.authError !== "google_not_registered") return;
+
+  // Remove ?authError=... so a reload doesn't replay it
+  window.history.replaceState(null, "", window.location.pathname);
+
+  setActiveTab("signup");
+  setIsAuthRoute(true);
+  window.location.hash = "/signup"; // -> /#/signup
+}, [googleRedirect?.authError]);
 
   // Status & Auth User State
   const [isLoading, setIsLoading] = useState(false);
