@@ -53,11 +53,11 @@ const toAuthResult = (payload) => {
     message: payload?.message ?? "",
     user: data
       ? {
-          id: data.id,
-          name: data.name ?? null,
-          email: data.email ?? null,
-          emailVerified: data.emailVerified ?? null,
-        }
+        id: data.id,
+        name: data.name ?? null,
+        email: data.email ?? null,
+        emailVerified: data.emailVerified ?? null,
+      }
       : null,
     token: data?.accessToken ?? null,
   };
@@ -141,17 +141,13 @@ export const authService = {
 
   /**
    * Forgot Password – Step 1
-   * Asks the backend to generate a 6-digit OTP and email it to this address.
    */
   async forgotPassword(email) {
     return request("forgot-password", { email: normalizeEmail(email) });
   },
 
-
   /**
    * Forgot Password – Step 2
-   * Verifies the OTP and stores the new password. The backend owns OTP
-   * validity, expiry and hashing.
    */
   async resetPasswordWithOtp(email, otp, newPassword) {
     return request("reset-password", {
@@ -163,37 +159,20 @@ export const authService = {
 
   /**
    * Login with Google
-   * Redirects to the backend OAuth entry point. No backend endpoint exists for
-   * logging out, so logout is handled purely on the client.
    */
-  // async loginWithGoogle() {
-  //   window.location.href = `${API_BASE_URL}/api/auth/google`;
-  // },
+ 
+  loginWithGoogle(mode = "login") {
+    const backendUrl =
+      import.meta.env.VITE_API_BASE_URL ||
+      "https://evolve-backend-4lux.onrender.com";
 
+    const googleUrl = new URL(`${backendUrl}/api/auth/google`);
+    googleUrl.searchParams.set("returnUrl", window.location.origin);
+    googleUrl.searchParams.set("mode", mode);   // NEW
 
-loginWithGoogle() {
-  const backendUrl =
-    import.meta.env.VITE_API_BASE_URL ||
-    "https://evolve-backend-4lux.onrender.com";
+    window.location.href = googleUrl.toString();
+  },
 
-  const frontendUrl = window.location.origin;
-
-  const googleUrl = new URL(
-    `${backendUrl}/api/auth/google`
-  );
-
-  googleUrl.searchParams.set("returnUrl", frontendUrl);
-
-  window.location.href = googleUrl.toString();
-},
-
-
-
-  /**
-   * Finish a Google sign-in.
-   * The backend redirects back to /login with the access token in the query
-   * string, so the session is persisted from there.
-   */
   completeGoogleRedirect({ token, email, name }) {
     if (!token) throw new Error("Missing Google access token.");
 
@@ -212,47 +191,47 @@ loginWithGoogle() {
     return user;
   },
 
-async getPostLoginRoute() {
-  const token =
-    localStorage.getItem(TOKEN_KEY) ||
-    sessionStorage.getItem(TOKEN_KEY);
+  async getPostLoginRoute() {
+    const token =
+      localStorage.getItem(TOKEN_KEY) ||
+      sessionStorage.getItem(TOKEN_KEY);
 
-  if (!token) return "/login";
+    if (!token) return "/login";
 
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/profile/complete`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/profile/complete`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.status === 401) {
+        authService.logout();
+        return "/login";
       }
-    );
 
-    if (response.status === 401) {
-      authService.logout();
-      return "/login";
-    }
+      if (response.status === 404) {
+        return "/onboarding";
+      }
 
-    if (response.status === 404) {
+      if (!response.ok) {
+        throw new Error("Failed to fetch profile");
+      }
+
+      const result = await response.json();
+      const profile = result?.profile ?? result?.data?.profile;
+
+      return profile?.username?.trim()
+        ? "/home"
+        : "/onboarding";
+    } catch (error) {
+      console.error("Profile check failed:", error);
       return "/onboarding";
     }
-
-    if (!response.ok) {
-      throw new Error("Failed to fetch profile");
-    }
-
-    const result = await response.json();
-    const profile = result?.profile ?? result?.data?.profile;
-
-    return profile?.username?.trim()
-      ? "/home"
-      : "/onboarding";
-  } catch (error) {
-    console.error("Profile check failed:", error);
-    return "/onboarding";
-  }
-},
+  },
   /**
    * Get Current Session User
    */

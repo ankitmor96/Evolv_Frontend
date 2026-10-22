@@ -141,7 +141,13 @@ const AtSignIcon = () => (
     <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"></path>
   </svg>
 );
-
+const GOOGLE_ERRORS = {
+  google_cancelled: "Google sign-in was cancelled.",
+  google_code_reused: "That Google sign-in link was already used. Please try again.",
+  google_unauthorized: "Google sign-in failed. Please try again.",
+  google_failed: "Google sign-in failed. Please try again.",
+  google_not_registered: "No account found for this Google email. Please sign up first.", // NEW
+};
 const LoginPage = () => {
   // /#/login and /#/signup are the hash-based auth routes.
   const isAuthPath = () =>
@@ -201,91 +207,92 @@ const LoginPage = () => {
   });
   const [googleUser, setGoogleUser] = useState(null);
 
+  useEffect(() => {
+    if (
+      !googleRedirect ||
+      googleRedirect.authError ||
+      !googleRedirect.token
+    ) {
+      return;
+    }
 
-useEffect(() => {
-  if (
-    !googleRedirect ||
-    googleRedirect.authError ||
-    !googleRedirect.token
-  ) {
-    return;
-  }
+    try {
+      const user = authService.completeGoogleRedirect(
+        googleRedirect
+      );
 
-  try {
-    const user = authService.completeGoogleRedirect(
-      googleRedirect
-    );
+      setGoogleUser(user);
+    } catch (error) {
+      console.error("Google login failed:", error);
 
-    setGoogleUser(user);
-  } catch (error) {
-    console.error("Google login failed:", error);
-
-    window.location.replace(
-      `${window.location.origin}/#/login`
-    );
-  }
-}, [
-  googleRedirect?.token,
-  googleRedirect?.email,
-  googleRedirect?.name,
-  googleRedirect?.authError,
-]);
+      window.location.replace(
+        `${window.location.origin}/#/login`
+      );
+    }
+  }, [
+    googleRedirect?.token,
+    googleRedirect?.email,
+    googleRedirect?.name,
+    googleRedirect?.authError,
+  ]);
 
   // Status & Auth User State
   const [isLoading, setIsLoading] = useState(false);
-const [errorMessage, setErrorMessage] = useState(() => {
-  if (googleRedirect?.authError) {
-    return GOOGLE_ERRORS[googleRedirect.authError] || GOOGLE_ERRORS.google_failed;
-  }
-  return "";
-});
- const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState(() => {
+    if (googleRedirect?.authError) {
+      if (googleRedirect.authError === "google_code_reused" && authService.getCurrentUser()) {
+        return "";
+      }
+      return GOOGLE_ERRORS[googleRedirect.authError] || GOOGLE_ERRORS.google_failed;
+    }
+    return "";
+  });
 
- const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser());
+  const [successMessage, setSuccessMessage] = useState("");
+  const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser());
 
-// Redirect existing users to home and new users to onboarding.
-useEffect(() => {
-  if (!googleUser) return;
+  useEffect(() => {
+    if (!googleUser) return;
 
-  let cancelled = false;
+    let cancelled = false;
 
-  const redirectUser = async () => {
+    const redirectUser = async () => {
+      try {
+        const route = await authService.getPostLoginRoute();
+
+        if (cancelled) return;
+
+        console.log("[LoginPage] Google redirect to:", route);
+
+        window.location.replace(`${window.location.origin}/#${route}`);
+      } catch (error) {
+        if (cancelled) return;
+        console.error("Google profile check failed:", error);
+        setErrorMessage("Unable to check your profile. Please try again.");
+      }
+    };
+
+    redirectUser();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [googleUser]);
+
+  const redirectAfterLogin = async () => {
     try {
       const route = await authService.getPostLoginRoute();
 
-      if (cancelled) return;
+      console.log("[LoginPage] Redirecting to:", route);
 
-      console.log("[LoginPage] Google redirect to:", route);
-
-      window.location.replace(`${window.location.origin}/#${route}`);
+      window.location.replace(
+        `${window.location.origin}/#${route}`
+      );
     } catch (error) {
-      if (cancelled) return;
-      console.error("Google profile check failed:", error);
+      console.error("Failed to check profile:", error);
       setErrorMessage("Unable to check your profile. Please try again.");
     }
   };
-
-  redirectUser();
-
-  return () => {
-    cancelled = true;
-  };
-}, [googleUser]);
-
-const redirectAfterLogin = async () => {
-  try {
-    const route = await authService.getPostLoginRoute();
-
-    console.log("[LoginPage] Redirecting to:", route);
-
-    window.location.replace(
-      `${window.location.origin}/#${route}`
-    );
-  } catch (error) {
-    console.error("Failed to check profile:", error);
-    setErrorMessage("Unable to check your profile. Please try again.");
-  }
-};
 
   // Countdown timer for OTP resend
   useEffect(() => {
@@ -312,28 +319,7 @@ const redirectAfterLogin = async () => {
     };
   }, []);
 
-useEffect(() => {
-  if (!googleRedirect || googleRedirect.authError || !googleRedirect.token) {
-    return;
-  }
 
-  try {
-    const user = authService.completeGoogleRedirect(googleRedirect);
-
-    setErrorMessage("");                              
-    setSuccessMessage("Logged in with Google successfully!");
-    setCurrentUser(user);
-    setGoogleUser(user);                                
-  } catch (error) {
-    console.error("Google login failed:", error);
-    setErrorMessage(GOOGLE_ERRORS.google_failed);     
-  }
-}, [
-  googleRedirect?.token,
-  googleRedirect?.email,
-  googleRedirect?.name,
-  googleRedirect?.authError,
-]);
 
   // Navigate to /#/login or /#/signup by updating the hash.
   // Assigning window.location.hash triggers a hashchange event that App.jsx listens to.
@@ -510,47 +496,36 @@ useEffect(() => {
   };
 
   const handleVerifyEmailOTP = async (e) => {
-  e.preventDefault();
-  setErrorMessage("");
-  setSuccessMessage("");
-  setIsLoading(true);
+    e.preventDefault();
+    setErrorMessage("");
+    setSuccessMessage("");
+    setIsLoading(true);
 
-  try {
-    const result = await authService.verifyEmailOTP(email, otpCode, rememberMe);
+    try {
+      const result = await authService.verifyEmailOTP(email, otpCode, rememberMe);
 
-    if (!result.token) {
-      throw new Error("Verification succeeded but no session was returned.");
-    }
+      if (!result.token) {
+        throw new Error("Verification succeeded but no session was returned.");
+      }
 
-    setCurrentUser(result.user);
-    setSuccessMessage(`Welcome back, ${result.user.name || result.user.email}!`);
-    await redirectAfterLogin();
-  } catch (err) {
-    setErrorMessage(err.message || "Invalid OTP code.");
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-  const handleGoogleLogin = async () => {
-  setErrorMessage("");
-  setSuccessMessage("");
-  setIsLoading(true);
-
-  try {
-    const result = await authService.loginWithGoogle();
-
-    if (result) {
-      setSuccessMessage("Logged in with Google successfully!");
       setCurrentUser(result.user);
-
+      setSuccessMessage(`Welcome back, ${result.user.name || result.user.email}!`);
+      await redirectAfterLogin();
+    } catch (err) {
+      setErrorMessage(err.message || "Invalid OTP code.");
+    } finally {
+      setIsLoading(false);
     }
-  } catch (err) {
-    setErrorMessage(err.message || "Google login failed.");
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
+
+
+  const handleGoogleLogin = () => {
+    if (isLoading) return;
+    setErrorMessage("");
+    setSuccessMessage("");
+    setIsLoading(true);
+    authService.loginWithGoogle(activeTab === "signup" ? "signup" : "login");
+  };
 
   // Forgot Password – Step 1: ask the backend to email the OTP
   const handleSendForgotOtp = async (e) => {
@@ -626,7 +601,11 @@ useEffect(() => {
     setSuccessMessage("Logged out successfully.");
     setErrorMessage("");
   };
-
+  useEffect(() => {
+    const onShow = (e) => { if (e.persisted) setIsLoading(false); };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
 
   return (
     <div className={`login-page-container${isAuthRoute ? " auth-route" : ""}`}>

@@ -33,7 +33,7 @@ function authorFromComment(c) {
   return name ? { name, avatar } : null;
 }
 
-export default function CommentPanel({ postId, currentUser, onClose, onCountChange }) {
+export default function CommentPanel({ postId, currentUser, onClose, onCountChange,onCountSync }) {
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitError, setSubmitError] = useState('');
