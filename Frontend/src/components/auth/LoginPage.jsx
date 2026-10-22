@@ -233,20 +233,15 @@ useEffect(() => {
 
   // Status & Auth User State
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(() => {
-    if (!googleRedirect) return "";
-    if (googleRedirect.authError)
-      return GOOGLE_ERRORS[googleRedirect.authError] || GOOGLE_ERRORS.google_failed;
-    return googleUser ? "" : GOOGLE_ERRORS.google_failed;
-  });
-  const [successMessage, setSuccessMessage] = useState(() =>
-    googleUser ? "Logged in with Google successfully!" : "",
-  );
-  const [currentUser, setCurrentUser] = useState(
-    () => googleUser ?? authService.getCurrentUser(),
-  );
+const [errorMessage, setErrorMessage] = useState(() => {
+  if (googleRedirect?.authError) {
+    return GOOGLE_ERRORS[googleRedirect.authError] || GOOGLE_ERRORS.google_failed;
+  }
+  return "";
+});
+ const [successMessage, setSuccessMessage] = useState("");
 
-  // Navigate to #/home after Google redirect success (runs once on mount)
+ const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser());
 
 // Redirect existing users to home and new users to onboarding.
 useEffect(() => {
@@ -262,16 +257,11 @@ useEffect(() => {
 
       console.log("[LoginPage] Google redirect to:", route);
 
-      window.location.replace(
-        `${window.location.origin}/#${route}`
-      );
+      window.location.replace(`${window.location.origin}/#${route}`);
     } catch (error) {
       if (cancelled) return;
-
       console.error("Google profile check failed:", error);
-      setErrorMessage(
-        "Unable to check your profile. Please try again."
-      );
+      setErrorMessage("Unable to check your profile. Please try again.");
     }
   };
 
@@ -322,19 +312,28 @@ const redirectAfterLogin = async () => {
     };
   }, []);
 
-  // Strip the OAuth query params so a reload does not replay them.
-  // Keep the hash fragment so the router stays on /#/login during cleanup;
-  // the /#/onboarding redirect (above) fires in the same mount cycle and takes
-  // the user to the correct destination without a visible flash.
-  useEffect(() => {
-    if (googleRedirect) {
-      window.history.replaceState(
-        {},
-        "",
-        window.location.pathname + window.location.hash,
-      );
-    }
-  }, []);
+useEffect(() => {
+  if (!googleRedirect || googleRedirect.authError || !googleRedirect.token) {
+    return;
+  }
+
+  try {
+    const user = authService.completeGoogleRedirect(googleRedirect);
+
+    setErrorMessage("");                              
+    setSuccessMessage("Logged in with Google successfully!");
+    setCurrentUser(user);
+    setGoogleUser(user);                                
+  } catch (error) {
+    console.error("Google login failed:", error);
+    setErrorMessage(GOOGLE_ERRORS.google_failed);     
+  }
+}, [
+  googleRedirect?.token,
+  googleRedirect?.email,
+  googleRedirect?.name,
+  googleRedirect?.authError,
+]);
 
   // Navigate to /#/login or /#/signup by updating the hash.
   // Assigning window.location.hash triggers a hashchange event that App.jsx listens to.
@@ -511,28 +510,27 @@ const redirectAfterLogin = async () => {
   };
 
   const handleVerifyEmailOTP = async (e) => {
-    e.preventDefault();
-    setErrorMessage("");
-    setSuccessMessage("");
-    setIsLoading(true);
+  e.preventDefault();
+  setErrorMessage("");
+  setSuccessMessage("");
+  setIsLoading(true);
 
-    try {
-      const route = await authService.getPostLoginRoute();
-      window.location.hash = route;
+  try {
+    const result = await authService.verifyEmailOTP(email, otpCode, rememberMe);
 
-      setCurrentUser(result.user);
-
-      setSuccessMessage(
-        `Welcome back, ${result.user.name || result.user.email}!`
-      );
-
-      await redirectAfterLogin();
-    } catch (err) {
-      setErrorMessage(err.message || "Invalid OTP code.");
-    } finally {
-      setIsLoading(false);
+    if (!result.token) {
+      throw new Error("Verification succeeded but no session was returned.");
     }
-  };
+
+    setCurrentUser(result.user);
+    setSuccessMessage(`Welcome back, ${result.user.name || result.user.email}!`);
+    await redirectAfterLogin();
+  } catch (err) {
+    setErrorMessage(err.message || "Invalid OTP code.");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleGoogleLogin = async () => {
   setErrorMessage("");
