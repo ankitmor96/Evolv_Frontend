@@ -690,12 +690,7 @@ export const homePostService = {
   // ── Delete Post ───────────────────────────────────────────────────────────
   /**
    * Delete a post owned by the logged-in user.
-   *
    * DELETE /api/posts/:postId
-   *
-   * The caller is responsible for verifying ownership before calling this.
-   * The backend also enforces ownership and will reject unauthorised requests.
-   *
    * @param {string|number} postId  – The backend post ID.
    * @returns {Promise<object>}     – Backend response on success.
    * @throws {Error}                – On auth failure, not-found, or server error.
@@ -706,17 +701,6 @@ export const homePostService = {
 
   // ── Internal: response → feed-post normaliser ─────────────────────────────
   /**
-   * Map a raw backend post response into the shape HomeFeed's FeedPost
-   * component expects.
-   *
-   * Backend response (confirmed fields from Postman):
-   *   postId        – post identifier (may also appear as _id / id)
-   *   mediaType     – "image" | "video"
-   *   mediaUrl      – Cloudinary (or other CDN) URL of the uploaded file
-   *   thumbnailUrl  – Cloudinary thumbnail for video posts (may be absent)
-   *   caption       – echoed caption string
-   *   createdAt     – ISO timestamp
-   *
    * @param {object} payload    – Raw JSON from the backend.
    * @param {"image"|"video"} mediaType – Declared by the caller (not trusted alone).
    * @returns {object} Feed-post shaped object.

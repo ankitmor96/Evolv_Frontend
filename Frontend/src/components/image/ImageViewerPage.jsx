@@ -62,6 +62,8 @@ export default function ImageViewerPage() {
 
   const go = useCallback((dir) => {
     setZoomed(false);
+    setConfirmDelete(false);
+    setDeleteError('');
     setIndex((i) => Math.min(Math.max(i + dir, 0), Math.max(posts.length - 1, 0)));
   }, [posts.length]);
 
@@ -108,11 +110,42 @@ export default function ImageViewerPage() {
     setPosts((ps) => ps.map((p) =>
       String(p.id) !== String(postId) ? p : { ...p, comments: Math.max(0, (p.comments ?? 0) + delta) }));
   }, []);
+  const handleDelete = useCallback(async () => {
+    const target = posts[index];
+    if (!target || deleting) return;
+
+    setDeleting(true);
+    setDeleteError('');
+
+    try {
+      await homePostService.deletePost(target.id);
+
+      const remaining = posts.filter((p) => String(p.id) !== String(target.id));
+      setPosts(remaining);
+      setConfirmDelete(false);
+      setZoomed(false);
+
+      if (remaining.length === 0) {
+        goBack();
+      } else {
+        setIndex((i) => Math.min(i, remaining.length - 1));
+      }
+    } catch (err) {
+      console.error('[ImageViewer] delete failed:', err);
+      setDeleteError(err.message || 'Failed to delete post. Please try again.');
+    } finally {
+      setDeleting(false);
+    }
+  }, [posts, index, deleting]);
 
   if (!user) return null;
 
   const post = posts[index];
   const creator = post?.creator || {};
+  const userId = user?.id ?? user?.userId ?? user?._id ?? null;
+  const creatorId = creator?.id ?? creator?.userId ?? post?.userId ?? null;
+  const isOwner =
+    userId != null && creatorId != null && String(userId) === String(creatorId);
 
   return (
     <div className="iv-page">
@@ -204,6 +237,44 @@ export default function ImageViewerPage() {
                 <strong>{fmt(post.comments)}</strong><span>Discuss</span>
               </button>
             </div>
+            {isOwner && (
+              <div className="iv-delete-zone">
+                {deleteError && <p className="iv-delete-error" role="alert">{deleteError}</p>}
+
+                {!confirmDelete ? (
+                  <button
+                    type="button"
+                    className="iv-delete-btn"
+                    onClick={() => setConfirmDelete(true)}
+                    aria-label="Delete this post"
+                  >
+                    <Trash2 size={16} /> Delete Post
+                  </button>
+                ) : (
+                  <div className="iv-delete-confirm">
+                    <p>Are you sure you want to permanently delete this post?</p>
+                    <div className="iv-delete-actions">
+                      <button
+                        type="button"
+                        className="iv-delete-cancel"
+                        onClick={() => setConfirmDelete(false)}
+                        disabled={deleting}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="iv-delete-yes"
+                        onClick={handleDelete}
+                        disabled={deleting}
+                      >
+                        {deleting ? 'Deleting…' : 'Yes, Delete'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </aside>
         </div>
       )}

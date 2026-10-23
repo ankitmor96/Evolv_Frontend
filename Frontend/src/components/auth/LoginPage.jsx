@@ -1045,6 +1045,16 @@ const LoginPage = () => {
                           <>{activeTab === "signup" ? "Sign up with Email OTP" : "Send Email OTP"} <span><ArrowRightIcon /></span></>
                         )}
                       </button>
+                      {otpSent && (
+                        <div className="otp-resend-row">
+                          <button type="button" className="forgot-btn" disabled={countdown > 0 || isLoading} onClick={handleSendEmailOTP}>
+                            {countdown > 0 ? `Resend OTP in ${countdown}s` : "Resend OTP"}
+                          </button>
+                          <button type="button" className="forgot-btn change-num-btn" onClick={() => setOtpSent(false)}>
+                            Change Email
+                          </button>
+                        </div>
+                      )}
 
                       {/* keep your existing resend / change-email row below */}
                     </form>

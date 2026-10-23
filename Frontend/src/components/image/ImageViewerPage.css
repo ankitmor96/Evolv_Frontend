@@ -77,3 +77,25 @@
   .iv-actions { grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .iv-act { padding: 10px 2px; } .iv-act span { font-size: 10px; }
 }
+.iv-delete-zone { margin-top: 24px; padding-top: 16px; border-top: 1px solid #eee; }
+
+.iv-delete-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 16px; border-radius: 10px;
+  border: 1px solid #fca5a5; background: #fff5f5; color: #dc2626;
+  font-weight: 600; cursor: pointer;
+}
+.iv-delete-btn:hover { background: #fee2e2; }
+
+.iv-delete-confirm p { margin: 0 0 12px; color: #444; }
+.iv-delete-actions { display: flex; gap: 10px; }
+
+.iv-delete-cancel, .iv-delete-yes {
+  padding: 10px 16px; border-radius: 10px; font-weight: 600;
+  cursor: pointer; border: 1px solid transparent;
+}
+.iv-delete-cancel { background: #f3f4f6; color: #333; }
+.iv-delete-yes { background: #dc2626; color: #fff; }
+.iv-delete-yes:disabled, .iv-delete-cancel:disabled { opacity: .6; cursor: not-allowed; }
+
+.iv-delete-error { color: #dc2626; font-size: 14px; margin: 0 0 10px; }

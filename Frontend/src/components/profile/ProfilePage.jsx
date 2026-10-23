@@ -48,7 +48,12 @@ import {
   Shield,
   Trash2,
   Download,
-  BarChart3
+  BarChart3,
+  ArrowLeft,
+  ZoomIn,
+  ZoomOut,
+  CheckCircle2,
+  
 } from 'lucide-react';
 
 import { getProfile } from "../../services/getProfile.js";
