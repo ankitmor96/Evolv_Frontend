@@ -11,7 +11,7 @@ import ReelsPage from './components/reels/ReelPage.jsx';
 import ImageViewerPage from './components/image/ImageViewerPage.jsx';
 import NotificationsPage from './components/NotificationsPage/NotificationsPage.jsx';
 import LegalPage from './components/legal/LegalPage.jsx';
-import { guardProtectedRoute } from '../../services/sessionService.js';
+import { guardProtectedRoute } from './services/sessionService.js';
 import { startSessionWatcher } from './services/sessionService.js';
 import { isTokenExpired, getStoredToken, msUntilExpiry, forceLogout } from './services/sessionService.js';
 
