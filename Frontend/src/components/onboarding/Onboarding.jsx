@@ -8,7 +8,7 @@ import ProfilePreview from './ProfilePreview';
 import StepIdentity from './StepIdentity';
 import StepCuriosity from './StepCuriosity';
 import StepSkills from './StepSkills';
-
+import { guardOnboardingRoute } from '../../services/sessionService.js';
 import CompletionScreen from './CompletionScreen';
 import {
   initialProfile,
@@ -116,6 +116,7 @@ export default function Onboarding() {
   const [submitting, setSubmitting] = useState(false);
   const [isEdit, setIsEdit] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(true);
+  const [checking, setChecking] = useState(true);
 
   // Two-phase step transition: leave pose → swap content → enter pose.
   // Deterministic (no presence bookkeeping), matches the homepage motion spec.
@@ -127,6 +128,16 @@ export default function Onboarding() {
 
   // ─── Draft autosave ────────────────────────────────────────────────────────
   const persistTimer = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    guardOnboardingRoute().then((ok) => {
+      if (!cancelled && ok) setChecking(false);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+
   useEffect(() => {
     if (persistTimer.current) clearTimeout(persistTimer.current);
     persistTimer.current = setTimeout(() => {
@@ -234,6 +245,7 @@ export default function Onboarding() {
     })();
     return () => { cancelled = true; };
   }, []);
+  if (checking) return <div>Loading…</div>;
 
   return (
     <main className="ob-page" role="main">

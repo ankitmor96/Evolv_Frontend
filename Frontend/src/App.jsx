@@ -11,6 +11,8 @@ import ReelsPage from './components/reels/ReelPage.jsx';
 import ImageViewerPage from './components/image/ImageViewerPage.jsx';
 import NotificationsPage from './components/NotificationsPage/NotificationsPage.jsx';
 import LegalPage from './components/legal/LegalPage.jsx';
+import { guardProtectedRoute } from '../../services/sessionService.js';
+import { startSessionWatcher } from './services/sessionService.js';
 import { isTokenExpired, getStoredToken, msUntilExpiry, forceLogout } from './services/sessionService.js';
 
 /**
@@ -60,6 +62,8 @@ const PUBLIC_ROUTES = ['/', '/login', '/signup'];
 
 export default function App() {
   const [route, setRoute] = useState(getRoute);
+  const [allowed, setAllowed] = useState(false);
+
 
   useEffect(() => {
     const sync = () => setRoute(getRoute());
@@ -98,6 +102,12 @@ export default function App() {
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
+
+  useEffect(() => {
+    guardProtectedRoute().then(setAllowed); 
+  }, []);
+  useEffect(() => startSessionWatcher(), []);
+  if (!allowed) return null;
 
   // ── Route guard ──
   const isPublic = PUBLIC_ROUTES.includes(route);

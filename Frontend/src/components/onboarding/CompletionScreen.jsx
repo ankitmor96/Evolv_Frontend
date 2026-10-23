@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { EASE_SMOOTH } from '../motionVariants';
+import { authService } from '../../services/authService';
 
 const STAGGER = (i) => ({
   hidden: { opacity: 0, y: 10 },
@@ -38,6 +39,9 @@ export default function CompletionScreen({ draft, onEnter, error, submitting, is
         {submitting
           ? (isEdit ? 'Updating…' : 'Entering…')
           : (isEdit ? 'Update Profile ✓' : 'Enter EVOLV →')}      </motion.button>
+      {/* <button type="button" onClick={() => { authService.logout(); window.location.hash = '/login'; window.dispatchEvent(new Event('navigated')); }}>
+        Logout
+      </button> */}
 
       {error && (
         <span className="ob-inline-error" role="alert">

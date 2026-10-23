@@ -344,10 +344,13 @@ const LoginPage = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (authService.getCurrentUser() && !googleRedirect?.token) {
+      redirectAfterLogin();
+    }
+  }, []);
 
 
-  // Navigate to /#/login or /#/signup by updating the hash.
-  // Assigning window.location.hash triggers a hashchange event that App.jsx listens to.
   const navigate = (path) => {
     const targetHash = '#' + path;
     if (window.location.hash !== targetHash) {

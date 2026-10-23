@@ -2,6 +2,53 @@ import { authService } from './authService.js';
 
 const TOKEN_KEY = 'evolv_auth_token';
 
+/** Where should this user be? Returns a route, or null if they're already in the right place. */
+export const getRequiredRoute = async () => {
+  if (isTokenExpired()) return '/login';
+  const route = await authService.getPostLoginRoute();
+  return route;
+};
+
+/** Use on /home and other protected pages. Sends incomplete users to onboarding. */
+export const guardProtectedRoute = async () => {
+  const route = await getRequiredRoute();
+  if (route !== '/home') {
+    window.location.hash = route;
+    window.dispatchEvent(new Event('navigated'));
+    return false;
+  }
+  return true;
+};
+
+/** Use on /onboarding. Needs a valid session; if already complete → home. */
+export const guardOnboardingRoute = async () => {
+  if (isTokenExpired()) {
+    forceLogout('expired');
+    return false;
+  }
+  const done = await authService.isOnboardingComplete().catch(() => false);
+  if (done) {
+    window.location.hash = '/home';
+    window.dispatchEvent(new Event('navigated'));
+    return false;
+  }
+  return true;
+};
+
+/** Auto-logout exactly when the token expires. Call once from App.jsx. */
+export const startSessionWatcher = () => {
+  let timer;
+  const arm = () => {
+    clearTimeout(timer);
+    const ms = msUntilExpiry();
+    if (getStoredToken() && ms > 0) {
+      timer = setTimeout(() => forceLogout('expired'), Math.min(ms, 2147483647));
+    }
+  };
+  arm();
+  window.addEventListener('storage', arm);
+  return () => { clearTimeout(timer); window.removeEventListener('storage', arm); };
+};
 export const getStoredToken = () =>
   localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || null;
 

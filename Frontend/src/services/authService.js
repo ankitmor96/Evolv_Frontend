@@ -102,6 +102,24 @@ const decodeJwt = (token) => {
   }
 };
 
+const authGet = async (path) => {
+  const token =
+    localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 401) {
+    const err = new Error("Unauthorized");
+    err.status = 401;
+    throw err;
+  }
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+  return res.json().catch(() => null);
+};
+
+const rows = (r) => (Array.isArray(r) ? r : r?.data ?? r?.items ?? []);
+
 export const authService = {
   /**
    * Login with Email and Password
@@ -212,44 +230,46 @@ export const authService = {
     return user;
   },
 
+  /**
+ * Onboarding is complete only when ALL of these exist:
+ * username + avatar + a role + at least one curiosity skill.
+ */
+  async isOnboardingComplete() {
+    try {
+      const [profileRes, identitiesRes, curiosityRes] = await Promise.all([
+        authGet("/api/profile"),
+        authGet("/api/user-identities"),
+        authGet("/api/skills/curiosity"),
+      ]);
+
+      const data = profileRes?.data ?? profileRes;
+      const profile = data?.profile ?? data;
+
+      const hasUsername = Boolean(profile?.username?.trim());
+      const hasAvatar = Boolean(profile?.avatarUrl);
+      const hasRole = rows(identitiesRes).length > 0;
+      const hasInterests = rows(curiosityRes).length > 0;
+
+      return hasUsername && hasAvatar && hasRole && hasInterests;
+    } catch (err) {
+      if (err.status === 401) {
+        authService.logout();
+        throw err;
+      }
+      return false; // any other error → treat as NOT complete (safe default)
+    }
+  },
+
   async getPostLoginRoute() {
     const token =
-      localStorage.getItem(TOKEN_KEY) ||
-      sessionStorage.getItem(TOKEN_KEY);
-
+      localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
     if (!token) return "/login";
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/profile/complete`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (response.status === 401) {
-        authService.logout();
-        return "/login";
-      }
-
-      if (response.status === 404) {
-        return "/onboarding";
-      }
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch profile");
-      }
-
-      const result = await response.json();
-      const profile = result?.profile ?? result?.data?.profile;
-
-      return profile?.username?.trim()
-        ? "/home"
-        : "/onboarding";
-    } catch (error) {
-      console.error("Profile check failed:", error);
+      const complete = await authService.isOnboardingComplete();
+      return complete ? "/home" : "/onboarding";
+    } catch (err) {
+      if (err.status === 401) return "/login";
       return "/onboarding";
     }
   },
