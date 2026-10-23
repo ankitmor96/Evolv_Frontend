@@ -104,22 +104,21 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
+  let cancelled = false;
 
-    // Public pages and onboarding don't need the "must be onboarded" guard.
-    // (Onboarding runs its own guardOnboardingRoute internally.)
-    if (PUBLIC_ROUTES.includes(route) || route === '/onboarding') {
-      setAllowed(true);
-      return;
-    }
+  // Public pages and onboarding skip the "must be onboarded" guard
+  if (PUBLIC_ROUTES.includes(route) || route === '/onboarding') {
+    setAllowed(true);
+    return;
+  }
 
-    setAllowed(false);
-    guardProtectedRoute().then((ok) => {
-      if (!cancelled) setAllowed(ok);
-    });
+  setAllowed(false);
+  guardProtectedRoute().then((ok) => {
+    if (!cancelled) setAllowed(ok);
+  });
 
-    return () => { cancelled = true; };
-  }, [route]);
+  return () => { cancelled = true; };
+}, [route]);
   useEffect(() => startSessionWatcher(), []);
   if (!allowed) return null;
 
