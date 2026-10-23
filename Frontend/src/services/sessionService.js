@@ -42,5 +42,7 @@ export const forceLogout = (reason = 'expired') => {
   window.location.hash = '/login';
   window.dispatchEvent(new Event('navigated'));
 
+  localStorage.removeItem('evolve-onboarding-draft');
+  localStorage.removeItem('evolve-onboarding-draft-owner');
   setTimeout(() => { redirecting = false; }, 1000);
 };

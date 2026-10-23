@@ -58,7 +58,6 @@ function ProfileAppearanceModal({ onClose }) {
   const [profileError, setProfileError] = useState("");
    const t = localStorage.getItem("evolv_auth_token") || sessionStorage.getItem("evolv_auth_token");
    const { exp } = JSON.parse(atob(t.split(".")[1]));
-   console.log("expires:", new Date(exp * 1000), "expired?", Date.now() > exp * 1000);
   useEffect(() => {
     let cancelled = false;
 

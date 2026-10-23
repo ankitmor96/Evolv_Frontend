@@ -2,7 +2,14 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const TOKEN_KEY = "evolv_auth_token";
 const USER_KEY = "evolv_user";
-import { forceLogout } from './sessionService.js';
+const DRAFT_KEY = "evolve-onboarding-draft";
+const DRAFT_OWNER_KEY = "evolve-onboarding-draft-owner";
+
+const clearOnboardingDraft = () => {
+  localStorage.removeItem(DRAFT_KEY);
+  sessionStorage.removeItem(DRAFT_KEY);
+  localStorage.removeItem(DRAFT_OWNER_KEY);
+};
 
 /** The backend stores emails in mixed case on register/login but lowercases
  * them on the OTP routes, so the same address typed with different casing would
@@ -66,8 +73,15 @@ const toAuthResult = (payload) => {
 };
 
 const persistSession = ({ user, token }, rememberMe) => {
-  // Do not persist if there is no token (e.g. after register which returns no JWT)
   if (!token || !user) return;
+
+  // If the draft belongs to a different account, throw it away
+  const owner = localStorage.getItem(DRAFT_OWNER_KEY);
+  if (owner !== String(user.id)) {
+    localStorage.removeItem(DRAFT_KEY);
+    sessionStorage.removeItem(DRAFT_KEY);
+    localStorage.setItem(DRAFT_OWNER_KEY, String(user.id));
+  }
 
   const target = rememberMe ? localStorage : sessionStorage;
   const stale = rememberMe ? sessionStorage : localStorage;
@@ -259,5 +273,7 @@ export const authService = {
     localStorage.removeItem(USER_KEY);
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
+    clearOnboardingDraft();
   },
+
 };
