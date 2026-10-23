@@ -51,7 +51,7 @@
  */
 
 import { getCountryCode, COUNTRIES } from "../components/onboarding/onboardingData.js";
-
+import { forceLogout } from './sessionService.js';
 const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? "";
 
 /** Token key matches authService.js exactly. */
@@ -95,6 +95,9 @@ const request = async (path, options = {}) => {
   console.debug(`[profileService] ${init.method ?? "GET"} ${url}`);
 
   const response = await fetch(url, init);
+  if (response.status === 401 && token) {
+    forceLogout();
+  }
   const payload = await response.json().catch(() => ({}));
 
   console.debug(`[profileService] ${response.status} ←`, payload);
@@ -231,7 +234,9 @@ export const profileService = {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
     });
-
+    if (response.status === 401 && token) {
+      forceLogout();
+    }
     const payload = await response.json().catch(() => ({}));
     console.debug("[profileService] createProfile", response.status, payload);
 
@@ -291,10 +296,6 @@ export const profileService = {
 
   /**
    * POST /api/profile/avatar – uploads a profile photo to Cloudinary via the backend.
-   *
-   * IMPORTANT: Do NOT set Content-Type manually — the browser must set it so that
-   * the multipart boundary is included correctly.
-   *
    * @param {File} file – the image File selected by the user
    * @returns {Promise<any>} – parsed response; contains { avatarUrl } on success
    */
@@ -310,10 +311,11 @@ export const profileService = {
     const response = await fetch(url, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
-      // DO NOT set Content-Type here — the browser sets multipart/form-data
-      // with the correct boundary automatically when body is FormData.
       body: formData,
     });
+    if (response.status === 401 && token) {
+      forceLogout();
+    }
 
     const payload = await response.json().catch(() => ({}));
     console.debug(`[profileService] avatar upload ${response.status} ←`, payload);
@@ -393,7 +395,6 @@ export const profileService = {
 
   /**
    * POST /api/user-identities/select
-   * body: { identityTypeIds: number[], primaryIdentityTypeId: number }
    */
   selectUserIdentities(identityTypeIds, primaryIdentityTypeId) {
     return request("/api/user-identities/select", {
@@ -404,7 +405,6 @@ export const profileService = {
 
   /**
    * PATCH /api/user-identities/:id
-   * body: { isPrimary: boolean }
    */
   updateIdentity(id, isPrimary) {
     return request(`/api/user-identities/${id}`, {
@@ -466,40 +466,38 @@ export const profileService = {
   },
 
   /** Make saved curiosity match `skillIds` exactly, without using PATCH. */
- async syncCuriosity(skillIds) {
-  const wanted = [...new Set(skillIds.map(Number))];
+  async syncCuriosity(skillIds) {
+    const wanted = [...new Set(skillIds.map(Number))];
 
-  const res = await profileService.getUserCuriosity();
-  const rows = Array.isArray(res) ? res : res?.data ?? res?.items ?? [];
-  const current = rows.map((r) => Number(r.skillId)).filter((n) => !Number.isNaN(n));
+    const res = await profileService.getUserCuriosity();
+    const rows = Array.isArray(res) ? res : res?.data ?? res?.items ?? [];
+    const current = rows.map((r) => Number(r.skillId)).filter((n) => !Number.isNaN(n));
 
-  const toAdd = wanted.filter((id) => !current.includes(id));
-  const rowsToRemove = rows.filter((r) => !wanted.includes(Number(r.skillId)));
+    const toAdd = wanted.filter((id) => !current.includes(id));
+    const rowsToRemove = rows.filter((r) => !wanted.includes(Number(r.skillId)));
 
-  // Add first, so a failure never leaves the user with an empty list.
-  if (toAdd.length > 0) await profileService.createUserCuriosity(toAdd);
+    // Add first, so a failure never leaves the user with an empty list.
+    if (toAdd.length > 0) await profileService.createUserCuriosity(toAdd);
 
-  // Delete one by one (no parallel requests).
-  for (const row of rowsToRemove) {
-    try {
-      await profileService.deleteUserCuriosity(row.skillId);
-    } catch (err) {
-      // Fallback: backend may expect the row id. Guard so we never
-      // accidentally delete a skill the user wants to keep.
-      const canTryRowId =
-        err.status === 500 &&
-        row.id != null &&
-        Number(row.id) !== Number(row.skillId) &&
-        !wanted.includes(Number(row.id));
+    // Delete one by one (no parallel requests).
+    for (const row of rowsToRemove) {
+      try {
+        await profileService.deleteUserCuriosity(row.skillId);
+      } catch (err) {
+        const canTryRowId =
+          err.status === 500 &&
+          row.id != null &&
+          Number(row.id) !== Number(row.skillId) &&
+          !wanted.includes(Number(row.id));
 
-      if (canTryRowId) {
-        await profileService.deleteUserCuriosity(row.id);
-      } else {
-        throw err;
+        if (canTryRowId) {
+          await profileService.deleteUserCuriosity(row.id);
+        } else {
+          throw err;
+        }
       }
     }
-  }
-},
+  },
 
   /** For the profile modal: takes skill names, saves curiosity. */
   async saveCuriosityByNames(names) {
@@ -511,7 +509,6 @@ export const profileService = {
 
   /**
    * Sync "can do / learning / want to improve".
-   * wanted = { CAN_DO: number[], LEARNING: number[], WANT_TO_IMPROVE: number[] }
    */
   async syncUserSkills(wanted) {
     const res = await profileService.getUserSkills();
@@ -559,66 +556,60 @@ export const profileService = {
   deleteUserSkill(id) {
     return request(`/api/skills/user-skills/${id}`, { method: "DELETE" });
   },
-  /**
- * Make saved skills match the profile-page modal selection.
- * - Deselected skills are removed everywhere they appear.
- * - Skills already saved keep their category (can do / learning / interest).
- * - Newly selected skills are added as `newSkillAs`
- *   ("curiosity" | "CAN_DO" | "LEARNING" | "WANT_TO_IMPROVE").
- */
-async applySkillSelection(selectedNames, { newSkillAs = "curiosity" } = {}) {
-  const [nameToId, idToName, usRes, curRes] = await Promise.all([
-    profileService.fetchSkillNameToIdMap(),
-    profileService.fetchSkillIdToNameMap(),
-    profileService.getUserSkills(),
-    profileService.getUserCuriosity(),
-  ]);
-  const rowsOf = (r) => (Array.isArray(r) ? r : r?.data ?? r?.items ?? []);
-  const userSkillRows = rowsOf(usRes);
-  const curiosityRows = rowsOf(curRes);
 
-  const selected = new Set(profileService.mapNamesToIds([...selectedNames], nameToId));
-  const saved = new Set([
-    ...userSkillRows.map((r) => Number(r.skillId)),
-    ...curiosityRows.map((r) => Number(r.skillId)),
-  ]);
+  async applySkillSelection(selectedNames, { newSkillAs = "curiosity" } = {}) {
+    const [nameToId, idToName, usRes, curRes] = await Promise.all([
+      profileService.fetchSkillNameToIdMap(),
+      profileService.fetchSkillIdToNameMap(),
+      profileService.getUserSkills(),
+      profileService.getUserCuriosity(),
+    ]);
+    const rowsOf = (r) => (Array.isArray(r) ? r : r?.data ?? r?.items ?? []);
+    const userSkillRows = rowsOf(usRes);
+    const curiosityRows = rowsOf(curRes);
 
-  // Only remove skills the user could actually see (the id resolves to a name).
-  const visible = (id) => idToName[Number(id)] != null;
-  const toAdd = [...selected].filter((id) => !saved.has(id));
-  const userSkillsToRemove = userSkillRows.filter(
-    (r) => visible(r.skillId) && !selected.has(Number(r.skillId))
-  );
-  const curiosityToRemove = curiosityRows.filter(
-    (r) => visible(r.skillId) && !selected.has(Number(r.skillId))
-  );
+    const selected = new Set(profileService.mapNamesToIds([...selectedNames], nameToId));
+    const saved = new Set([
+      ...userSkillRows.map((r) => Number(r.skillId)),
+      ...curiosityRows.map((r) => Number(r.skillId)),
+    ]);
 
-  const failures = [];
+    // Only remove skills the user could actually see (the id resolves to a name).
+    const visible = (id) => idToName[Number(id)] != null;
+    const toAdd = [...selected].filter((id) => !saved.has(id));
+    const userSkillsToRemove = userSkillRows.filter(
+      (r) => visible(r.skillId) && !selected.has(Number(r.skillId))
+    );
+    const curiosityToRemove = curiosityRows.filter(
+      (r) => visible(r.skillId) && !selected.has(Number(r.skillId))
+    );
 
-  // Add first, so a failure never leaves the user with fewer skills than before.
-  if (toAdd.length > 0) {
-    try {
-      if (newSkillAs === "curiosity") await profileService.createUserCuriosity(toAdd);
-      else await profileService.addUserSkill(toAdd, newSkillAs);
-    } catch (e) {
-      failures.push(e);
+    const failures = [];
+
+    // Add first, so a failure never leaves the user with fewer skills than before.
+    if (toAdd.length > 0) {
+      try {
+        if (newSkillAs === "curiosity") await profileService.createUserCuriosity(toAdd);
+        else await profileService.addUserSkill(toAdd, newSkillAs);
+      } catch (e) {
+        failures.push(e);
+      }
     }
-  }
 
-  const removals = await Promise.allSettled([
-    // user-skills: DELETE /api/skills/user-skills/:id takes the row id
-    ...userSkillsToRemove.map((r) => profileService.deleteUserSkill(r.id)),
-    // curiosity: DELETE /api/skills/curiosity/:skillId takes the skill id
-    ...curiosityToRemove.map((r) => profileService.deleteUserCuriosity(r.skillId)),
-  ]);
-  removals.forEach((r) => r.status === "rejected" && failures.push(r.reason));
+    const removals = await Promise.allSettled([
+      // user-skills: DELETE /api/skills/user-skills/:id takes the row id
+      ...userSkillsToRemove.map((r) => profileService.deleteUserSkill(r.id)),
+      // curiosity: DELETE /api/skills/curiosity/:skillId takes the skill id
+      ...curiosityToRemove.map((r) => profileService.deleteUserCuriosity(r.skillId)),
+    ]);
+    removals.forEach((r) => r.status === "rejected" && failures.push(r.reason));
 
-  if (failures.length > 0) {
-    console.error("[profileService] applySkillSelection failures:", failures);
-    throw failures[0];
-  }
-  return { added: toAdd.length, removed: userSkillsToRemove.length + curiosityToRemove.length };
-},
+    if (failures.length > 0) {
+      console.error("[profileService] applySkillSelection failures:", failures);
+      throw failures[0];
+    }
+    return { added: toAdd.length, removed: userSkillsToRemove.length + curiosityToRemove.length };
+  },
   /**
    * GET /api/posts/my-posts/counts
    * @returns {Promise<{ totalPosts: number, imageCount: number, videoCount: number, documentCount: number }>}

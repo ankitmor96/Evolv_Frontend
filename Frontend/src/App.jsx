@@ -10,6 +10,7 @@ import ProfilePage from './components/profile/ProfilePage';
 import ReelsPage from './components/reels/ReelPage.jsx';
 import ImageViewerPage from './components/image/ImageViewerPage.jsx';
 import NotificationsPage from './components/NotificationsPage/NotificationsPage.jsx';
+import { isTokenExpired, getStoredToken, msUntilExpiry, forceLogout } from './services/sessionService.js';
 
 /**
  * The backend Google OAuth callback redirects to a plain pathname URL like
@@ -53,33 +54,69 @@ bootstrapOAuthCallback();
 function getRoute() {
   return window.location.hash.replace(/^#/, '') || '/';
 }
+// Routes that do NOT require login
+const PUBLIC_ROUTES = ['/', '/login', '/signup'];
 
 export default function App() {
   const [route, setRoute] = useState(getRoute);
 
   useEffect(() => {
     const sync = () => setRoute(getRoute());
-    // hashchange fires when the fragment changes (e.g. /#/login → /#/home).
-    // popstate fires on browser back/forward.
-    // 'navigated' is a custom event dispatched after history.pushState() calls
-    // inside LoginPage, since pushState alone does NOT fire 'popstate'.
     window.addEventListener('hashchange', sync);
     window.addEventListener('popstate', sync);
     window.addEventListener('navigated', sync);
+    window.addEventListener('session-expired', sync);
     return () => {
       window.removeEventListener('hashchange', sync);
       window.removeEventListener('popstate', sync);
       window.removeEventListener('navigated', sync);
+      window.removeEventListener('session-expired', sync);
     };
   }, []);
 
-  // Hash-based routing — consistent with all other routes.
-  // /#/login and /#/signup are the auth routes (previously bare /login /signup,
-  // which caused Vercel 404s because no server-side rewrite was configured).
-  if (route === '/login' || route === '/signup') {
+  // Auto-logout the moment the token expires, even if the user is idle
+  useEffect(() => {
+    const token = getStoredToken();
+    if (!token) return;
+
+    const ms = msUntilExpiry(token);
+    if (ms <= 0) { forceLogout(); return; }
+
+    // setTimeout max is ~24.8 days; cap it to be safe
+    const timer = setTimeout(() => forceLogout(), Math.min(ms, 2_000_000_000));
+    return () => clearTimeout(timer);
+  }, [route]);
+
+  // Also re-check when the tab becomes visible again (laptop sleep, etc.)
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && getStoredToken() && isTokenExpired()) {
+        forceLogout();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
+
+  // ── Route guard ──
+  const isPublic = PUBLIC_ROUTES.includes(route);
+  if (!isPublic && isTokenExpired()) {
+    // Not logged in or expired: never render protected pages
+    if (getStoredToken()) forceLogout(); // clears stale token
+    else if (window.location.hash !== '#/login') window.location.hash = '/login';
     return <LoginPage />;
   }
 
+  // Logged-in user visiting /login or /signup goes to home
+  if ((route === '/login' || route === '/signup') && !isTokenExpired()) {
+    window.location.hash = '/home';
+    return null;
+  }
+
+  // Hash-based routing
+  if (route === '/login' || route === '/signup') {
+    return <LoginPage />;
+  }
   if (route === '/onboarding') {
     return <Onboarding />;
   }

@@ -14,7 +14,7 @@
  * InterestTabs expects, prefixed with the fixed "For You" and
  * "Following" tabs (which are not returned by the API).
  */
-
+import { forceLogout } from './sessionService.js';
 const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? "";
 
 const TOKEN_KEYS = [
@@ -57,6 +57,9 @@ export async function fetchHomeTabs() {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });
+  if (response.status === 401 && token) {
+  forceLogout();
+}
 
   const payload = await response.json().catch(() => ({}));
 

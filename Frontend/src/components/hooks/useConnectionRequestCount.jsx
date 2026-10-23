@@ -5,9 +5,10 @@ export function useConnectionRequestCount(intervalMs = 30000) {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    let cancelled = false;
+    let cancelled = false;  
 
     const load = async () => {
+      if (!getStoredToken()) return;   
       const list = await connectionService.getReceivedRequests();
       if (cancelled) return;
       setCount(

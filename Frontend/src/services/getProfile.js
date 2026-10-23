@@ -1,7 +1,7 @@
 
 const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL;
 const TOKEN_KEY = "evolv_auth_token";
-
+import { forceLogout } from './sessionService.js';
 const getToken = () =>
   localStorage.getItem(TOKEN_KEY) ||
   sessionStorage.getItem(TOKEN_KEY);
@@ -17,6 +17,9 @@ export const getProfile = {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
+    if (response.status === 401 && token) {
+      forceLogout();
+    }
 
     const result = await response.json().catch(() => ({}));
 

@@ -32,6 +32,7 @@
 const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? "";
 
 const TOKEN_KEY = "evolv_auth_token";
+import { forceLogout } from './sessionService.js';
 
 // ─── Verified endpoint paths ──────────────────────────────────────────────────
 /** POST /api/posts — image post (multipart field: "image") */
@@ -56,59 +57,6 @@ const getToken = () =>
   sessionStorage.getItem(TOKEN_KEY) ||
   null;
 
-// ─── Reusable fetch wrapper ───────────────────────────────────────────────────
-/**
- * Low-level request handler shared by all methods.
- * - Automatically injects Authorization: Bearer <token>.
- * - Does NOT set Content-Type for FormData — lets the browser
- *   generate the multipart boundary automatically.
- * - Throws a structured Error({ message, status, payload }) on non-2xx.
- */
-// const request = async (path, options = {}) => {
-//   const token = getToken();
-//   const isFormData = options.body instanceof FormData;
-
-//   const headers = {
-//     ...(token ? { Authorization: `Bearer ${token}` } : {}),
-//     ...(!isFormData ? { "Content-Type": "application/json" } : {}),
-//     ...(options.headers ?? {}),
-//   };
-
-//   // Browser must set Content-Type for FormData to include the boundary.
-//   if (isFormData) {
-//     delete headers["Content-Type"];
-//     delete headers["content-type"];
-//   }
-
-//   const response = await fetch(`${API_BASE_URL}${path}`, {
-//     ...options,
-//     headers,
-//   });
-
-//   const payload = await response.json().catch(() => ({}));
-
-//   if (!response.ok) {
-//     const message = Array.isArray(payload?.message)
-//       ? payload.message.join(" ")
-//       : payload?.message ||
-//         payload?.error ||
-//         `Request failed (${response.status})`;
-
-//     const error = new Error(message);
-//     error.status = response.status;
-//     error.payload = payload;
-//     throw error;
-//   }
-
-//   return payload;
-// };
-
-// ─── Response normaliser ──────────────────────────────────────────────────────
-/**
- * 
- * Extract the canonical post object from the backend envelope.
- * Handles { post }, { data: { post } }, { data }, and bare objects.
- */
 
 
 const request = async (path, options = {}) => {
@@ -150,6 +98,9 @@ const request = async (path, options = {}) => {
       headers,
       signal: controller.signal,
     });
+    if (response.status === 401 && token) {
+      forceLogout();
+    }
 
     console.log('[homePostService] Response received', {
       status: response.status,
@@ -221,7 +172,9 @@ export const homePostService = {
         },
       }
     );
-
+    if (response.status === 401 && token) {
+      forceLogout();
+    }
     const result = await response.json().catch(() => ({}));
 
     if (!response.ok) {

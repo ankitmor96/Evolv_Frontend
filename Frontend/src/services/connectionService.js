@@ -30,6 +30,7 @@ const API_BASE_URL =
   'https://evolve-backend-4lux.onrender.com';
 
 const TOKEN_KEY = 'evolv_auth_token';
+import { forceLogout } from './sessionService.js';
 
 // ─── Token helper ─────────────────────────────────────────────────────────────
 const getToken = () =>
@@ -68,6 +69,9 @@ const request = async (path, opts = {}) => {
   console.debug(`[connectionService] ${init.method ?? 'GET'} ${url}`);
 
   const response = await fetch(url, init);
+  if (response.status === 401 && token) {
+  forceLogout();
+}
   const payload = await response.json().catch(() => ({}));
 
   console.debug(`[connectionService] ${response.status} ←`, payload);

@@ -2,6 +2,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const TOKEN_KEY = "evolv_auth_token";
 const USER_KEY = "evolv_user";
+import { forceLogout } from './sessionService.js';
 
 /** The backend stores emails in mixed case on register/login but lowercases
  * them on the OTP routes, so the same address typed with different casing would

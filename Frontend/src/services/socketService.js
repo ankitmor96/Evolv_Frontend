@@ -18,7 +18,6 @@
  */
 
 import { io } from 'socket.io-client';
-
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const TOKEN_KEY = 'evolv_auth_token';

@@ -10,7 +10,6 @@
  *   GET  /api/creators/:id
  *   POST /api/connections  { fromUserId, toCreatorId }
  */
-
 // ─── Avatar fallback helper ────────────────────────────────────────────────────
 function avatarUrl(seed) {
   // DiceBear "avataaars" — deterministic, neutral, no external brand assets.

@@ -225,23 +225,31 @@ const LoginPage = () => {
     googleRedirect?.name,
     googleRedirect?.authError,
   ]);
-
+  
+//error google redirect signup
   useEffect(() => {
-    if (googleRedirect?.authError && googleRedirect.authError !== "google_not_registered") {
+    const err = googleRedirect?.authError;
+    if (!err) return;
+
+    if (err === "google_not_registered") {
+      window.history.replaceState(null, "", window.location.pathname);
+      setActiveTab("signup");
+      setIsAuthRoute(true);
+      window.location.hash = "/signup";
+    } else {
       window.history.replaceState(null, "", window.location.pathname + window.location.hash);
     }
   }, [googleRedirect?.authError]);
 
-useEffect(() => {
-  if (googleRedirect?.authError !== "google_not_registered") return;
-
-  // Remove ?authError=... so a reload doesn't replay it
-  window.history.replaceState(null, "", window.location.pathname);
-
-  setActiveTab("signup");
-  setIsAuthRoute(true);
-  window.location.hash = "/signup"; // -> /#/signup
-}, [googleRedirect?.authError]);
+  //session expired
+  useEffect(() => {
+    const onExpired = () => {
+      setCurrentUser(null);
+      setErrorMessage('Your session has expired. Please log in again.');
+    };
+    window.addEventListener('session-expired', onExpired);
+    return () => window.removeEventListener('session-expired', onExpired);
+  }, []);
 
   // Status & Auth User State
   const [isLoading, setIsLoading] = useState(false);
@@ -251,6 +259,13 @@ useEffect(() => {
         return "";
       }
       return GOOGLE_ERRORS[googleRedirect.authError] || GOOGLE_ERRORS.google_failed;
+    }
+
+    // Shown after an automatic logout
+    const msg = sessionStorage.getItem('evolv-session-msg');
+    if (msg) {
+      sessionStorage.removeItem('evolv-session-msg');
+      return 'Your session has expired. Please log in again.';
     }
     return "";
   });

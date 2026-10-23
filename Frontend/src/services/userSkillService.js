@@ -23,7 +23,6 @@ export {
 
 // Convenience re-exports for destructured imports
 import { profileService } from "./profileService.js";
-
 /**
  * GET /api/skills/user-skills
  * Returns the authenticated user's saved user-skill records.
