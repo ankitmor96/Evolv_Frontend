@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   ArrowLeft, ChevronLeft, ChevronRight, ZoomIn, ZoomOut,
-  Heart, Sparkles, CheckCircle2, MessageCircle,
+  Heart, Sparkles, CheckCircle2, MessageCircle,Trash2,
 } from 'lucide-react';
 import { authService } from '../../services/authService.js';
 import { homePostService } from '../../services/homePostService.js';
@@ -25,6 +25,9 @@ export default function ImageViewerPage() {
   const [index, setIndex] = useState(0);
   const [zoomed, setZoomed] = useState(false);
   const [commentPostId, setCommentPostId] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const pending = useRef(new Set());
 
   // Load feed + my posts, keep only images
