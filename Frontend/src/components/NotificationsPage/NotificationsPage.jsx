@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Check, X, UserPlus, Bell } from 'lucide-react';
 import { connectionService } from '../../services/connectionService.js';
 import { authService } from '../../services/authService.js';
+import { getStoredToken } from '../../services/sessionService.js'; 
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 const goTo = (hash) => {

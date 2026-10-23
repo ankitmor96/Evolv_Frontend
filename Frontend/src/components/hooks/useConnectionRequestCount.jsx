@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { connectionService } from '../../services/connectionService.js';
+import { getStoredToken } from '../../services/sessionService.js'; 
+
 
 export function useConnectionRequestCount(intervalMs = 30000) {
   const [count, setCount] = useState(0);
