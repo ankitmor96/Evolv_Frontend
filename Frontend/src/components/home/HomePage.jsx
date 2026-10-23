@@ -1944,6 +1944,8 @@ function PostComposer({ user, onPostCreated }) {
   const [isPosting, setIsPosting] = useState(false);
   const [postError, setPostError] = useState('');
   const [caption, setCaption] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewFiles, setPreviewFiles] = useState([]);
 
   const [postData, setPostData] = useState({
     type: 'text',
@@ -1953,15 +1955,15 @@ function PostComposer({ user, onPostCreated }) {
     files: [],
   });
 
-  const [previewFiles, setPreviewFiles] = useState([]);
-
   const fileInputRef = useRef(null);
-
+  const documentInputRef = useRef(null);
   // ─────────────────────────────────────
   // Select post type
   // ─────────────────────────────────────
   const handleTypeSelect = (type) => {
     setSelectedType(type);
+    setPostError('');
+    setSelectedFile(null);
 
     setPostData((prev) => ({
       ...prev,
@@ -1973,10 +1975,6 @@ function PostComposer({ user, onPostCreated }) {
     }));
 
     setPreviewFiles([]);
-
-    // Note: we do NOT auto-open the file dialog here.
-    // The explicit "Choose…" button inside the composer body is the single
-    // trigger for the file picker, preventing duplicate dialogs.
   };
 
   // ─────────────────────────────────────
@@ -2032,20 +2030,21 @@ function PostComposer({ user, onPostCreated }) {
   // Post
   // ─────────────────────────────────────
 
-
-
-
   const handlePost = async () => {
+    if (selectedType === 'document' && !selectedFile) {
+      setPostError('Please choose a document before posting.');
+      return;
+    }
     if (
       !caption.trim() &&
       !postData.content.trim() &&
       !postData.title.trim() &&
-      postData.files.length === 0
+      postData.files.length === 0 &&
+      !selectedFile
     ) {
       setPostError('Please add a caption, content, title, or media.');
       return;
     }
-
     if (isPosting) return;
 
     setIsPosting(true);
@@ -2114,19 +2113,21 @@ function PostComposer({ user, onPostCreated }) {
           files: postData.files,
           file: selectedFile,
         });
+
         console.log('[Document Upload] Backend response:', raw);
-        console.log('[Document Upload] Parsed document:', created);
-        console.log('[Document Upload] Download URL:', documentUrl);
-        // Normalise the raw response into feed-post shape manually because
-        // these types may not return a mediaUrl or thumbnailUrl.
+
+        // 1) Declare created FIRST
         const created =
           raw?.post ?? raw?.data?.post ?? raw?.data ?? raw ?? {};
+
+        // 2) Then documentUrl
         const documentUrl =
           created.documentUrl ??
           created.documentURL ??
           created.fileUrl ??
           created.fileURL ??
           created.mediaUrl ??
+          created.media?.[0]?.mediaUrl ??
           created.document?.url ??
           created.document?.documentUrl ??
           created.file?.url ??
@@ -2135,14 +2136,20 @@ function PostComposer({ user, onPostCreated }) {
           created.url ??
           '';
 
+        // 3) Then the file name
         const documentName =
           selectedFile?.name ??
           created.fileName ??
           created.document?.name ??
           created.file?.originalName ??
           'Download document';
+
+        // 4) Only now log (everything exists)
+        console.log('[Document Upload] Parsed document:', created);
+        console.log('[Document Upload] Download URL:', documentUrl);
+
         newPost = {
-          id: created._id || created.id || `local-${Date.now()}`,
+          id: created._id || created.id || created.postId || `local-${Date.now()}`,
           type: 'post',
           caption: created.caption ?? caption.trim(),
           tags: Array.isArray(created.tags) ? created.tags : [],
@@ -2151,21 +2158,16 @@ function PostComposer({ user, onPostCreated }) {
             ? new Date(created.createdAt).toLocaleDateString()
             : 'Just now',
           creator: {
+            id: user?.id ?? user?.userId ?? user?._id,
             name: user?.name || user?.username || 'You',
             username: user?.username || '',
             field: user?.field || 'Community Member',
             avatar: user?.avatar || user?.profileImage || '',
           },
           media: {
-            type: selectedType === 'document'
-              ? 'document'
-              : 'text',
-            src: selectedType === 'document'
-              ? documentUrl
-              : '',
-            fileName: selectedType === 'document'
-              ? documentName
-              : '',
+            type: selectedType === 'document' ? 'document' : 'text',
+            src: selectedType === 'document' ? documentUrl : '',
+            fileName: selectedType === 'document' ? documentName : '',
           },
           liked: false,
           saved: false,
@@ -2180,7 +2182,6 @@ function PostComposer({ user, onPostCreated }) {
           likes: 0,
         };
       }
-
       // Add the new post to the top of the feed.
       onPostCreated?.(newPost);
 
@@ -2195,6 +2196,15 @@ function PostComposer({ user, onPostCreated }) {
 
       setCaption('');
       setSelectedType('text');
+      setSelectedFile(null);
+
+      previewFiles.forEach(({ url }) => {
+        URL.revokeObjectURL(url);
+      });
+      
+      setPreviewFiles([]);
+      if (documentInputRef.current) documentInputRef.current.value = '';
+      if (fileInputRef.current) fileInputRef.current.value = '';
 
       previewFiles.forEach(({ url }) => {
         URL.revokeObjectURL(url);
@@ -2215,9 +2225,6 @@ function PostComposer({ user, onPostCreated }) {
       setIsPosting(false);
     }
   };
-
-
-
 
   // ─────────────────────────────────────
   // File input configuration
@@ -2240,7 +2247,6 @@ function PostComposer({ user, onPostCreated }) {
 
   const isMultiple = selectedType === 'photos';
 
-  const [selectedFile, setSelectedFile] = useState(null);
   return (
     <div className="hp-composer" aria-label="Create a post">
 
@@ -2323,37 +2329,31 @@ function PostComposer({ user, onPostCreated }) {
             </>
           )}
 
-
-
           {/* DOCUMENT */}
           {selectedType === "document" && (
             <div className="hp-composer-upload-area">
               <p>Upload a document</p>
 
               <input
-                ref={fileInputRef}
+                ref={documentInputRef}
                 type="file"
                 accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt"
                 hidden
                 onChange={(e) => {
                   const file = e.target.files?.[0] || null;
                   setSelectedFile(file);
-                  console.log("Selected document:", file);
+                  setPostError('');
                 }}
               />
 
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => documentInputRef.current?.click()}
               >
                 Choose Document
               </button>
 
-              {selectedFile && (
-                <p>
-                  Selected: {selectedFile.name}
-                </p>
-              )}
+              {selectedFile && <p>Selected: {selectedFile.name}</p>}
             </div>
           )}
 
@@ -2560,10 +2560,10 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
   const [feedProfileName, setFeedProfileName] = useState(null);
 
   const handleCommentCountSync = useCallback((postId, count) => {
-  setPosts(prev => prev.map(p =>
-    String(p.id) !== String(postId) ? p : { ...p, comments: count }
-  ));
-}, []);
+    setPosts(prev => prev.map(p =>
+      String(p.id) !== String(postId) ? p : { ...p, comments: count }
+    ));
+  }, []);
 
   // ── Feed Posts from Backend API ──
   useEffect(() => {

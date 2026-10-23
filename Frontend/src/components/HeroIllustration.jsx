@@ -36,7 +36,7 @@ const SKILL_ITEMS = [
   },
   {
     id: 'audio',
-    title: 'philosophy',
+    title: 'Philosophy',
     subtitle: 'Learn • Share • Grow',
     icon: <Mic size={16} />,
     desktopPos: { right: '20%', top: '10%' },
