@@ -80,7 +80,10 @@ export default function NotificationsPage() {
 
 
   const load = useCallback(async (silent = false) => {
-    if (!getStoredToken()) return;
+    if (!getStoredToken()) {
+    setLoading(false);       
+    return;
+  }
     if (!silent) setLoading(true);
     const [r, s] = await Promise.all([
       connectionService.getReceivedRequests(),
