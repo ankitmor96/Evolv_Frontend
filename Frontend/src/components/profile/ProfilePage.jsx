@@ -55,6 +55,7 @@ import { getProfile } from "../../services/getProfile.js";
 import { authService } from '../../services/authService.js';
 import { profileService } from '../../services/profileService.js';
 import { homePostService } from '../../services/homePostService.js';
+import { connectionService } from '../../services/connectionService.js';
 import socketService from '../../services/socketService.js';
 import CommentPanel from '../shared/CommentPanel.jsx';
 import { CURIOSITY_DOMAINS } from '../onboarding/onboardingData.js';
@@ -549,8 +550,11 @@ function GridItem({ post }) {
   );
 }
 
-function PostDetailModal({ post, onClose, onDiscuss }) {
+function PostDetailModal({ post, onClose, onDiscuss, onDelete }) {
   const [showCaption, setShowCaption] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const mediaType = post.media?.type;
   const mediaSrc = post.media?.src || '';
@@ -570,6 +574,25 @@ function PostDetailModal({ post, onClose, onDiscuss }) {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [onClose]);
+
+  const handleDeleteClick = () => {
+    setDeleteError('');
+    setConfirmDelete(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await onDelete(post.id);
+      onClose();
+    } catch (err) {
+      setDeleteError(err.message || 'Failed to delete post. Please try again.');
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
 
   const stats = [
     {
@@ -697,6 +720,52 @@ function PostDetailModal({ post, onClose, onDiscuss }) {
             </div>
           )}
 
+          {/* Delete post — only shown when onDelete is provided (own posts) */}
+          {onDelete && (
+            <div className="pp-post-modal-delete-zone">
+              {deleteError && (
+                <p className="pp-post-modal-delete-error" role="alert">{deleteError}</p>
+              )}
+              {!confirmDelete ? (
+                <button
+                  type="button"
+                  className="pp-post-modal-delete-btn"
+                  onClick={handleDeleteClick}
+                  disabled={deleting}
+                  aria-label="Delete this post"
+                >
+                  <Trash2 size={14} aria-hidden="true" />
+                  Delete Post
+                </button>
+              ) : (
+                <div className="pp-post-modal-delete-confirm">
+                  <p className="pp-post-modal-delete-confirm-msg">
+                    Are you sure you want to permanently delete this post?
+                  </p>
+                  <div className="pp-post-modal-delete-confirm-actions">
+                    <button
+                      type="button"
+                      className="pp-post-modal-delete-cancel-btn"
+                      onClick={() => setConfirmDelete(false)}
+                      disabled={deleting}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="pp-post-modal-delete-confirm-btn"
+                      onClick={handleDeleteConfirm}
+                      disabled={deleting}
+                      aria-busy={deleting}
+                    >
+                      {deleting ? 'Deleting…' : 'Yes, Delete'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <p className="pp-post-modal-note">
             Opened from your profile posts.
           </p>
@@ -707,7 +776,7 @@ function PostDetailModal({ post, onClose, onDiscuss }) {
 }
 
 // ─── Content Section ──────────────────────────────────────────────────────────
-function ContentSection({ posts, onDiscuss }) {
+function ContentSection({ posts, onDiscuss, onDelete }) {
   const [activeTab, setActiveTab] = useState('all');
   const [selectedPost, setSelectedPost] = useState(null);
 
@@ -741,7 +810,7 @@ function ContentSection({ posts, onDiscuss }) {
     const isVideo = post.media?.type === 'video' || post.type === 'reel';
     if (isVideo && post.media?.src) openReel(post.id);
     else if (post.media?.type === 'image' && post.media?.src) openImage(post.id);
-    else setSelectedPost(post);   
+    else setSelectedPost(post);
   };
 
   const filtered = getFiltered();
@@ -819,14 +888,9 @@ function ContentSection({ posts, onDiscuss }) {
               >
                 <GridItem post={post} />
               </div>
-
             ))}
-
           </div>
-
         )}
-
-
       </div>
       {/* Instagram-style post detail modal */}
       {selectedPost && (
@@ -834,6 +898,7 @@ function ContentSection({ posts, onDiscuss }) {
           post={selectedPost}
           onClose={() => setSelectedPost(null)}
           onDiscuss={onDiscuss}
+          onDelete={onDelete}
         />
       )}
     </section>
@@ -853,7 +918,7 @@ function useToast() {
 }
 
 // ─── Profile Hero ─────────────────────────────────────────────────────────────
-function ProfileHero({ profile, user, identities, showToast, onOpenSettings, postCounts }) {
+function ProfileHero({ profile, user, identities, showToast, onOpenSettings, postCounts, connectionsCount }) {
   const displayName = profile?.fullName || user?.name || 'Your Name';
   const username =
     profile?.username || (user?.email || '').split('@')[0] || 'username';
@@ -972,7 +1037,9 @@ function ProfileHero({ profile, user, identities, showToast, onOpenSettings, pos
             <span className="pp-stat-label">Posts</span>
           </div>
           <div className="pp-stat" role="listitem">
-            <span className="pp-stat-value">0</span>
+            <span className="pp-stat-value" aria-live="polite" aria-atomic="true">
+              {connectionsCount !== null ? connectionsCount : '–'}
+            </span>
             <span className="pp-stat-label">Connections</span>
           </div>
         </div>
@@ -1555,6 +1622,13 @@ export default function ProfilePage() {
    * null = request in flight; object = resolved (totalPosts, imageCount, videoCount, documentCount).
    */
   const [postCounts, setPostCounts] = useState(null);
+  /**
+   * connectionsCount — real accepted-connection count from GET /api/connections.
+   * null = loading, number = resolved.
+   */
+  const [connectionsCount, setConnectionsCount] = useState(null);
+  /** Guard: postIds currently being deleted (prevents duplicate requests). */
+  const pendingDelete = useRef(new Set());
 
   const { toast, showToast } = useToast();
 
@@ -1835,6 +1909,27 @@ export default function ProfilePage() {
     return () => { cancelled = true; };
   }, []);
 
+  // ── Load connections count (GET /api/connections) ──────────────────────────
+  // Runs once on mount. Shows real accepted-connection count in the stats row.
+  useEffect(() => {
+    if (!authUser) return;
+    let cancelled = false;
+
+    connectionService
+      .getMyConnections()
+      .then((list) => {
+        if (cancelled) return;
+        setConnectionsCount(Array.isArray(list) ? list.length : 0);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn('[ProfilePage] Could not load connections count:', err.message);
+        setConnectionsCount(0);
+      });
+
+    return () => { cancelled = true; };
+  }, [authUser]);
+
   // ── Socket.IO for profile page ─────────────────────────────────────────────
   useEffect(() => {
     socketService.connect();
@@ -1938,6 +2033,57 @@ export default function ProfilePage() {
   const handleDiscuss = useCallback((postId) => {
     setOpenCommentPostId(String(postId));
   }, []);
+
+  // ── Delete Post ────────────────────────────────────────────────────────────
+  /**
+   * Delete a post owned by the authenticated user.
+   * Ownership is verified by matching authUserId with the post's creator id.
+   * The backend also enforces ownership and rejects unauthorised requests.
+   * The post is removed from local state ONLY after the backend confirms success.
+   */
+  const handleDeletePost = useCallback(async (postId) => {
+    if (pendingDelete.current.has(String(postId))) return;
+
+    // Ownership check before calling the API
+    const targetPost = posts.find((p) => String(p.id) === String(postId));
+    if (!targetPost) throw new Error('Post not found.');
+
+    const creatorId =
+      targetPost.creator?.id ??
+      targetPost.creator?.userId ??
+      targetPost.userId ??
+      null;
+
+    if (
+      authUserId != null &&
+      creatorId != null &&
+      String(creatorId) !== String(authUserId)
+    ) {
+      throw new Error('You can only delete your own posts.');
+    }
+
+    pendingDelete.current.add(String(postId));
+    try {
+      await homePostService.deletePost(postId);
+
+      // Remove post from local list — only after backend confirms success
+      setPosts((prev) => prev.filter((p) => String(p.id) !== String(postId)));
+
+      // Refresh authoritative post counts from the backend
+      profileService
+        .getMyPostCounts()
+        .then((counts) => setPostCounts(counts))
+        .catch((err) =>
+          console.warn('[ProfilePage] Post counts refresh after delete:', err.message)
+        );
+
+      showToast('Post deleted.');
+    } finally {
+      pendingDelete.current.delete(String(postId));
+    }
+  // posts is needed to find the target post; authUserId and showToast are stable
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posts, authUserId, showToast]);
 
   const handleCommentCountChange = useCallback((postId, delta) => {
     setPosts(prev => prev.map(p =>
@@ -2073,6 +2219,7 @@ export default function ProfilePage() {
                 showToast={showToast}
                 onOpenSettings={() => setShowSettingsModal(true)}
                 postCounts={postCounts}
+                connectionsCount={connectionsCount}
               />
 
               <SkillsCard skills={skills} onEditSkills={handleOpenSkillsModal} />
@@ -2090,7 +2237,11 @@ export default function ProfilePage() {
                   </div>
                 </div>
               ) : (
-                <ContentSection posts={posts} onDiscuss={handleDiscuss} />
+                <ContentSection
+                  posts={posts}
+                  onDiscuss={handleDiscuss}
+                  onDelete={handleDeletePost}
+                />
               )}
             </>
           )}

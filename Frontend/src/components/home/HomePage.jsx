@@ -35,13 +35,13 @@ import {
 } from 'lucide-react';
 import { authService } from '../../services/authService.js';
 import { homePostService } from '../../services/homePostService.js';
+import { connectionService } from '../../services/connectionService.js';
 import { fetchHomeTabs, mapTabsToLabels } from '../../services/homeTabService.js';
-import { getUserSkills } from '../../services/userSkillService.js';
 import { profileService } from '../../services/profileService.js';
 import { getProfile } from '../../services/getProfile.js';
 import socketService from '../../services/socketService.js';
 import { CREATORS, INTEREST_TABS } from '../../data/homeData.js';
-import { avatarUrl } from '../../data/avatarUtils.js';
+import { useConnectionRequestCount } from '../../components/hooks/useConnectionRequestCount.jsx';
 import './HomePage.css';
 
 // ─── Navigation helper (matches App.jsx's custom routing) ───────────────────
@@ -738,11 +738,11 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
 // HEADER (top of feed)
 // ─────────────────────────────────────────────────────────────────────────────
 function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRightSidebar }) {
-  const [notifOpen, setNotifOpen] = useState(false);
+  const pendingCount = useConnectionRequestCount();
 
   return (
     <header className="hp-feed-header" style={{ marginTop: "10px" }}>
-      {/* ── Hamburger: visible only on mobile (CSS shows/hides via .hp-mobile-menu-btn) ── */}
+      {/* ── Hamburger: visible only on mobile ── */}
       <button
         type="button"
         className="hp-mobile-menu-btn"
@@ -757,12 +757,16 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
         {/* Notification bell */}
         <button
           className="hp-icon-btn"
-          aria-label="Notifications"
-          onClick={() => setNotifOpen(v => !v)}
+          aria-label={`Notifications${pendingCount ? ` (${pendingCount} new)` : ''}`}
+          onClick={() => {
+            window.location.hash = '/notifications';
+            window.dispatchEvent(new Event('navigated'));
+          }}
         >
           <Bell size={20} aria-hidden="true" />
-          <span className="hp-notif-dot" aria-hidden="true" />
+          {pendingCount > 0 && <span className="hp-notif-dot" aria-hidden="true" />}
         </button>
+
         &nbsp;
         {/* Messages */}
         <button className="hp-icon-btn"
@@ -774,6 +778,7 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
           style={{ marginRight: "10px" }}>
           <MessageCircle size={20} aria-hidden="true" />
         </button>
+
         {/* Right-sidebar toggle: only on mobile */}
         <button
           type="button"
@@ -783,6 +788,7 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
         >
           <LayoutDashboard size={20} aria-hidden="true" />
         </button>
+        
         {/* Profile avatar — navigates to #/profile on click */}
         <button
           type="button"
@@ -966,11 +972,6 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
     currentUserId != null &&
     creatorId != null &&
     String(currentUserId) === String(creatorId);
-  console.log('Current user:', currentUser);
-  console.log('Post creator:', post.creator);
-  console.log('Current user ID:', currentUserId);
-  console.log('Creator ID:', creatorId);
-  console.log('Is own post:', isOwnPost);
   return (
     <article className="hp-post" aria-label={`${post.type === 'reel' ? 'Reel' : 'Post'} by ${post.creator.name}`}>
       {/* Post header */}
@@ -991,26 +992,27 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
           </div>
         </div>
         <div className="hp-post-header-right">
-          {!isOwnPost && (
-            <button
-              className={`hp-follow-btn ${post.followed ? 'following' : ''}`}
-              onClick={() => onFollow(post.id)}
-              aria-label={
-                post.followed
-                  ? `Disconnect from ${post.creator.name}`
-                  : `Connect with ${post.creator.name}`
-              }
-            >
-              {post.followed ? (
-                <>
-                  <CheckCheck size={13} aria-hidden="true" />
-                  Connected
-                </>
-              ) : (
-                '+ Connect'
-              )}
-            </button>
-          )}
+          {!isOwnPost && (() => {
+            const status = post.connectionStatus ?? 'none';
+
+            const config = {
+              none: { label: '+ Connect', cls: '', aria: `Connect with ${post.creator.name}` },
+              pending: { label: 'Requested', cls: 'following', aria: `Cancel request to ${post.creator.name}` },
+              incoming: { label: 'Accept', cls: '', aria: `Accept request from ${post.creator.name}` },
+              connected: { label: 'Connected', cls: 'following', aria: `Disconnect from ${post.creator.name}` },
+            }[status];
+
+            return (
+              <button
+                className={`hp-follow-btn ${config.cls}`}
+                onClick={() => onFollow(post.id)}
+                aria-label={config.aria}
+              >
+                {status === 'connected' && <CheckCheck size={13} aria-hidden="true" />}
+                {config.label}
+              </button>
+            );
+          })()}
         </div>
       </div>
 
@@ -2201,7 +2203,7 @@ function PostComposer({ user, onPostCreated }) {
       previewFiles.forEach(({ url }) => {
         URL.revokeObjectURL(url);
       });
-      
+
       setPreviewFiles([]);
       if (documentInputRef.current) documentInputRef.current.value = '';
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -2574,15 +2576,17 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
         setPostsLoading(true);
         setPostsAuthError(null);
 
-        // Fetch feed and current user's profile in parallel.
-        // Profile is used to: (a) show the header avatar, (b) enrich feed
-        // posts that the backend returns with only a userId (no creator obj).
-        const [response, profileData] = await Promise.all([
+        const authUser = authService.getCurrentUser();
+        const currentUserId = authUser?.id ?? authUser?.userId ?? authUser?._id ?? null;
+
+        const [response, profileData, connectionMap] = await Promise.all([
           homePostService.getFeedPosts(),
           getProfile.getProfile().catch(() => null),
+          connectionService.getConnectionMap(currentUserId),
         ]);
 
         const backendPosts = response?.posts ?? [];
+
 
         if (cancelled) return;
 
@@ -2594,16 +2598,16 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
           if (name) setFeedProfileName(name);
         }
 
-        // Determine the authenticated user's ID so we can enrich own posts.
-        const authUser = authService.getCurrentUser();
-        const currentUserId = authUser?.id ?? authUser?.userId ?? authUser?._id ?? null;
-
         const mappedPosts = backendPosts.map((post) => {
+          const base = homePostService._normalisePost(post);
+          const conn = connectionMap.get(String(base.creator?.id ?? post.userId));
+
           const normalised = {
-            ...homePostService._normalisePost(post),
+            ...base,
             liked: post.liked ?? false,
             saved: post.saved ?? false,
-            followed: post.followed ?? false,
+            connectionStatus: conn?.status ?? 'none',
+            connectionId: conn?.connectionId ?? null,
           };
 
           // Enrich posts authored by the current user whose creator info the
@@ -2772,11 +2776,100 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
     ));
   }, []);
 
-  const handleFollow = useCallback((postId) => {
-    setPosts(prev => prev.map(p =>
-      p.id !== postId ? p : { ...p, followed: !p.followed }
-    ));
+  const postsRef = useRef([]);
+  useEffect(() => { postsRef.current = posts; }, [posts]);
+
+  const pendingConnect = useRef(new Set()); // keyed by creatorId
+
+  // Update EVERY post by the same creator (they can have many posts in the feed)
+  const setCreatorConnection = useCallback((creatorId, patch) => {
+    setPosts((ps) =>
+      ps.map((p) =>
+        String(p.creator?.id) === String(creatorId) ? { ...p, ...patch } : p
+      )
+    );
   }, []);
+
+  const handleFollow = useCallback(async (postId) => {
+    const post = postsRef.current.find((p) => String(p.id) === String(postId));
+    const creatorId = post?.creator?.id;
+
+    if (creatorId == null) {
+      console.warn('[HomeFeed] Creator user ID not found for post', postId);
+      return;
+    }
+
+    const key = String(creatorId);
+    if (pendingConnect.current.has(key)) return;
+    pendingConnect.current.add(key);
+
+    const authUser = authService.getCurrentUser();
+    const me = authUser?.id ?? authUser?.userId ?? authUser?._id ?? null;
+
+    const status = post.connectionStatus ?? 'none';
+    const prev = { connectionStatus: status, connectionId: post.connectionId ?? null };
+
+    // Re-reads the server state and syncs every post by this creator
+    const syncFromServer = async () => {
+      const map = await connectionService.getConnectionMap(me);
+      const entry = map.get(key);
+      setCreatorConnection(
+        creatorId,
+        entry
+          ? { connectionStatus: entry.status, connectionId: entry.connectionId }
+          : { connectionStatus: 'none', connectionId: null }
+      );
+      return entry;
+    };
+
+    try {
+      if (status === 'none') {
+        // ── Send request ──
+        setCreatorConnection(creatorId, { connectionStatus: 'pending' });
+        try {
+          const res = await connectionService.sendConnectionRequest(creatorId);
+          const newId = res?.data?.id ?? res?.id ?? res?.connectionId ?? null;
+          if (newId != null) setCreatorConnection(creatorId, { connectionId: newId });
+          else await syncFromServer();
+        } catch (err) {
+          if (err.status === 409) {
+            // Already exists on the server → just sync the UI, no rollback
+            await syncFromServer();
+            return;
+          }
+          throw err;
+        }
+
+      } else if (status === 'incoming') {
+        // ── Accept their request ──
+        let id = prev.connectionId;
+        if (id == null) id = (await syncFromServer())?.connectionId;
+        if (id == null) throw new Error('Connection record not found.');
+
+        setCreatorConnection(creatorId, { connectionStatus: 'connected' });
+        await connectionService.acceptConnectionRequest(id);
+
+      } else {
+        // ── Cancel pending request / remove connection ──
+        if (status === 'connected' &&
+          !window.confirm(`Remove ${post.creator.name} from your connections?`)) {
+          return;
+        }
+
+        let id = prev.connectionId;
+        if (id == null) id = (await syncFromServer())?.connectionId;
+        if (id == null) throw new Error('Connection record not found.');
+
+        setCreatorConnection(creatorId, { connectionStatus: 'none', connectionId: null });
+        await connectionService.removeConnection(id);
+      }
+    } catch (err) {
+      console.warn('[HomeFeed] Connection action failed – rolling back:', err.message);
+      setCreatorConnection(creatorId, prev);
+    } finally {
+      pendingConnect.current.delete(key);
+    }
+  }, [setCreatorConnection]);
 
   // ── Discuss: open comment panel ─────────────────────────────────────────
   const handleDiscuss = useCallback((postId) => {
