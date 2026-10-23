@@ -230,10 +230,10 @@ export const authService = {
     return user;
   },
 
-  /**
- * Onboarding is complete only when ALL of these exist:
- * username + avatar + a role + at least one curiosity skill.
- */
+    /**
+   * Onboarding is complete only when ALL of these exist:
+   * username + avatar + a role + at least one curiosity skill.
+   */
   async isOnboardingComplete() {
     try {
       const [profileRes, identitiesRes, curiosityRes] = await Promise.all([
@@ -260,7 +260,7 @@ export const authService = {
     }
   },
 
-  async getPostLoginRoute() {
+   async getPostLoginRoute() {
     const token =
       localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
     if (!token) return "/login";
