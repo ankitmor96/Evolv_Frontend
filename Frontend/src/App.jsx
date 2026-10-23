@@ -10,6 +10,7 @@ import ProfilePage from './components/profile/ProfilePage';
 import ReelsPage from './components/reels/ReelPage.jsx';
 import ImageViewerPage from './components/image/ImageViewerPage.jsx';
 import NotificationsPage from './components/NotificationsPage/NotificationsPage.jsx';
+import LegalPage from './components/legal/LegalPage.jsx';
 import { isTokenExpired, getStoredToken, msUntilExpiry, forceLogout } from './services/sessionService.js';
 
 /**
@@ -151,5 +152,7 @@ export default function App() {
   if (route === '/notifications') {
     return <NotificationsPage />;
   }
+  if (route === '/terms') return <LegalPage type="terms" />;
+  if (route === '/privacy') return <LegalPage type="privacy" />;
   return <Hero />;
 }

@@ -89,7 +89,7 @@ const COMMUNITY_NAV = [
 const DEV_LEARNING_GOALS = [];
 function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen }) {
   // ── Real user skills from GET /api/skills/user-skills ─────────────────
-  const [sidebarSkills, setSidebarSkills] = useState([]);   // null = loading
+  const [sidebarSkills, setSidebarSkills] = useState([]);
   const [sidebarGoals, setSidebarGoals] = useState([]);
   const [skillsLoading, setSkillsLoading] = useState(true);
 
@@ -97,6 +97,7 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
   const [profileAvatarUrl, setProfileAvatarUrl] = useState(null);
   const [profileUsername, setProfileUsername] = useState(null);
   const [profileDisplayName, setProfileDisplayName] = useState(null);
+  const requestCount = useConnectionRequestCount();
 
   useEffect(() => {
     let cancelled = false;
@@ -764,7 +765,11 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
           }}
         >
           <Bell size={20} aria-hidden="true" />
-          {pendingCount > 0 && <span className="hp-notif-dot" aria-hidden="true" />}
+          {pendingCount > 0 && (
+            <span className="hp-notif-badge" aria-hidden="true">
+              {pendingCount > 9 ? '9+' : pendingCount}
+            </span>
+          )}
         </button>
 
         &nbsp;
@@ -788,7 +793,7 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
         >
           <LayoutDashboard size={20} aria-hidden="true" />
         </button>
-        
+
         {/* Profile avatar — navigates to #/profile on click */}
         <button
           type="button"

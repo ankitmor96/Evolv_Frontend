@@ -176,11 +176,14 @@ const LoginPage = () => {
   const [countdown, setCountdown] = useState(0);
 
   // Forgot Password state (email is reused from the login form above)
-  const [forgotStep, setForgotStep] = useState("email"); // "email" -> "otp"
+  const [forgotStep, setForgotStep] = useState("email");
   const [forgotOtp, setForgotOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [forgotConfirmPassword, setForgotConfirmPassword] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+
+  const [otpName, setOtpName] = useState("");
+  const [accountMissing, setAccountMissing] = useState(false);
 
   const [googleRedirect] = useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -225,8 +228,8 @@ const LoginPage = () => {
     googleRedirect?.name,
     googleRedirect?.authError,
   ]);
-  
-//error google redirect signup
+
+  //error google redirect signup
   useEffect(() => {
     const err = googleRedirect?.authError;
     if (!err) return;
@@ -436,6 +439,8 @@ const LoginPage = () => {
     setAuthMethod(method);
     setErrorMessage("");
     setSuccessMessage("");
+    setAccountMissing(false);
+    setOtpName("");
     setOtpSent(false);
     setOtpCode("");
 
@@ -503,15 +508,32 @@ const LoginPage = () => {
     e?.preventDefault();
     setErrorMessage("");
     setSuccessMessage("");
-    setIsLoading(true);
+    setAccountMissing(false);
 
+    const err = emailError(email);
+    if (err) { setErrorMessage(err); return; }
+    if (activeTab === "signup" && otpName.trim().length < 2) {
+      setErrorMessage("Please enter your full name.");
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      const res = await authService.sendEmailOTP(email);
+      const res = await authService.sendEmailOTP(
+        email,
+        activeTab === "signup" ? "signup" : "login",
+        otpName
+      );
       setOtpSent(true);
       setCountdown(30);
       setSuccessMessage(res.message || "OTP code sent to your email!");
-    } catch (err) {
-      setErrorMessage(err.message || "Failed to send OTP.");
+    } catch (error) {
+      if (activeTab === "login" && (error.status === 404 || /no account/i.test(error.message))) {
+        setAccountMissing(true);
+        setErrorMessage("No account found with this email.");
+      } else {
+        setErrorMessage(error.message || "Failed to send OTP.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -606,6 +628,15 @@ const LoginPage = () => {
     }
   };
 
+  const switchToSignupKeepOtp = () => {
+    setAccountMissing(false);
+    setErrorMessage("");
+    setOtpSent(false);
+    setOtpCode("");
+    setActiveTab("signup");
+    window.location.hash = "/signup";
+  };
+
   const handleLogout = () => {
     authService.logout();
     setCurrentUser(null);
@@ -622,6 +653,8 @@ const LoginPage = () => {
     setFieldErrors({});
     setSuccessMessage("Logged out successfully.");
     setErrorMessage("");
+    setAccountMissing(false);
+    setOtpName("");
   };
   useEffect(() => {
     const onShow = (e) => { if (e.persisted) setIsLoading(false); };
@@ -956,12 +989,22 @@ const LoginPage = () => {
                     </form>
                   )}
 
-                  {/* METHOD 2: Email OTP Login */}
                   {authMethod === "email_otp" && (
                     <form onSubmit={otpSent ? handleVerifyEmailOTP : handleSendEmailOTP}>
+                      {activeTab === "signup" && !otpSent && (
+                        <div className="input-group">
+                          <span className="input-icon"><UserIcon /></span>
+                          <input
+                            type="text"
+                            placeholder="Full Name"
+                            value={otpName}
+                            onChange={(e) => setOtpName(e.target.value)}
+                          />
+                        </div>
+                      )}
+
                       <div className="input-group">
                         <span className="input-icon"><MailEnvelopeIcon /></span>
-
                         <input
                           type="email"
                           placeholder="Email address"
@@ -975,48 +1018,35 @@ const LoginPage = () => {
                       {otpSent && (
                         <div className="input-group">
                           <span className="input-icon">🔑</span>
-
                           <input
                             type="text"
-                            placeholder="Enter 6-digit OTP (e.g. 123456)"
+                            inputMode="numeric"
+                            placeholder="Enter 6-digit OTP"
                             value={otpCode}
-                            onChange={(e) => setOtpCode(e.target.value)}
+                            onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                             maxLength={6}
                             required
                           />
                         </div>
                       )}
 
+                      {accountMissing && (
+                        <button type="button" className="forgot-btn" onClick={switchToSignupKeepOtp}>
+                          New here? Create an account with this email →
+                        </button>
+                      )}
+
                       <button type="submit" className="main-login-btn" disabled={isLoading}>
                         {isLoading ? (
                           <span className="loader-spinner"></span>
                         ) : otpSent ? (
-                          <>Verify & Login <span><ArrowRightIcon /></span></>
+                          <>{activeTab === "signup" ? "Verify & Create Account" : "Verify & Login"} <span><ArrowRightIcon /></span></>
                         ) : (
-                          <>Send Email OTP <span><ArrowRightIcon /></span></>
+                          <>{activeTab === "signup" ? "Sign up with Email OTP" : "Send Email OTP"} <span><ArrowRightIcon /></span></>
                         )}
                       </button>
 
-                      {otpSent && (
-                        <div className="otp-resend-row">
-                          <button
-                            type="button"
-                            className="forgot-btn"
-                            disabled={countdown > 0 || isLoading}
-                            onClick={handleSendEmailOTP}
-                          >
-                            {countdown > 0 ? `Resend OTP in ${countdown}s` : "Resend OTP"}
-                          </button>
-
-                          <button
-                            type="button"
-                            className="forgot-btn change-num-btn"
-                            onClick={() => setOtpSent(false)}
-                          >
-                            Change Email
-                          </button>
-                        </div>
-                      )}
+                      {/* keep your existing resend / change-email row below */}
                     </form>
                   )}
 

@@ -1091,45 +1091,37 @@ function SettingsModal({ onClose }) {
   );
 
   // ── Sub-views ──────────────────────────────────────────────────────────────
-  const AboutUsView = () => (
-    <>
-      <BackBtn onClick={() => setView('main')} />
-      <h3 className="pp-settings-sub-title">About Us</h3>
-      <div className="pp-settings-menu">
-        <button
-          type="button"
-          className="pp-settings-item"
-          onClick={() => {
-            // Open in new tab if a real URL exists; otherwise show placeholder
-            const url = window.EVOLV_TERMS_URL || null;
-            if (url) { window.open(url, '_blank', 'noopener'); }
-            else { setView('termsPlaceholder'); }
-          }}
-        >
-          <span className="pp-settings-item-icon">
-            <FileText size={18} aria-hidden="true" />
-          </span>
-          <span className="pp-settings-item-label">Terms of Use</span>
-          <ChevronRight size={14} className="pp-settings-item-arrow" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="pp-settings-item"
-          onClick={() => {
-            const url = window.EVOLV_PRIVACY_URL || null;
-            if (url) { window.open(url, '_blank', 'noopener'); }
-            else { setView('privacyPlaceholder'); }
-          }}
-        >
-          <span className="pp-settings-item-icon">
-            <Shield size={18} aria-hidden="true" />
-          </span>
-          <span className="pp-settings-item-label">Privacy Policy</span>
-          <ChevronRight size={14} className="pp-settings-item-arrow" aria-hidden="true" />
-        </button>
-      </div>
-    </>
-  );
+ const AboutUsView = () => (
+  <>
+    <BackBtn onClick={() => setView('main')} />
+    <h3 className="pp-settings-sub-title">About Us</h3>
+    <div className="pp-settings-menu">
+      <button
+        type="button"
+        className="pp-settings-item"
+        onClick={() => { onClose(); navigate('/terms'); }}
+      >
+        <span className="pp-settings-item-icon">
+          <FileText size={18} aria-hidden="true" />
+        </span>
+        <span className="pp-settings-item-label">Terms of Use</span>
+        <ChevronRight size={14} className="pp-settings-item-arrow" aria-hidden="true" />
+      </button>
+
+      <button
+        type="button"
+        className="pp-settings-item"
+        onClick={() => { onClose(); navigate('/privacy'); }}
+      >
+        <span className="pp-settings-item-icon">
+          <Shield size={18} aria-hidden="true" />
+        </span>
+        <span className="pp-settings-item-label">Privacy Policy</span>
+        <ChevronRight size={14} className="pp-settings-item-arrow" aria-hidden="true" />
+      </button>
+    </div>
+  </>
+);
 
   const PlaceholderView = ({ title, icon, message, onBack }) => (
     <>
@@ -1180,22 +1172,6 @@ function SettingsModal({ onClose }) {
           icon="🛟"
           message="Help documentation is coming soon. For urgent issues, email support@evolv.app."
           onBack={() => setView('main')}
-        />
-      );
-      case 'termsPlaceholder': return (
-        <PlaceholderView
-          title="Terms of Use"
-          icon="📄"
-          message="Our Terms of Use page is being prepared. Please check back soon."
-          onBack={() => setView('about')}
-        />
-      );
-      case 'privacyPlaceholder': return (
-        <PlaceholderView
-          title="Privacy Policy"
-          icon="🔒"
-          message="Our Privacy Policy page is being prepared. Please check back soon."
-          onBack={() => setView('about')}
         />
       );
       case 'deleteConfirm': return <DeleteConfirmView />;

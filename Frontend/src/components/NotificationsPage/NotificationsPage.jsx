@@ -152,6 +152,7 @@ export default function NotificationsPage() {
       // Remove from the list immediately
       setReceived((l) => l.filter((x) => (x.id ?? x.connectionId) !== id));
       setSent((l) => l.filter((x) => (x.id ?? x.connectionId) !== id));
+      window.dispatchEvent(new Event('connections-changed'));   
     } catch (err) {
       showToast(err.message || 'Something went wrong');
       load(true);

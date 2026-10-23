@@ -37,11 +37,12 @@ const request = async (route, body) => {
   console.debug(`[authService] ${response.status} ←`, payload);
 
   if (!response.ok) {
-    throw new Error(
+    const err = new Error(
       extractErrorMessage(payload, `Request failed with status ${response.status}.`)
     );
+    err.status = response.status;
+    throw err;
   }
-
   return payload;
 };
 
@@ -119,8 +120,13 @@ export const authService = {
   /**
    * Request Email OTP
    */
-  async sendEmailOTP(email) {
-    return request("email-otp/send", { email: normalizeEmail(email) });
+  //  sendEmailOTP
+  async sendEmailOTP(email, mode = "login", name = "") {
+    return request("email-otp/send", {
+      email: normalizeEmail(email),
+      mode,
+      ...(name.trim() ? { name: name.trim() } : {}),
+    });
   },
 
   /**
@@ -161,7 +167,7 @@ export const authService = {
   /**
    * Login with Google
    */
- 
+
   loginWithGoogle(mode = "login") {
     const backendUrl =
       import.meta.env.VITE_API_BASE_URL ||
