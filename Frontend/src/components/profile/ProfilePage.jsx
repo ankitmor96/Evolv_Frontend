@@ -53,7 +53,7 @@ import {
   ZoomIn,
   ZoomOut,
   CheckCircle2,
-  
+
 } from 'lucide-react';
 
 import { getProfile } from "../../services/getProfile.js";
@@ -82,6 +82,14 @@ function openImage(postId) {
   sessionStorage.setItem('evolv-image-start', String(postId));
   sessionStorage.setItem('evolv-image-back', window.location.hash.replace(/^#/, '') || '/home');
   window.location.hash = '/image';
+  window.dispatchEvent(new Event('navigated'));
+}
+function openMyPost(postId, tab) {
+  const filterMap = { images: 'image', reels: 'video', all: 'all', articles: 'all' };
+  sessionStorage.setItem('evolv-myposts-start', String(postId));
+  sessionStorage.setItem('evolv-myposts-filter', filterMap[tab] || 'all');
+  sessionStorage.setItem('evolv-myposts-back', '/profile');
+  window.location.hash = '/my-posts';
   window.dispatchEvent(new Event('navigated'));
 }
 // ─── Sidebar nav items ───────────────────────────────────────────────────────
@@ -812,10 +820,12 @@ function ContentSection({ posts, onDiscuss, onDelete }) {
   };
 
   const openPost = (post) => {
-    const isVideo = post.media?.type === 'video' || post.type === 'reel';
-    if (isVideo && post.media?.src) openReel(post.id);
-    else if (post.media?.type === 'image' && post.media?.src) openImage(post.id);
-    else setSelectedPost(post);
+    const type = post.media?.type;
+    const isVideo = type === 'video' || post.type === 'reel';
+    const viewable = isVideo || type === 'image' || type === 'document';
+
+    if (viewable && post.media?.src) openMyPost(post.id, activeTab);
+    else setSelectedPost(post); // text-only posts keep the modal
   };
 
   const filtered = getFiltered();
@@ -1002,7 +1012,10 @@ function ProfileHero({ profile, user, identities, showToast, onOpenSettings, pos
             </button>
             <button
               className="pp-edit-btn"
-              onClick={() => navigate('/onboarding')}
+              onClick={() => {
+                sessionStorage.setItem('evolv-edit-profile', '1');
+                navigate('/onboarding');
+              }}
               aria-label="Edit profile"
             >
               <Edit3 size={14} aria-hidden="true" />
@@ -1096,37 +1109,37 @@ function SettingsModal({ onClose }) {
   );
 
   // ── Sub-views ──────────────────────────────────────────────────────────────
- const AboutUsView = () => (
-  <>
-    <BackBtn onClick={() => setView('main')} />
-    <h3 className="pp-settings-sub-title">About Us</h3>
-    <div className="pp-settings-menu">
-      <button
-        type="button"
-        className="pp-settings-item"
-        onClick={() => { onClose(); navigate('/terms'); }}
-      >
-        <span className="pp-settings-item-icon">
-          <FileText size={18} aria-hidden="true" />
-        </span>
-        <span className="pp-settings-item-label">Terms of Use</span>
-        <ChevronRight size={14} className="pp-settings-item-arrow" aria-hidden="true" />
-      </button>
+  const AboutUsView = () => (
+    <>
+      <BackBtn onClick={() => setView('main')} />
+      <h3 className="pp-settings-sub-title">About Us</h3>
+      <div className="pp-settings-menu">
+        <button
+          type="button"
+          className="pp-settings-item"
+          onClick={() => { onClose(); navigate('/terms'); }}
+        >
+          <span className="pp-settings-item-icon">
+            <FileText size={18} aria-hidden="true" />
+          </span>
+          <span className="pp-settings-item-label">Terms of Use</span>
+          <ChevronRight size={14} className="pp-settings-item-arrow" aria-hidden="true" />
+        </button>
 
-      <button
-        type="button"
-        className="pp-settings-item"
-        onClick={() => { onClose(); navigate('/privacy'); }}
-      >
-        <span className="pp-settings-item-icon">
-          <Shield size={18} aria-hidden="true" />
-        </span>
-        <span className="pp-settings-item-label">Privacy Policy</span>
-        <ChevronRight size={14} className="pp-settings-item-arrow" aria-hidden="true" />
-      </button>
-    </div>
-  </>
-);
+        <button
+          type="button"
+          className="pp-settings-item"
+          onClick={() => { onClose(); navigate('/privacy'); }}
+        >
+          <span className="pp-settings-item-icon">
+            <Shield size={18} aria-hidden="true" />
+          </span>
+          <span className="pp-settings-item-label">Privacy Policy</span>
+          <ChevronRight size={14} className="pp-settings-item-arrow" aria-hidden="true" />
+        </button>
+      </div>
+    </>
+  );
 
   const PlaceholderView = ({ title, icon, message, onBack }) => (
     <>
@@ -2062,8 +2075,8 @@ export default function ProfilePage() {
     } finally {
       pendingDelete.current.delete(String(postId));
     }
-  // posts is needed to find the target post; authUserId and showToast are stable
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // posts is needed to find the target post; authUserId and showToast are stable
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [posts, authUserId, showToast]);
 
   const handleCommentCountChange = useCallback((postId, delta) => {

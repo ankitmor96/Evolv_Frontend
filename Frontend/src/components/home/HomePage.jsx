@@ -1945,7 +1945,7 @@ const COMPOSER_TYPES = [
   { label: 'Achievement', type: 'achievement', icon: '🏆' },
 ];
 
-function PostComposer({ user, onPostCreated }) {
+function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
   const [selectedType, setSelectedType] = useState('text');
   const isMediaType = ['short_video', 'photos', 'document'].includes(selectedType);
   const [isPosting, setIsPosting] = useState(false);
@@ -2081,7 +2081,7 @@ function PostComposer({ user, onPostCreated }) {
               name: user?.name || user?.username || 'You',
               username: user?.username || '',
               field: user?.field || 'Community Member',
-              avatar: user?.avatar || user?.profileImage || '',
+              avatar: profileAvatar || user?.avatar || user?.profileImage || '',
             },
           };
         }
@@ -2100,10 +2100,10 @@ function PostComposer({ user, onPostCreated }) {
           newPost = {
             ...newPost,
             creator: {
-              name: user?.name || user?.username || 'You',
+              avatar: profileAvatar || user?.avatar || user?.profileImage || '',
               username: user?.username || '',
               field: user?.field || 'Community Member',
-              avatar: user?.avatar || user?.profileImage || '',
+              avatar: profileAvatar || user?.avatar || user?.profileImage || '',
             },
           };
         }
@@ -2263,8 +2263,8 @@ function PostComposer({ user, onPostCreated }) {
       <div className="hp-composer-header">
 
         <Avatar
-          src={user?.avatar}
-          name={user?.name || 'You'}
+          src={profileAvatar || user?.avatar}
+          name={profileName || user?.name || 'You'}
           size={38}
         />
 
@@ -2897,109 +2897,109 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
   const pendingLearned = useRef(new Set());
 
   // ── Appreciate ───────────────────────────────────────────────────────────
-const handleAppreciate = useCallback(async (postId) => {
-  if (pendingAppreciate.current.has(postId)) return;
-  pendingAppreciate.current.add(postId);
+  const handleAppreciate = useCallback(async (postId) => {
+    if (pendingAppreciate.current.has(postId)) return;
+    pendingAppreciate.current.add(postId);
 
-  const snapshot = postsRef.current;
-  const current = snapshot.find((p) => String(p.id) === String(postId));
-  if (!current) { pendingAppreciate.current.delete(postId); return; }
-  const was = Boolean(current.appreciated);
-  const next = !was;
+    const snapshot = postsRef.current;
+    const current = snapshot.find((p) => String(p.id) === String(postId));
+    if (!current) { pendingAppreciate.current.delete(postId); return; }
+    const was = Boolean(current.appreciated);
+    const next = !was;
 
-  setPosts((ps) => ps.map((p) =>
-    String(p.id) !== String(postId) ? p : {
-      ...p,
-      appreciated: next,
-      appreciations: Math.max(0, (p.appreciations ?? 0) + (next ? 1 : -1)),
+    setPosts((ps) => ps.map((p) =>
+      String(p.id) !== String(postId) ? p : {
+        ...p,
+        appreciated: next,
+        appreciations: Math.max(0, (p.appreciations ?? 0) + (next ? 1 : -1)),
+      }
+    ));
+
+    try {
+      if (was) await homePostService.removeReaction(postId, 'APPRECIATE');
+      else await homePostService.addReaction(postId, 'APPRECIATE');
+    } catch (err) {
+      if (!(was && err.status === 404)) setPosts(snapshot);
+    } finally {
+      pendingAppreciate.current.delete(postId);
     }
-  ));
-
-  try {
-    if (was) await homePostService.removeReaction(postId, 'APPRECIATE');
-    else await homePostService.addReaction(postId, 'APPRECIATE');
-  } catch (err) {
-    if (!(was && err.status === 404)) setPosts(snapshot);
-  } finally {
-    pendingAppreciate.current.delete(postId);
-  }
-}, []);
+  }, []);
 
   // ── Helpful ────────────────────────────────────────────────────────────────
-const handleHelpful = useCallback(async (postId) => {
-  if (pendingHelpful.current.has(postId)) return;
-  pendingHelpful.current.add(postId);
+  const handleHelpful = useCallback(async (postId) => {
+    if (pendingHelpful.current.has(postId)) return;
+    pendingHelpful.current.add(postId);
 
-  const snapshot = postsRef.current;
-  const current = snapshot.find((p) => String(p.id) === String(postId));
-  if (!current) { pendingHelpful.current.delete(postId); return; }
-  const was = Boolean(current.helpful);
-  const next = !was;
+    const snapshot = postsRef.current;
+    const current = snapshot.find((p) => String(p.id) === String(postId));
+    if (!current) { pendingHelpful.current.delete(postId); return; }
+    const was = Boolean(current.helpful);
+    const next = !was;
 
-  setPosts((ps) => ps.map((p) =>
-    String(p.id) !== String(postId) ? p : {
-      ...p,
-      helpful: next,
-      helpfulCount: Math.max(0, (p.helpfulCount ?? 0) + (next ? 1 : -1)),
+    setPosts((ps) => ps.map((p) =>
+      String(p.id) !== String(postId) ? p : {
+        ...p,
+        helpful: next,
+        helpfulCount: Math.max(0, (p.helpfulCount ?? 0) + (next ? 1 : -1)),
+      }
+    ));
+
+    try {
+      if (was) await homePostService.removeReaction(postId, 'HELPFUL');
+      else await homePostService.addReaction(postId, 'HELPFUL');
+    } catch (err) {
+      if (!(was && err.status === 404)) setPosts(snapshot);
+    } finally {
+      pendingHelpful.current.delete(postId);
     }
-  ));
-
-  try {
-    if (was) await homePostService.removeReaction(postId, 'HELPFUL');
-    else await homePostService.addReaction(postId, 'HELPFUL');
-  } catch (err) {
-    if (!(was && err.status === 404)) setPosts(snapshot);
-  } finally {
-    pendingHelpful.current.delete(postId);
-  }
-}, []);
+  }, []);
 
   // ── Learned ────────────────────────────────────────────────────────────────
- const handleLearned = useCallback(async (postId) => {
-  if (pendingLearned.current.has(postId)) return;
-  pendingLearned.current.add(postId);
+  const handleLearned = useCallback(async (postId) => {
+    if (pendingLearned.current.has(postId)) return;
+    pendingLearned.current.add(postId);
 
-  // Reliable snapshot (taken before any state change)
-  const snapshot = postsRef.current;
-  const current = snapshot.find((p) => String(p.id) === String(postId));
-  if (!current) {
-    pendingLearned.current.delete(postId);
-    return;
-  }
-  const was = Boolean(current.learned);
-  const next = !was;
+    // Reliable snapshot (taken before any state change)
+    const snapshot = postsRef.current;
+    const current = snapshot.find((p) => String(p.id) === String(postId));
+    if (!current) {
+      pendingLearned.current.delete(postId);
+      return;
+    }
+    const was = Boolean(current.learned);
+    const next = !was;
 
-  // Optimistic update
-  setPosts((ps) =>
-    ps.map((p) =>
-      String(p.id) !== String(postId)
-        ? p
-        : {
+    // Optimistic update
+    setPosts((ps) =>
+      ps.map((p) =>
+        String(p.id) !== String(postId)
+          ? p
+          : {
             ...p,
             learned: next,
             learnedCount: Math.max(0, (p.learnedCount ?? 0) + (next ? 1 : -1)),
           }
-    )
-  );
+      )
+    );
 
-  try {
-    if (was) {
-      await homePostService.unmarkLearned(postId);
-    } else {
-      await homePostService.markLearned(postId);
+    try {
+      if (was) {
+        await homePostService.unmarkLearned(postId);
+      } else {
+        await homePostService.markLearned(postId);
+      }
+    } catch (err) {
+      // Already removed on the server means the UI is already correct
+      if (was && err.status === 404) {
+        console.warn('[HomeFeed] Learned already removed on server');
+      } else {
+        console.warn('[HomeFeed] Learned failed — rolling back:', err.message);
+        setPosts(snapshot);
+      }
+    } finally {
+      pendingLearned.current.delete(postId);
     }
-  } catch (err) {
-    // Already removed on the server means the UI is already correct
-    if (was && err.status === 404) {
-      console.warn('[HomeFeed] Learned already removed on server');
-    } else {
-      console.warn('[HomeFeed] Learned failed — rolling back:', err.message);
-      setPosts(snapshot);
-    }
-  } finally {
-    pendingLearned.current.delete(postId);
-  }
-}, []);
+  }, []);
 
   // ── Socket.IO — posts-batch, post-updates-batch, comment-updates-batch ──
   useEffect(() => {
@@ -3128,12 +3128,10 @@ const handleHelpful = useCallback(async (postId) => {
       <main className="hp-feed" aria-label="Social feed" style={{ overflowX: "hidden", overflowY: "auto", }}>
         <PostComposer
           user={user}
+          profileAvatar={feedProfileAvatar}
+          profileName={feedProfileName}
           onPostCreated={(newPost) => {
-            setPosts((previousPosts) => [
-              newPost,
-              ...previousPosts,
-            ]);
-
+            setPosts((previousPosts) => [newPost, ...previousPosts]);
             setActiveTab('For You');
           }}
         />

@@ -183,6 +183,7 @@ export default function Onboarding() {
     authService.logout();
     window.location.hash = '/login';
     window.dispatchEvent(new Event('navigated'));
+    sessionStorage.removeItem('evolv-edit-profile');
   };
 
   // Two-phase step transition: leave pose → swap content → enter pose.
@@ -197,6 +198,11 @@ export default function Onboarding() {
   const persistTimer = useRef(null);
 
   useEffect(() => {
+    if (sessionStorage.getItem('evolv-edit-profile') === '1') {
+      setChecking(false);
+      return undefined;
+    }
+
     let cancelled = false;
     guardOnboardingRoute().then((ok) => {
       if (!cancelled && ok) setChecking(false);
@@ -288,8 +294,6 @@ export default function Onboarding() {
         }
         return;
       }
-
-      // Verify the server really has everything the login check needs
       let status = null;
       try { status = await authService.getOnboardingStatus(); } catch { /* ignore */ }
 
@@ -320,7 +324,10 @@ export default function Onboarding() {
       setSubmitting(false);
     }
 
-    try { window.localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+    try { 
+      window.localStorage.removeItem(DRAFT_KEY);
+      sessionStorage.removeItem('evolv-edit-profile');
+    } catch { /* ignore */ }
     window.location.hash = isEdit ? '/profile' : '/explore-gems';
     window.dispatchEvent(new Event('navigated'));
   }, [draft, isEdit]);

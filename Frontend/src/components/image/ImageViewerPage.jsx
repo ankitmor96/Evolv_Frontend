@@ -70,9 +70,9 @@ export default function ImageViewerPage() {
     HELPFUL: { flag: 'helpful', count: 'helpfulCount' },
   };
 
-  const toggleReaction = useCallback(async (postId, type) => { // per post AND per type
+const toggleReaction = useCallback(async (postId, type) => {
+  const key = `reaction:${postId}:${type}`;
   if (pending.current.has(key)) return;
-  pending.current.add(key);
 
   const snapshot = postsRef.current;
   const current = snapshot.find((p) => String(p.id) === String(postId));
