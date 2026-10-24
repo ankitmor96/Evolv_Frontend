@@ -1,12 +1,8 @@
 /**
  * EVOLV Profile Service
- *
- * Handles all Profile / Onboarding backend API communication.
- *
  * Endpoint base: VITE_API_BASE_URL (same env var used by authService.js).
  * Token:         "evolv_auth_token" from localStorage or sessionStorage.
  *
- * Endpoints (exact, verified against live backend):
  *
  *   UserProfile-1page
  *     GET    /api/profile
@@ -41,21 +37,14 @@
  *     PATCH  /api/skills/user-skills/:id     body: { skill[], relationshipType }
  *     DELETE /api/skills/user-skills/:id
  *
- * Key backend contract (verified):
- *   - POST /api/profile creates the profile record for a new user.
- *   - PATCH /api/profile updates an existing record; returns 404 if no record exists.
- *   - POST /api/profile/bio requires the parent profile to exist; it returns
- *     404 "User profile not found" if the profile has not been created yet.
- *   - PATCH /api/profile/bio updates an existing bio; returns 404 if bio row absent.
- *   - Correct submission order: create/confirm profile → save bio → save skills.
  */
-
 import { getCountryCode, COUNTRIES } from "../components/onboarding/onboardingData.js";
 import { forceLogout } from './sessionService.js';
 const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? "";
 
 /** Token key matches authService.js exactly. */
 const TOKEN_KEY = "evolv_auth_token";
+const AVATAR_FIELD = "file";
 
 /** Read the stored token from whichever storage it was saved in (mirrors authService). */
 const getToken = () =>
@@ -216,6 +205,15 @@ export const profileService = {
   async createProfile(data, file) {
     const url = `${API_BASE_URL}/api/profile`;
     const token = getToken();
+
+    if (!token) {
+      const error = new Error(
+        "No authentication token found. Please log in again."
+      );
+      error.status = 401;
+      throw error;
+    }
+
     const formData = new FormData();
 
     Object.entries(data).forEach(([key, value]) => {
@@ -227,17 +225,20 @@ export const profileService = {
       }
     });
 
-    if (file instanceof File) formData.append("file", file);
+    if (file instanceof File) formData.append(AVATAR_FIELD, file);
 
     const response = await fetch(url, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
     });
+
     if (response.status === 401 && token) {
       forceLogout();
     }
+
     const payload = await response.json().catch(() => ({}));
+
     console.debug("[profileService] createProfile", response.status, payload);
 
     if (!response.ok) {
@@ -267,17 +268,24 @@ export const profileService = {
    * @returns {Promise<any>}
    */
   async ensureProfile(data, file) {
-    let profileExists = false;
+    let existing = null;
 
     try {
-      await profileService.getProfile();
-      profileExists = true;
+      const res = await profileService.getProfile();
+      existing = res?.data?.profile ?? res?.data ?? res?.profile ?? res ?? {};
     } catch (err) {
       if (err.status !== 404) throw err;
     }
 
-    if (profileExists) {
-      const updated = await profileService.updateProfile(data);
+    if (existing) {
+      const body = { ...data };
+      if (existing.username && existing.username === body.username) {
+        delete body.username;
+      }
+      if (Object.keys(body).length === 0) {
+        return { created: false, data: existing };
+      }
+      const updated = await profileService.updateProfile(body);
       return { created: false, data: updated };
     }
 
@@ -304,7 +312,7 @@ export const profileService = {
     const token = getToken();
 
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append(AVATAR_FIELD, file);
 
     console.debug(`[profileService] POST ${url} (multipart avatar upload)`);
 
@@ -773,9 +781,23 @@ export const profileService = {
         ? (draft.customRole ?? "").trim()
         : (draft.role ?? "").trim();
 
-    const identityTypeId = roleName
+    let identityTypeId = roleName
       ? profileService.mapRoleToIdentityTypeId(roleName, identityTypes)
       : null;
+
+    // Custom roles usually have no matching type, so fall back to "Other"
+    if (roleName && identityTypeId == null) {
+      identityTypeId = profileService.mapRoleToIdentityTypeId("Other", identityTypes);
+    }
+
+    if (roleName && identityTypeId == null) {
+      errors.push({
+        section: "identity",
+        status: null,
+        message: `Role "${roleName}" was not found in the server's identity types.`,
+      });
+    }
+
     let profileSaved = false;
     let profileCreated = false;
 
@@ -840,7 +862,18 @@ export const profileService = {
         "Avatar will not be uploaded. The user can re-select the photo after reload."
       );
     }
-
+    // ── 3.8. Make sure the role was actually stored ─────────────────────
+    if (profileSaved && identityTypeId != null) {
+      try {
+        const res = await profileService.getUserIdentities();
+        const list = Array.isArray(res) ? res : res?.data ?? [];
+        if (list.length === 0) {
+          await profileService.selectUserIdentities([identityTypeId], identityTypeId);
+        }
+      } catch (err) {
+        errors.push({ section: "identity", status: err.status ?? null, message: err.message });
+      }
+    }
     // ── 4. Bio ────────────────────────────────────────────────────────────
     const bioText = (draft.bio ?? draft.focusGoal ?? "").trim();
 

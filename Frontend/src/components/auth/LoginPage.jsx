@@ -275,6 +275,7 @@ const LoginPage = () => {
 
   const [successMessage, setSuccessMessage] = useState("");
   const [currentUser, setCurrentUser] = useState(() => authService.getCurrentUser());
+  const [sessionRoute, setSessionRoute] = useState(null);
 
   useEffect(() => {
     if (!googleUser) return;
@@ -345,11 +346,24 @@ const LoginPage = () => {
   }, []);
 
   useEffect(() => {
-    if (authService.getCurrentUser() && !googleRedirect?.token) {
-      redirectAfterLogin();
-    }
-  }, []);
+    if (!currentUser || googleRedirect?.token) return;
+    let cancelled = false;
 
+    authService.getPostLoginRoute().then((route) => {
+      if (cancelled) return;
+      if (route === "/login") {
+        // token missing or expired
+        authService.logout();
+        setCurrentUser(null);
+        setErrorMessage("Your session has expired. Please log in again.");
+      } else {
+        setSessionRoute(route);
+      }
+    });
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const navigate = (path) => {
     const targetHash = '#' + path;
@@ -657,6 +671,7 @@ const LoginPage = () => {
     setSuccessMessage("Logged out successfully.");
     setErrorMessage("");
     setAccountMissing(false);
+    setSessionRoute(null);
     setOtpName("");
   };
   useEffect(() => {
@@ -779,11 +794,28 @@ const LoginPage = () => {
               {/* Logged In Overlay State */}
               {currentUser ? (
                 <div className="logged-in-view">
-                  <h2>Welcome, <span>{currentUser.name || "User"}</span>!</h2>
+                  <h2>Welcome back, <span>{currentUser.name || "User"}</span>!</h2>
                   <p className="user-email-badge">{currentUser.email || currentUser.phone}</p>
-                  <div className="success-banner">✓ You are successfully authenticated.</div>
+                  <div className="success-banner">✓ You are logged in.</div>
+
+                  {sessionRoute === "/onboarding" && (
+                    <p>Your profile setup isn't finished yet.</p>
+                  )}
+
+                  <button
+                    className="main-login-btn"
+                    onClick={redirectAfterLogin}
+                    disabled={!sessionRoute}
+                  >
+                    {!sessionRoute
+                      ? "Checking…"
+                      : sessionRoute === "/onboarding"
+                        ? "Finish profile setup →"
+                        : "Continue to EVOLV →"}
+                  </button>
+
                   <button className="main-login-btn logout-action-btn" onClick={handleLogout}>
-                    Logout
+                    Log out
                   </button>
                 </div>
               ) : (

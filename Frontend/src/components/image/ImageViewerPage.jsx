@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   ArrowLeft, ChevronLeft, ChevronRight, ZoomIn, ZoomOut,
-  Heart, Sparkles, CheckCircle2, MessageCircle,Trash2,
+  Heart, Sparkles, CheckCircle2, MessageCircle, Trash2,
 } from 'lucide-react';
 import { authService } from '../../services/authService.js';
 import { homePostService } from '../../services/homePostService.js';
@@ -18,6 +18,7 @@ function goBack() {
   window.dispatchEvent(new Event('navigated'));
 }
 
+
 export default function ImageViewerPage() {
   const user = authService.getCurrentUser();
   const [posts, setPosts] = useState([]);
@@ -29,7 +30,8 @@ export default function ImageViewerPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const pending = useRef(new Set());
-
+  const postsRef = useRef([]);
+  useEffect(() => { postsRef.current = posts; }, [posts]);
   // Load feed + my posts, keep only images
   useEffect(() => {
     let cancelled = false;
@@ -63,6 +65,47 @@ export default function ImageViewerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const REACTION_FIELDS = {
+    APPRECIATE: { flag: 'appreciated', count: 'appreciations' },
+    HELPFUL: { flag: 'helpful', count: 'helpfulCount' },
+  };
+
+  const toggleReaction = useCallback(async (postId, type) => { // per post AND per type
+  if (pending.current.has(key)) return;
+  pending.current.add(key);
+
+  const snapshot = postsRef.current;
+  const current = snapshot.find((p) => String(p.id) === String(postId));
+  if (!current) { pending.current.delete(key); return; }
+
+  const mine = REACTION_FIELDS[type];
+  const was = Boolean(current[mine.flag]);
+  const next = !was;
+
+  // Optimistic update: only this reaction changes
+  setPosts((ps) => ps.map((p) =>
+    String(p.id) !== String(postId) ? p : {
+      ...p,
+      [mine.flag]: next,
+      [mine.count]: Math.max(0, (p[mine.count] ?? 0) + (next ? 1 : -1)),
+    }
+  ));
+
+  try {
+    if (was) await homePostService.removeReaction(postId, type);
+    else await homePostService.addReaction(postId, type);
+  } catch (err) {
+    if (was && err.status === 404) {
+      console.warn('[ImageViewer] reaction already removed on server');
+    } else {
+      console.warn('[ImageViewer] reaction failed, rolling back:', err.message);
+      setPosts(snapshot);
+    }
+  } finally {
+    pending.current.delete(key);
+  }
+}, []);
+
   const go = useCallback((dir) => {
     setZoomed(false);
     setConfirmDelete(false);
@@ -88,22 +131,25 @@ export default function ImageViewerPage() {
     if (pending.current.has(key)) return;
     pending.current.add(key);
 
-    let before;
-    setPosts((ps) => {
-      before = ps;
-      return ps.map((p) => {
-        if (String(p.id) !== String(postId)) return p;
-        const next = !p[flag];
-        return { ...p, [flag]: next, [countKey]: Math.max(0, (p[countKey] ?? 0) + (next ? 1 : -1)) };
-      });
-    });
+    const snapshot = postsRef.current;
+    const current = snapshot.find((p) => String(p.id) === String(postId));
+    if (!current) { pending.current.delete(key); return; }
+
+    const was = Boolean(current[flag]);
+    const next = !was;
+
+    setPosts((ps) => ps.map((p) =>
+      String(p.id) !== String(postId) ? p : {
+        ...p,
+        [flag]: next,
+        [countKey]: Math.max(0, (p[countKey] ?? 0) + (next ? 1 : -1)),
+      }));
 
     try {
-      const was = before?.find((p) => String(p.id) === String(postId))?.[flag];
       await (was ? offApi() : onApi());
     } catch (err) {
-      console.warn('[ImageViewer] reaction failed, rolling back:', err.message);
-      setPosts(before);
+      console.warn('[ImageViewer] toggle failed, rolling back:', err.message);
+      setPosts(snapshot);
     } finally {
       pending.current.delete(key);
     }
@@ -215,19 +261,17 @@ export default function ImageViewerPage() {
 
             <div className="iv-actions">
               <button className={`iv-act ${post.appreciated ? 'on pink' : ''}`}
-                onClick={() => toggle(post.id, 'appreciated', 'appreciations',
-                  () => homePostService.addReaction(post.id, 'APPRECIATE'),
-                  () => homePostService.removeReaction(post.id, 'APPRECIATE'))}>
+                onClick={() => toggleReaction(post.id, 'APPRECIATE')}>
                 <Heart size={20} fill={post.appreciated ? 'currentColor' : 'none'} />
                 <strong>{fmt(post.appreciations)}</strong><span>Appreciate</span>
               </button>
+
               <button className={`iv-act ${post.helpful ? 'on blue' : ''}`}
-                onClick={() => toggle(post.id, 'helpful', 'helpfulCount',
-                  () => homePostService.addReaction(post.id, 'HELPFUL'),
-                  () => homePostService.removeReaction(post.id, 'HELPFUL'))}>
+                onClick={() => toggleReaction(post.id, 'HELPFUL')}>
                 <Sparkles size={20} />
                 <strong>{fmt(post.helpfulCount)}</strong><span>Helpful</span>
               </button>
+
               <button className={`iv-act ${post.learned ? 'on green' : ''}`}
                 onClick={() => toggle(post.id, 'learned', 'learnedCount',
                   () => homePostService.markLearned(post.id),
@@ -235,10 +279,12 @@ export default function ImageViewerPage() {
                 <CheckCircle2 size={20} />
                 <strong>{fmt(post.learnedCount)}</strong><span>Learned</span>
               </button>
+
               <button className="iv-act" onClick={() => setCommentPostId(String(post.id))}>
                 <MessageCircle size={20} />
                 <strong>{fmt(post.comments)}</strong><span>Discuss</span>
               </button>
+              
             </div>
             {isOwner && (
               <div className="iv-delete-zone">

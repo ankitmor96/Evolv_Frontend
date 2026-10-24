@@ -18,6 +18,9 @@ import {
   validateUsername,
 } from './onboardingData';
 import { profileService } from '../../services/profileService';
+import { authService } from '../../services/authService';
+
+const CRITICAL_SECTIONS = ['auth', 'profile', 'avatar', 'identity', 'curiosity'];
 
 const TOTAL_STEPS = 3;
 const DRAFT_KEY = 'evolve-onboarding-draft';
@@ -94,20 +97,75 @@ function getGateReason(step, draft) {
       return null;
   }
 }
-function describeSubmitError(errors) {
-  const text = errors.map((e) => e.message).join(' ').toLowerCase();
 
-  if (text.includes('auth token'))
-    return { message: 'Your session has expired. Please log in again.' };
-  if (text.includes('username') && /(taken|exist|already)/.test(text))
-    return { message: 'That username is already taken. Please choose another.', goToStep: 1 };
-  if (text.includes('avatar'))
-    return { message: 'Please add a profile photo to continue.', goToStep: 1 };
-  if (text.includes('identitytypeids'))
-    return { message: 'Please re-select what describes you.', goToStep: 1 };
+function describeSubmitError(errors = []) {
+  const details = errors
+    .map((item) => String(item.message || "Unknown error"))
+    .join(" ");
 
-  return { message: "We couldn't save your profile. Please try again." };
+  const text = details.toLowerCase();
+
+  if (
+    errors.some((item) => item.status === 401 || item.status === 403) ||
+    text.includes("auth token") ||
+    text.includes("unauthorized") ||
+    text.includes("jwt")
+  ) {
+    return {
+      message: "Your session may have expired. Please log in again.",
+    };
+  }
+
+  if (
+    text.includes("username") &&
+    /(taken|exist|already|duplicate)/.test(text)
+  ) {
+    return {
+      message: "That username may already be taken. Please choose another.",
+      goToStep: 1,
+    };
+  }
+
+  if (
+    text.includes("avatar") ||
+    text.includes("profile photo") ||
+    text.includes("file") ||
+    text.includes("multipart")
+  ) {
+    return {
+      message: "Your profile photo could not be uploaded. Please check the image and try again.",
+      goToStep: 1,
+    };
+  }
+
+  if (
+    text.includes("identitytypeids") ||
+    text.includes("identity type")
+  ) {
+    return {
+      message: "Your selected role could not be saved. Please check your role.",
+      goToStep: 1,
+    };
+  }
+
+  if (errors.some((item) => item.status === 404)) {
+    return {
+      message: "A required profile resource was not found. Check the failed API request.",
+    };
+  }
+
+  if (errors.some((item) => item.status >= 500)) {
+    return {
+      message: "The server failed to save your profile. Check the backend logs.",
+    };
+  }
+
+  // Keep the actual details available while debugging.
+  return {
+    message: details || "Profile save failed. Check the browser Console and Network tabs.",
+  };
 }
+
 export default function Onboarding() {
   const [step, setStep] = useState(1); // 1–3; 4 = completion
   const [draft, setDraft] = useState(loadDraft);
@@ -117,6 +175,15 @@ export default function Onboarding() {
   const [isEdit, setIsEdit] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(true);
   const [checking, setChecking] = useState(true);
+
+  const [submitDetail, setSubmitDetail] = useState('');
+  const currentUser = authService.getCurrentUser();
+
+  const handleLogout = () => {
+    authService.logout();
+    window.location.hash = '/login';
+    window.dispatchEvent(new Event('navigated'));
+  };
 
   // Two-phase step transition: leave pose → swap content → enter pose.
   // Deterministic (no presence bookkeeping), matches the homepage motion spec.
@@ -198,24 +265,55 @@ export default function Onboarding() {
     isSubmitting.current = true;
     setSubmitting(true);
     setSubmitError('');
+    setSubmitDetail('');
 
     try {
-      const { errors } = await profileService.submitOnboardingDraft(draft, { isEdit });
-      const critical = errors.filter((e) => e.section === 'auth' || e.section === 'profile');
+      const result = await profileService.submitOnboardingDraft(draft, { isEdit });
+      const errors = Array.isArray(result?.errors) ? result.errors : [];
+
+      console.table(errors.map(({ section, status, message }) => ({ section, status, message })));
+
+      const critical = errors.filter((item) => CRITICAL_SECTIONS.includes(item.section));
 
       if (critical.length > 0) {
-        console.error('[Onboarding] Critical errors:', critical); // raw details stay in the console
+        console.error('[Onboarding] Profile save failed:', critical);
         const { message, goToStep } = describeSubmitError(critical);
         setSubmitError(message);
+        setSubmitDetail(
+          critical.map((e) => `[${e.section}] ${e.status ?? '?'}: ${e.message}`).join(' | ')
+        );
         if (goToStep) {
           setShowErrors(true);
-          setStep(goToStep); // jump to the step that needs fixing; the draft is kept
+          setStep(goToStep);
         }
-        return; // finally{} resets the flags
+        return;
+      }
+
+      // Verify the server really has everything the login check needs
+      let status = null;
+      try { status = await authService.getOnboardingStatus(); } catch { /* ignore */ }
+
+      if (status) {
+        const missing = [];
+        if (!status.hasUsername) missing.push('username');
+        if (!status.hasAvatar) missing.push('profile photo');
+        if (!status.hasRole) missing.push('role');
+        if (!status.hasInterests) missing.push('interests');
+
+        if (missing.length > 0) {
+          const needsStep1 = !status.hasUsername || !status.hasAvatar || !status.hasRole;
+          setSubmitError(
+            `Almost there. The server still has no ${missing.join(', ')} for your account. Please add it again.`
+          );
+          setShowErrors(true);
+          setStep(needsStep1 ? 1 : 2);
+          return;
+        }
       }
     } catch (err) {
       console.error('[Onboarding] Unexpected error:', err);
       setSubmitError('Something went wrong. Please try again.');
+      setSubmitDetail(err.message || '');
       return;
     } finally {
       isSubmitting.current = false;
@@ -234,7 +332,7 @@ export default function Onboarding() {
         const saved = await profileService.loadDraftFromBackend();
         if (cancelled) return;
         if (saved) {
-          setDraft(saved);   // replaces any stale localStorage draft
+          setDraft(saved);
           setIsEdit(true);
         }
       } catch (err) {
@@ -252,6 +350,12 @@ export default function Onboarding() {
       <section className="ob-frame" aria-label="Build your EVOLV profile">
         {/* Same navbar as the homepage */}
         <HeroHeader />
+        {currentUser && (
+          <div className="ob-session-bar" role="status">
+            <span>Logged in as <strong>{currentUser.email || currentUser.name}</strong></span>
+            <button type="button" onClick={handleLogout}>Log out</button>
+          </div>
+        )}
 
         {/* ─── Hero headline ─── */}
         <div className="ob-hero">
@@ -305,7 +409,7 @@ export default function Onboarding() {
                 {loadingEdit ? (
                   <p className="step-sub">Loading your profile…</p>
                 ) : isComplete ? (
-                  <CompletionScreen draft={draft} onEnter={handleEnter} error={submitError} submitting={submitting} isEdit={isEdit} />
+                  <CompletionScreen draft={draft} onEnter={handleEnter} error={submitError} submitting={submitting} isEdit={isEdit} detail={submitDetail} />
                 ) : (
                   <StepComponent draft={draft} setDraft={setDraft} showErrors={showErrors} />
                 )}
@@ -319,7 +423,6 @@ export default function Onboarding() {
           </div>
 
           {/* ─── Bottom navigation ─── */}
-          {/* ─── Bottom navigation ─── */}
           {!isComplete && (
             <div className="ob-footer">
               {gateReason && !canContinue && (
@@ -330,7 +433,7 @@ export default function Onboarding() {
                 type="button"
                 className={`ob-primary-btn ${canContinue ? '' : 'disabled'}`}
                 onClick={goNext}
-                disabled={!canContinue || submitting}          // <- prevent clicks while submitting
+                disabled={!canContinue || submitting}
                 whileTap={canContinue ? { scale: 0.98 } : undefined}
                 aria-busy={submitting}
                 aria-disabled={!canContinue || submitting}
@@ -343,6 +446,7 @@ export default function Onboarding() {
       </section>
 
       <style>{`
+      
         /* ═══════════════════════════════════════════════
            EVOLV ONBOARDING — same shell as the homepage
         ═══════════════════════════════════════════════ */
@@ -354,6 +458,33 @@ export default function Onboarding() {
           align-items: flex-start;
           padding: 20px;
         }
+          .ob-session-bar {
+  position: relative;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  max-width: 560px;
+  margin: 8px auto 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  color: #fff;
+  font-size: 0.78rem;
+}
+.ob-session-bar button {
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 2px solid #09030F;
+  background: #fff;
+  color: #09030F;
+  font-weight: 700;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
 
         .ob-frame {
           width: 100%;

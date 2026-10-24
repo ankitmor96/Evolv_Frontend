@@ -12,7 +12,7 @@ const STAGGER = (i) => ({
   },
 });
 
-export default function CompletionScreen({ draft, onEnter, error, submitting, isEdit = false }) {
+export default function CompletionScreen({ draft, onEnter, error, submitting, isEdit = false, detail }) {
   return (
     <div className="completion-body">
       <motion.span className="step-index" variants={STAGGER(0)} initial="hidden" animate="visible">
@@ -38,16 +38,21 @@ export default function CompletionScreen({ draft, onEnter, error, submitting, is
       >
         {submitting
           ? (isEdit ? 'Updating…' : 'Entering…')
-          : (isEdit ? 'Update Profile ✓' : 'Enter EVOLV →')}      </motion.button>
-      {/* <button type="button" onClick={() => { authService.logout(); window.location.hash = '/login'; window.dispatchEvent(new Event('navigated')); }}>
-        Logout
-      </button> */}
+          : (isEdit ? 'Update Profile ✓' : 'Enter EVOLV →')}      
+        </motion.button>
 
       {error && (
-        <span className="ob-inline-error" role="alert">
-          <span className="ob-error-mark" aria-hidden="true">!</span>
-          {error}
-        </span>
+        <>
+          <span className="ob-inline-error" role="alert">
+            <span className="ob-error-mark" aria-hidden="true">!</span>
+            {error}
+          </span>
+          {detail && (
+            <small style={{ display: 'block', marginTop: 6, color: '#77727F', wordBreak: 'break-word' }}>
+              Details: {detail}
+            </small>
+          )}
+        </>
       )}
     </div>
   );

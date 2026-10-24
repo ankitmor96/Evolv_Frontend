@@ -2897,108 +2897,109 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
   const pendingLearned = useRef(new Set());
 
   // ── Appreciate ───────────────────────────────────────────────────────────
-  const handleAppreciate = useCallback(async (postId) => {
-    if (pendingAppreciate.current.has(postId)) return;
-    pendingAppreciate.current.add(postId);
+const handleAppreciate = useCallback(async (postId) => {
+  if (pendingAppreciate.current.has(postId)) return;
+  pendingAppreciate.current.add(postId);
 
-    // Snapshot for rollback
-    let prev;
-    setPosts(ps => {
-      prev = ps;
-      return ps.map(p => {
-        if (String(p.id) !== String(postId)) return p;
-        const next = !p.appreciated;
-        return {
-          ...p,
-          appreciated: next,
-          appreciations: Math.max(0, p.appreciations + (next ? 1 : -1)),
-        };
-      });
-    });
+  const snapshot = postsRef.current;
+  const current = snapshot.find((p) => String(p.id) === String(postId));
+  if (!current) { pendingAppreciate.current.delete(postId); return; }
+  const was = Boolean(current.appreciated);
+  const next = !was;
 
-    try {
-      const post = prev?.find(p => String(p.id) === String(postId));
-      if (post?.appreciated) {
-        await homePostService.removeReaction(postId, 'APPRECIATE');
-      } else {
-        await homePostService.addReaction(postId, 'APPRECIATE');
-      }
-    } catch (err) {
-      console.warn('[HomeFeed] Appreciate failed — rolling back:', err.message);
-      // Rollback to snapshot
-      setPosts(prev);
-    } finally {
-      pendingAppreciate.current.delete(postId);
+  setPosts((ps) => ps.map((p) =>
+    String(p.id) !== String(postId) ? p : {
+      ...p,
+      appreciated: next,
+      appreciations: Math.max(0, (p.appreciations ?? 0) + (next ? 1 : -1)),
     }
-  }, []);
+  ));
+
+  try {
+    if (was) await homePostService.removeReaction(postId, 'APPRECIATE');
+    else await homePostService.addReaction(postId, 'APPRECIATE');
+  } catch (err) {
+    if (!(was && err.status === 404)) setPosts(snapshot);
+  } finally {
+    pendingAppreciate.current.delete(postId);
+  }
+}, []);
 
   // ── Helpful ────────────────────────────────────────────────────────────────
-  const handleHelpful = useCallback(async (postId) => {
-    if (pendingHelpful.current.has(postId)) return;
-    pendingHelpful.current.add(postId);
+const handleHelpful = useCallback(async (postId) => {
+  if (pendingHelpful.current.has(postId)) return;
+  pendingHelpful.current.add(postId);
 
-    let prev;
-    setPosts(ps => {
-      prev = ps;
-      return ps.map(p => {
-        if (String(p.id) !== String(postId)) return p;
-        const next = !p.helpful;
-        return {
-          ...p,
-          helpful: next,
-          helpfulCount: Math.max(0, p.helpfulCount + (next ? 1 : -1)),
-        };
-      });
-    });
+  const snapshot = postsRef.current;
+  const current = snapshot.find((p) => String(p.id) === String(postId));
+  if (!current) { pendingHelpful.current.delete(postId); return; }
+  const was = Boolean(current.helpful);
+  const next = !was;
 
-    try {
-      const post = prev?.find(p => String(p.id) === String(postId));
-      if (post?.helpful) {
-        await homePostService.removeReaction(postId, 'HELPFUL');
-      } else {
-        await homePostService.addReaction(postId, 'HELPFUL');
-      }
-    } catch (err) {
-      console.warn('[HomeFeed] Helpful failed — rolling back:', err.message);
-      setPosts(prev);
-    } finally {
-      pendingHelpful.current.delete(postId);
+  setPosts((ps) => ps.map((p) =>
+    String(p.id) !== String(postId) ? p : {
+      ...p,
+      helpful: next,
+      helpfulCount: Math.max(0, (p.helpfulCount ?? 0) + (next ? 1 : -1)),
     }
-  }, []);
+  ));
+
+  try {
+    if (was) await homePostService.removeReaction(postId, 'HELPFUL');
+    else await homePostService.addReaction(postId, 'HELPFUL');
+  } catch (err) {
+    if (!(was && err.status === 404)) setPosts(snapshot);
+  } finally {
+    pendingHelpful.current.delete(postId);
+  }
+}, []);
 
   // ── Learned ────────────────────────────────────────────────────────────────
-  const handleLearned = useCallback(async (postId) => {
-    if (pendingLearned.current.has(postId)) return;
-    pendingLearned.current.add(postId);
+ const handleLearned = useCallback(async (postId) => {
+  if (pendingLearned.current.has(postId)) return;
+  pendingLearned.current.add(postId);
 
-    let prev;
-    setPosts(ps => {
-      prev = ps;
-      return ps.map(p => {
-        if (String(p.id) !== String(postId)) return p;
-        const next = !p.learned;
-        return {
-          ...p,
-          learned: next,
-          learnedCount: Math.max(0, p.learnedCount + (next ? 1 : -1)),
-        };
-      });
-    });
+  // Reliable snapshot (taken before any state change)
+  const snapshot = postsRef.current;
+  const current = snapshot.find((p) => String(p.id) === String(postId));
+  if (!current) {
+    pendingLearned.current.delete(postId);
+    return;
+  }
+  const was = Boolean(current.learned);
+  const next = !was;
 
-    try {
-      const post = prev?.find(p => String(p.id) === String(postId));
-      if (post?.learned) {
-        await homePostService.unmarkLearned(postId);
-      } else {
-        await homePostService.markLearned(postId);
-      }
-    } catch (err) {
-      console.warn('[HomeFeed] Learned failed — rolling back:', err.message);
-      setPosts(prev);
-    } finally {
-      pendingLearned.current.delete(postId);
+  // Optimistic update
+  setPosts((ps) =>
+    ps.map((p) =>
+      String(p.id) !== String(postId)
+        ? p
+        : {
+            ...p,
+            learned: next,
+            learnedCount: Math.max(0, (p.learnedCount ?? 0) + (next ? 1 : -1)),
+          }
+    )
+  );
+
+  try {
+    if (was) {
+      await homePostService.unmarkLearned(postId);
+    } else {
+      await homePostService.markLearned(postId);
     }
-  }, []);
+  } catch (err) {
+    // Already removed on the server means the UI is already correct
+    if (was && err.status === 404) {
+      console.warn('[HomeFeed] Learned already removed on server');
+    } else {
+      console.warn('[HomeFeed] Learned failed — rolling back:', err.message);
+      setPosts(snapshot);
+    }
+  } finally {
+    pendingLearned.current.delete(postId);
+  }
+}, []);
 
   // ── Socket.IO — posts-batch, post-updates-batch, comment-updates-batch ──
   useEffect(() => {

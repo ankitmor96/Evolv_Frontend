@@ -234,29 +234,35 @@ export const authService = {
  * Onboarding is complete only when ALL of these exist:
  * username + avatar + a role + at least one curiosity skill.
  */
+  async getOnboardingStatus() {
+    const [profileRes, identitiesRes, curiosityRes] = await Promise.all([
+      authGet("/api/profile"),
+      authGet("/api/user-identities"),
+      authGet("/api/skills/curiosity"),
+    ]);
+
+    const data = profileRes?.data ?? profileRes;
+    const profile = data?.profile ?? data;
+
+    return {
+      hasUsername: Boolean(profile?.username?.trim()),
+      hasAvatar: Boolean(profile?.avatarUrl),
+      hasRole: rows(identitiesRes).length > 0,
+      hasInterests: rows(curiosityRes).length > 0,
+    };
+  },
+
   async isOnboardingComplete() {
     try {
-      const [profileRes, identitiesRes, curiosityRes] = await Promise.all([
-        authGet("/api/profile"),
-        authGet("/api/user-identities"),
-        authGet("/api/skills/curiosity"),
-      ]);
-
-      const data = profileRes?.data ?? profileRes;
-      const profile = data?.profile ?? data;
-
-      const hasUsername = Boolean(profile?.username?.trim());
-      const hasAvatar = Boolean(profile?.avatarUrl);
-      const hasRole = rows(identitiesRes).length > 0;
-      const hasInterests = rows(curiosityRes).length > 0;
-
-      return hasUsername && hasAvatar && hasRole && hasInterests;
+      const status = await authService.getOnboardingStatus();
+      console.table(status); // see which check fails
+      return Object.values(status).every(Boolean);
     } catch (err) {
       if (err.status === 401) {
         authService.logout();
         throw err;
       }
-      return false; // any other error → treat as NOT complete (safe default)
+      return false;
     }
   },
 
