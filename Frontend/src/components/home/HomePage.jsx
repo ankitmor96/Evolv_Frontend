@@ -2100,6 +2100,8 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
           newPost = {
             ...newPost,
             creator: {
+              id: user?.id ?? user?.userId ?? user?._id,
+              name: profileName || user?.name || user?.username || 'You',
               avatar: profileAvatar || user?.avatar || user?.profileImage || '',
               username: user?.username || '',
               field: user?.field || 'Community Member',
@@ -2550,6 +2552,30 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
   );
 
 }
+const norm = (s) => String(s ?? '').toLowerCase().replace('#', '').trim();
+
+function matchesSkills(post, mySkills) {
+  const cat = norm(post.category);
+  const tags = (post.tags || []).map(norm);
+  return mySkills.map(norm).some(
+    (s) => s && (cat.includes(s) || tags.some((t) => t && (t.includes(s) || s.includes(t))))
+  );
+}
+
+function isOwnPost(post, myId) {
+  return myId != null &&
+    post.creator?.id != null &&
+    String(post.creator.id) === String(myId);
+}
+
+// "For You" = my posts + my connections' posts + posts matching my skills
+function isForYou(post, myId, mySkills) {
+  return (
+    isOwnPost(post, myId) ||
+    post.connectionStatus === 'connected' ||
+    matchesSkills(post, mySkills)
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN FEED
@@ -2565,6 +2591,9 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
   // ── Real profile for the header and author enrichment ──────────────────
   const [feedProfileAvatar, setFeedProfileAvatar] = useState(null);
   const [feedProfileName, setFeedProfileName] = useState(null);
+
+  const [mySkills, setMySkills] = useState([]);
+  const connectionMapRef = useRef(new Map());
 
   const handleCommentCountSync = useCallback((postId, count) => {
     setPosts(prev => prev.map(p =>
@@ -2594,8 +2623,8 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
 
 
         if (cancelled) return;
+        connectionMapRef.current = connectionMap;
 
-        // Populate header avatar / name from real profile API.
         if (profileData) {
           const avatar = profileData.avatarUrl ?? profileData.avatar ?? null;
           const name = profileData.fullName ?? profileData.name ?? profileData.username ?? null;
@@ -2682,7 +2711,6 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
         const raw = await fetchHomeTabs();
 
         if (cancelled) return;
-
         const payload = raw?.data ?? raw;
 
         console.log("[Home Tabs API response]:", payload);
@@ -2714,6 +2742,7 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
               typeof name === "string" && name.trim()
             )
           : [];
+          setMySkills(selectedSkillTabs);  
 
         const allTabs = [
           "For You",
@@ -3013,7 +3042,13 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
       const incoming = batch
         .map(item => {
           const raw = item?.post ?? item;
-          return homePostService._normalisePost(raw);
+          const base = homePostService._normalisePost(raw);
+          const conn = connectionMapRef.current?.get(String(base.creator?.id ?? raw.userId));
+          return {
+            ...base,
+            connectionStatus: conn?.status ?? 'none',
+            connectionId: conn?.connectionId ?? null,
+          };
         })
         .filter(p => p.id && !String(p.id).startsWith('local-'));
 
@@ -3104,14 +3139,24 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
   // Filter by tab:
   // — "For You" / "Learning" / "Discover" → show all posts
   // — Any domain tab → match post.category or tags
-  const visiblePosts = (activeTab === 'For You' || activeTab === 'Learning' || activeTab === 'Discover')
-    ? posts
-    : posts.filter(p =>
-      p.category.toLowerCase() === activeTab.toLowerCase() ||
-      p.tags.some(t => t.toLowerCase().replace('#', '').includes(
-        activeTab.toLowerCase().split(' ')[0]
-      ))
+  const authUserNow = authService.getCurrentUser();
+  const myId = authUserNow?.id ?? authUserNow?.userId ?? authUserNow?._id ?? null;
+
+  let visiblePosts;
+  if (activeTab === 'For You') {
+    visiblePosts = posts.filter((p) => isForYou(p, myId, mySkills));
+  } else if (activeTab === 'Learning') {
+    visiblePosts = posts.filter((p) => matchesSkills(p, mySkills));
+  } else if (activeTab === 'Discover') {
+    // Discover = everything that is NOT already in my For You feed
+    visiblePosts = posts.filter((p) => !isForYou(p, myId, mySkills));
+  } else {
+    visiblePosts = posts.filter(
+      (p) =>
+        norm(p.category) === norm(activeTab) ||
+        p.tags.some((t) => norm(t).includes(norm(activeTab).split(' ')[0]))
     );
+  }
 
   return (
     <div className="hp-feed-column">
