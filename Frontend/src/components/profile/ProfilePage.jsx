@@ -304,28 +304,14 @@ function ProfileRightPanel({
     (sum, p) => sum + (Number(p.helpfulCount) || 0), 0
   );
 
-  // ── Build Growth items from real skill data ───────────────────────────
-  // Topics come from the user's actual learning & canDo skills.
-  // Percentages for skill-specific growth need a dedicated API (not yet
-  // available). Only the Helpful bar uses a real metric.
+  const appreciationPct = Math.min(totalAppreciation * 10, 100);
+  const learnedPct = Math.min(totalLearned * 10, 100);
   const helpfulPct = Math.min(totalHelpful * 10, 100);
-  const canDoSkills = Array.isArray(skills?.canDo) ? skills.canDo : [];
-  const learningSkills = Array.isArray(skills?.learning) ? skills.learning : [];
-  const growthSkills = [...learningSkills, ...canDoSkills]
-    .filter((s, i, arr) => arr.indexOf(s) === i)
-    .slice(0, 3);
 
   const GROWTH_ITEMS = [
-    ...growthSkills.map((label, idx) => ({
-      label,
-      pct: 0, // No per-skill growth API yet
-      colorClass: ['', 'green', 'yellow'][idx % 3],
-    })),
-    {
-      label: 'Helpful',
-      pct: helpfulPct,
-      colorClass: 'yellow',
-    },
+    { label: 'Appreciation', pct: appreciationPct, colorClass: '' },       // purple
+    { label: 'Learned', pct: learnedPct, colorClass: 'green' },  // green
+    { label: 'Helpful', pct: helpfulPct, colorClass: 'yellow' }, // yellow
   ];
 
   return (
@@ -1855,6 +1841,10 @@ export default function ProfilePage() {
                 typeof counts.HELPFUL === 'number'
                   ? counts.HELPFUL
                   : post.helpfulCount,
+              learnedCount:
+                typeof counts.LEARNED === 'number'
+                  ? counts.LEARNED
+                  : post.learnedCount,
               appreciated:
                 reactionData?.myReaction === 'APPRECIATE' || post.appreciated,
               helpful:

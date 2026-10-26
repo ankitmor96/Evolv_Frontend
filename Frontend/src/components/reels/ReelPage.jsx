@@ -26,6 +26,28 @@ function ReelItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isLandscape, setIsLandscape] = useState(false);
+  const [tip, setTip] = useState('');
+  const pressTimer = useRef(null);
+
+  const startPress = (label) => {
+    clearTimeout(pressTimer.current);
+    pressTimer.current = setTimeout(() => setTip(label), 400);
+  };
+  const endPress = () => {
+    clearTimeout(pressTimer.current);
+    setTip('');
+  };
+
+  // Handlers shared by all four buttons
+  const tipProps = (label) => ({
+    onMouseEnter: () => setTip(label),
+    onMouseLeave: endPress,
+    onTouchStart: () => startPress(label),
+    onTouchEnd: endPress,
+    onTouchMove: endPress,
+    onTouchCancel: endPress,
+    onContextMenu: (e) => e.preventDefault(),
+  });
 
   useEffect(() => {
     const v = videoRef.current;
@@ -137,19 +159,46 @@ function ReelItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
 
         {/* Actions: beside the card on desktop, over the video on mobile */}
         <div className="rl-actions">
-          <button className={`rl-act ${post.appreciated ? 'on pink' : ''}`} onClick={() => onAppreciate(post.id)} aria-label="Appreciate">
+          <button
+            className={`rl-act ${post.appreciated ? 'on pink' : ''}`}
+            onClick={() => onAppreciate(post.id)}
+            aria-label="Appreciate"
+            {...tipProps('Appreciate')}
+          >
+            {tip === 'Appreciate' && <span className="rl-tooltip" role="tooltip">Appreciate</span>}
             <Heart size={22} fill={post.appreciated ? 'currentColor' : 'none'} />
             <span>{fmt(post.appreciations)}</span>
           </button>
-          <button className={`rl-act ${post.helpful ? 'on blue' : ''}`} onClick={() => onHelpful(post.id)} aria-label="Helpful">
+
+          <button
+            className={`rl-act ${post.helpful ? 'on blue' : ''}`}
+            onClick={() => onHelpful(post.id)}
+            aria-label="Helpful"
+            {...tipProps('Helpful')}
+          >
+            {tip === 'Helpful' && <span className="rl-tooltip" role="tooltip">Helpful</span>}
             <Sparkles size={22} />
             <span>{fmt(post.helpfulCount)}</span>
           </button>
-          <button className={`rl-act ${post.learned ? 'on green' : ''}`} onClick={() => onLearned(post.id)} aria-label="Learned">
+
+          <button
+            className={`rl-act ${post.learned ? 'on green' : ''}`}
+            onClick={() => onLearned(post.id)}
+            aria-label="Learned"
+            {...tipProps('Learned')}
+          >
+            {tip === 'Learned' && <span className="rl-tooltip" role="tooltip">Learned</span>}
             <CheckCircle2 size={22} />
             <span>{fmt(post.learnedCount)}</span>
           </button>
-          <button className="rl-act" onClick={() => onDiscuss(post.id)} aria-label="Discuss">
+
+          <button
+            className="rl-act"
+            onClick={() => onDiscuss(post.id)}
+            aria-label="Discuss"
+            {...tipProps('Discuss')}
+          >
+            {tip === 'Discuss' && <span className="rl-tooltip" role="tooltip">Discuss</span>}
             <MessageCircle size={22} />
             <span>{fmt(post.comments)}</span>
           </button>

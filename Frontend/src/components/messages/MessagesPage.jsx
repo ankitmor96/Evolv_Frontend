@@ -6,7 +6,7 @@ import {
   CheckCheck, Check, ArrowRight, Target, X, Menu
 } from 'lucide-react';
 import { authService } from '../../services/authService.js';
-import { CONVERSATIONS, INITIAL_MESSAGES } from '../../data/messagesData.js';
+import { messageService } from '../../services/messageService.js';
 import './MessagesPage.css';
 
 // ─── Navigation helper ────────────────────────────────────────────────────────
@@ -278,8 +278,9 @@ function MessageComposer({ onSend }) {
 }
 
 // ─── Chat Window ──────────────────────────────────────────────────────────────
-function ChatWindow({ conv, messages, onSend, onBack, chatOpen, onMenu }) {
+function ChatWindow({ conv, messages, onSend, onBack, chatOpen, onMenu,loading }) {
   const endRef = useRef(null);
+
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -360,15 +361,38 @@ function ChatWindow({ conv, messages, onSend, onBack, chatOpen, onMenu }) {
 // ─── Messages Page (root) ─────────────────────────────────────────────────────
 export default function MessagesPage() {
   const user = authService.getCurrentUser();
+  const myId = user?.id ?? user?.userId ?? user?._id ?? null;
 
-  const [conversations, setConversations] = useState(CONVERSATIONS);
-  const [activeId, setActiveId] = useState(CONVERSATIONS[0]?.id ?? null);
-  const [allMessages, setAllMessages] = useState({ [CONVERSATIONS[0]?.id]: null });
+  const [conversations, setConversations] = useState([]);
+  const [activeId, setActiveId] = useState(null);
+  const [allMessages, setAllMessages] = useState({});
+  const [convLoading, setConvLoading] = useState(true);
+  const [convError, setConvError] = useState('');
+  const [msgLoading, setMsgLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [chatOpen, setChatOpen] = useState(false); // mobile: whether chat panel is visible
+  const [chatOpen, setChatOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const activeConv = conversations.find(c => c.id === activeId) ?? null;
+
+  const activeConv = conversations.find((c) => c.id === activeId) ?? null;
   const activeMessages = (activeId && allMessages[activeId]) || [];
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setConvLoading(true);
+        setConvError('');
+        const list = await messageService.getConversations();
+        if (!cancelled) setConversations(list);
+      } catch (err) {
+        if (!cancelled) setConvError('Could not load conversations.');
+        console.error('[MessagesPage]', err);
+      } finally {
+        if (!cancelled) setConvLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Filter conversations by search
   const filteredConversations = conversations.filter(c =>
@@ -376,55 +400,57 @@ export default function MessagesPage() {
     c.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleSelectConversation = (conv) => {
+  const handleSelectConversation = async (conv) => {
     setActiveId(conv.id);
     setChatOpen(true);
-    // Clear unread count
+
+    // clear unread badge locally
     setConversations((prev) =>
-      prev.map((c) =>
-        c.id === conv.id ? { ...c, unreadCount: 0 } : c
-      )
+      prev.map((c) => (c.id === conv.id ? { ...c, unreadCount: 0 } : c))
     );
+    if (conv.unreadCount > 0) messageService.markRead(conv.id).catch(() => { });
 
-    // Initialise messages if this conversation has no messages yet.
-    setAllMessages((prev) => {
-      if (prev[conv.id]) return prev;
-
-      return {
-        ...prev,
-        [conv.id]: [],
-      };
-    });
+    // fetch only once per conversation
+    if (allMessages[conv.id]) return;
+    try {
+      setMsgLoading(true);
+      const msgs = await messageService.getMessages(conv.id, myId);
+      setAllMessages((prev) => ({ ...prev, [conv.id]: msgs }));
+    } catch (err) {
+      console.error('[MessagesPage] load messages failed:', err);
+      setAllMessages((prev) => ({ ...prev, [conv.id]: [] }));
+    } finally {
+      setMsgLoading(false);
+    }
   };
 
-  const handleSend = useCallback((text) => {
+  const handleSend = useCallback(async (text) => {
     if (!activeId) return;
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const convId = activeId;
+    const tempId = `local-${Date.now()}`;
+    const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-    const newMsg = {
-      id: Date.now(),
-      sender: 'me',
-      text,
-      timestamp: timeStr,
-      status: 'delivered',
-      type: 'text',
-    };
+    const tempMsg = { id: tempId, sender: 'me', text, timestamp: timeStr, status: 'sending', type: 'text' };
 
-    setAllMessages(prev => ({
-      ...prev,
-      [activeId]: [...(prev[activeId] || []), newMsg],
-    }));
-
-    // Update conversation preview
-    setConversations(prev =>
-      prev.map(c =>
-        c.id === activeId
-          ? { ...c, lastMessage: text, timestamp: timeStr }
-          : c
-      )
+    setAllMessages((prev) => ({ ...prev, [convId]: [...(prev[convId] || []), tempMsg] }));
+    setConversations((prev) =>
+      prev.map((c) => (c.id === convId ? { ...c, lastMessage: text, timestamp: timeStr } : c))
     );
-  }, [activeId]);
+
+    try {
+      const saved = await messageService.sendMessage(convId, text, myId);
+      setAllMessages((prev) => ({
+        ...prev,
+        [convId]: prev[convId].map((m) => (m.id === tempId ? saved : m)),
+      }));
+    } catch (err) {
+      console.error('[MessagesPage] send failed:', err);
+      setAllMessages((prev) => ({
+        ...prev,
+        [convId]: prev[convId].filter((m) => m.id !== tempId),
+      }));
+    }
+  }, [activeId, myId]);
 
   return (
     <div className="mp-layout">
@@ -537,12 +563,18 @@ export default function MessagesPage() {
         </div>
 
         <div className="mp-conv-list" role="list" aria-label="Conversation list">
-          {filteredConversations.length === 0 ? (
-            <div style={{ padding: '24px 20px', color: 'rgba(9,3,15,0.35)', fontSize: 14 }}>
-              No conversations found
+          {convLoading ? (
+            <div style={{ padding: '24px 20px', fontSize: 14, color: 'rgba(9,3,15,0.4)' }}>
+              Loading conversations…
+            </div>
+          ) : convError ? (
+            <div style={{ padding: '24px 20px', fontSize: 14, color: '#c41c4a' }}>{convError}</div>
+          ) : filteredConversations.length === 0 ? (
+            <div style={{ padding: '24px 20px', fontSize: 14, color: 'rgba(9,3,15,0.35)' }}>
+              {conversations.length === 0 ? 'No conversations yet' : 'No conversations found'}
             </div>
           ) : (
-            filteredConversations.map(conv => (
+            filteredConversations.map((conv) => (
               <ConversationItem
                 key={conv.id}
                 conv={conv}
@@ -563,6 +595,7 @@ export default function MessagesPage() {
           setChatOpen(false);
         }}
         chatOpen={chatOpen}
+        loading={msgLoading}
         onMenu={() => setMobileMenuOpen(true)}
       />
     </div>

@@ -15,6 +15,7 @@ import { guardProtectedRoute } from './services/sessionService.js';
 import { startSessionWatcher } from './services/sessionService.js';
 import MyPostsViewerPage from './components/profile/MyPostsViewerPage.jsx';
 import MyPostFullScreenPage from './components/profile/MyPostFullScreenPage.jsx';
+import SearchPage from './components/search/SearchPage.jsx';
 import { isTokenExpired, getStoredToken, msUntilExpiry, forceLogout } from './services/sessionService.js';
 
 /**
@@ -182,6 +183,9 @@ export default function App() {
   }
   if (route === '/my-post-view') {
     return <MyPostFullScreenPage />;
+  }
+  if (route === '/search') {
+    return <SearchPage />;
   }
   if (route === '/terms') return <LegalPage type="terms" />;
   if (route === '/privacy') return <LegalPage type="privacy" />;

@@ -755,6 +755,18 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
       </button>
 
       <div className="hp-feed-header-right" style={{ display: "flex", justifyContent: "end", alignItems: "center", gap: "8px" }}>
+        {/* Search: mobile only */}
+        <button
+          type="button"
+          className="hp-icon-btn hp-mobile-search-btn"
+          aria-label="Search people"
+          onClick={() => {
+            window.location.hash = '/search';
+            window.dispatchEvent(new Event('navigated'));
+          }}
+        >
+          <Search size={20} aria-hidden="true" />
+        </button>
         {/* Notification bell */}
         <button
           className="hp-icon-btn"
@@ -2742,7 +2754,7 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
               typeof name === "string" && name.trim()
             )
           : [];
-          setMySkills(selectedSkillTabs);  
+        setMySkills(selectedSkillTabs);
 
         const allTabs = [
           "For You",
@@ -3144,7 +3156,12 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
 
   let visiblePosts;
   if (activeTab === 'For You') {
-    visiblePosts = posts.filter((p) => isForYou(p, myId, mySkills));
+    const score = (p) =>
+      isOwnPost(p, myId) ? 3 :
+        p.connectionStatus === 'connected' ? 2 :
+          matchesSkills(p, mySkills) ? 1 : 0;
+
+    visiblePosts = [...posts].sort((a, b) => score(b) - score(a));
   } else if (activeTab === 'Learning') {
     visiblePosts = posts.filter((p) => matchesSkills(p, mySkills));
   } else if (activeTab === 'Discover') {
