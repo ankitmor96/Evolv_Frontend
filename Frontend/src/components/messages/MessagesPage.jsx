@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Home, Compass, BookOpen, MessageCircle, Users, User,
-  Settings, LogOut, Search, MoreHorizontal, Pin,
+  LogOut, Search, MoreHorizontal, Pin,
   Image, Paperclip, Smile, Send, ChevronLeft,
-  CheckCheck, Check, ArrowRight, Target, X, Menu
+  CheckCheck, Check, X, Menu
 } from 'lucide-react';
 import { authService } from '../../services/authService.js';
 import { messageService } from '../../services/messageService.js';
@@ -54,12 +54,10 @@ function NavRail({ user }) {
 
   return (
     <nav className="mp-nav-rail" aria-label="Main navigation">
-      {/* Logo */}
       <button className="mp-nav-logo" onClick={() => navigate('/home')} aria-label="EVOLV Home">
         <span>ev</span>
       </button>
 
-      {/* Main nav */}
       <div className="mp-nav-items">
         {NAV_ITEMS.map(({ id, Icon, label, hash }) => (
           <button
@@ -82,7 +80,6 @@ function NavRail({ user }) {
         </button>
       </div>
 
-      {/* Bottom */}
       <div className="mp-nav-bottom">
         <button
           className="mp-nav-btn"
@@ -133,21 +130,24 @@ function ConversationItem({ conv, isActive, onClick }) {
 
 // ─── Learning Goal Card (rich message) ────────────────────────────────────────
 function LearningGoalCard({ card }) {
+  const skills = Array.isArray(card?.skills) ? card.skills : [];
+  const progress = card?.progress ?? 0;
+
   return (
     <div className="mp-learning-card">
       <div className="mp-lc-label">Learning Goal</div>
-      <div className="mp-lc-title">{card.title}</div>
+      <div className="mp-lc-title">{card?.title}</div>
       <div className="mp-lc-progress-wrap">
         <div className="mp-lc-progress-top">
           <span className="mp-lc-progress-label">Progress</span>
-          <span className="mp-lc-progress-pct">{card.progress}%</span>
+          <span className="mp-lc-progress-pct">{progress}%</span>
         </div>
         <div className="mp-lc-bar">
-          <div className="mp-lc-bar-fill" style={{ width: `${card.progress}%` }} />
+          <div className="mp-lc-bar-fill" style={{ width: `${progress}%` }} />
         </div>
       </div>
       <div className="mp-lc-skills">
-        {card.skills.map(skill => (
+        {skills.map(skill => (
           <span key={skill} className="mp-lc-skill-tag">{skill}</span>
         ))}
       </div>
@@ -162,16 +162,23 @@ function LearningGoalCard({ card }) {
 function MessageBubble({ msg, conv }) {
   const isMe = msg.sender === 'me';
 
-  const StatusIcon = () => {
+  // Tick icon: faded while sending, faded when delivered, solid when read
+  const renderStatus = () => {
     if (!isMe) return null;
-    if (msg.status === 'read') return <CheckCheck size={13} className="mp-msg-status" />;
-    if (msg.status === 'delivered') return <Check size={13} className="mp-msg-status" style={{ opacity: 0.5 }} />;
+    if (msg.status === 'sending') {
+      return <Check size={13} className="mp-msg-status" style={{ opacity: 0.25 }} />;
+    }
+    if (msg.status === 'delivered') {
+      return <Check size={13} className="mp-msg-status" style={{ opacity: 0.5 }} />;
+    }
+    if (msg.status === 'read') {
+      return <CheckCheck size={13} className="mp-msg-status" />;
+    }
     return null;
   };
 
   return (
     <div className={`mp-msg-row ${msg.sender}`} aria-label={isMe ? 'Sent message' : `Message from ${conv?.user}`}>
-      {/* Avatar for received messages */}
       {!isMe ? (
         <div className="mp-msg-avatar">
           {conv?.avatar ? (
@@ -192,16 +199,11 @@ function MessageBubble({ msg, conv }) {
         )}
         <div className="mp-msg-meta">
           <span className="mp-msg-time">{msg.timestamp}</span>
-          <StatusIcon />
+          {renderStatus()}
         </div>
       </div>
 
-      {/* Spacer on the left for sent messages */}
-      {isMe ? (
-        <div className="mp-msg-avatar-spacer" />
-      ) : (
-        <div className="mp-msg-avatar-spacer" />
-      )}
+      <div className="mp-msg-avatar-spacer" />
     </div>
   );
 }
@@ -230,7 +232,6 @@ function MessageComposer({ onSend }) {
 
   const handleInput = (e) => {
     setText(e.target.value);
-    // auto-grow
     const el = textareaRef.current;
     if (el) {
       el.style.height = 'auto';
@@ -278,9 +279,8 @@ function MessageComposer({ onSend }) {
 }
 
 // ─── Chat Window ──────────────────────────────────────────────────────────────
-function ChatWindow({ conv, messages, onSend, onBack, chatOpen, onMenu,loading }) {
+function ChatWindow({ conv, messages, onSend, onBack, chatOpen, onMenu, loading }) {
   const endRef = useRef(null);
-
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -306,9 +306,7 @@ function ChatWindow({ conv, messages, onSend, onBack, chatOpen, onMenu,loading }
         <button
           type="button"
           className="mp-back-btn"
-          onClick={() => {
-            onBack();
-          }}
+          onClick={onBack}
           aria-label="Back to conversations"
         >
           <ChevronLeft size={20} />
@@ -345,7 +343,13 @@ function ChatWindow({ conv, messages, onSend, onBack, chatOpen, onMenu,loading }
           <span className="mp-date-sep-label">Today</span>
         </div>
 
-        {messages.map(msg => (
+        {loading && messages.length === 0 && (
+          <p style={{ textAlign: 'center', fontSize: 13, color: 'rgba(9,3,15,0.4)' }}>
+            Loading messages…
+          </p>
+        )}
+
+        {messages.map((msg) => (
           <MessageBubble key={msg.id} msg={msg} conv={conv} />
         ))}
 
@@ -376,6 +380,7 @@ export default function MessagesPage() {
   const activeConv = conversations.find((c) => c.id === activeId) ?? null;
   const activeMessages = (activeId && allMessages[activeId]) || [];
 
+  // Load conversations on mount
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -395,9 +400,10 @@ export default function MessagesPage() {
   }, []);
 
   // Filter conversations by search
-  const filteredConversations = conversations.filter(c =>
-    c.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+  const q = searchQuery.toLowerCase();
+  const filteredConversations = conversations.filter((c) =>
+    (c.user || '').toLowerCase().includes(q) ||
+    (c.lastMessage || '').toLowerCase().includes(q)
   );
 
   const handleSelectConversation = async (conv) => {
@@ -441,13 +447,13 @@ export default function MessagesPage() {
       const saved = await messageService.sendMessage(convId, text, myId);
       setAllMessages((prev) => ({
         ...prev,
-        [convId]: prev[convId].map((m) => (m.id === tempId ? saved : m)),
+        [convId]: (prev[convId] || []).map((m) => (m.id === tempId ? saved : m)),
       }));
     } catch (err) {
       console.error('[MessagesPage] send failed:', err);
       setAllMessages((prev) => ({
         ...prev,
-        [convId]: prev[convId].filter((m) => m.id !== tempId),
+        [convId]: (prev[convId] || []).filter((m) => m.id !== tempId),
       }));
     }
   }, [activeId, myId]);
@@ -466,10 +472,7 @@ export default function MessagesPage() {
             aria-label="Close navigation menu"
           />
 
-          <aside
-            className="mp-mobile-nav-drawer"
-            aria-label="Main navigation"
-          >
+          <aside className="mp-mobile-nav-drawer" aria-label="Main navigation">
             <div className="mp-mobile-nav-header">
               <div className="mp-nav-logo">
                 <span>ev</span>
@@ -489,14 +492,10 @@ export default function MessagesPage() {
               <button
                 key={id}
                 type="button"
-                className={`mp-mobile-nav-item ${id === 'messages' ? 'active' : ''
-                  }`}
+                className={`mp-mobile-nav-item ${id === 'messages' ? 'active' : ''}`}
                 onClick={() => {
                   setMobileMenuOpen(false);
-
-                  if (id !== 'messages') {
-                    navigate(hash);
-                  }
+                  if (id !== 'messages') navigate(hash);
                 }}
               >
                 <Icon size={20} />
@@ -538,7 +537,6 @@ export default function MessagesPage() {
       {/* Conversation sidebar */}
       <aside className={`mp-sidebar${chatOpen ? ' chat-open' : ''}`} aria-label="Conversations">
         <div className="mp-sidebar-header">
-          {/* Search */}
           <div className="mp-search-wrap">
             <Search size={15} />
             <input
@@ -591,9 +589,7 @@ export default function MessagesPage() {
         conv={activeConv}
         messages={activeMessages}
         onSend={handleSend}
-        onBack={() => {
-          setChatOpen(false);
-        }}
+        onBack={() => setChatOpen(false)}
         chatOpen={chatOpen}
         loading={msgLoading}
         onMenu={() => setMobileMenuOpen(true)}

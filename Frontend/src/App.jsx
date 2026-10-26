@@ -16,6 +16,7 @@ import { startSessionWatcher } from './services/sessionService.js';
 import MyPostsViewerPage from './components/profile/MyPostsViewerPage.jsx';
 import MyPostFullScreenPage from './components/profile/MyPostFullScreenPage.jsx';
 import SearchPage from './components/search/SearchPage.jsx';
+import UserProfilePage from './components/userProfile/UserProfilePage.jsx';
 import { isTokenExpired, getStoredToken, msUntilExpiry, forceLogout } from './services/sessionService.js';
 
 /**
@@ -107,21 +108,21 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-  let cancelled = false;
+    let cancelled = false;
 
-  // Public pages and onboarding skip the "must be onboarded" guard
-  if (PUBLIC_ROUTES.includes(route) || route === '/onboarding') {
-    setAllowed(true);
-    return;
-  }
+    // Public pages and onboarding skip the "must be onboarded" guard
+    if (PUBLIC_ROUTES.includes(route) || route === '/onboarding') {
+      setAllowed(true);
+      return;
+    }
 
-  setAllowed(false);
-  guardProtectedRoute().then((ok) => {
-    if (!cancelled) setAllowed(ok);
-  });
+    setAllowed(false);
+    guardProtectedRoute().then((ok) => {
+      if (!cancelled) setAllowed(ok);
+    });
 
-  return () => { cancelled = true; };
-}, [route]);
+    return () => { cancelled = true; };
+  }, [route]);
   useEffect(() => startSessionWatcher(), []);
   if (!allowed) return null;
 
@@ -186,6 +187,9 @@ export default function App() {
   }
   if (route === '/search') {
     return <SearchPage />;
+  }
+  if (route.startsWith('/profile/')) {
+    return <UserProfilePage />;
   }
   if (route === '/terms') return <LegalPage type="terms" />;
   if (route === '/privacy') return <LegalPage type="privacy" />;

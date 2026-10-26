@@ -253,7 +253,7 @@ export default function ReelsPage() {
           setPosts(withCounts);
         }
       } catch (error) {
-        console.error("Failed to load reels:", error);
+        console.error("Failed to load short video:", error);
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -350,11 +350,11 @@ export default function ReelsPage() {
   return (
     <div className="rl-page">
       <button type="button" className="rl-back" onClick={goBack} aria-label="Back">
-        <ArrowLeft size={20} /> <span>Reels</span>
+        <ArrowLeft size={20} /> <span>Short Video</span>
       </button>
 
       {loading ? (
-        <div className="rl-empty">Loading reels…</div>
+        <div className="rl-empty">Loading Short Video...</div>
       ) : posts.length === 0 ? (
         <div className="rl-empty">No short videos yet.</div>
       ) : (

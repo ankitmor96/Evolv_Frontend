@@ -49,6 +49,11 @@ function navigate(path) {
   window.history.pushState({}, '', path);
   window.dispatchEvent(new Event('navigated'));
 }
+function openUserProfile(userId) {
+  if (userId == null) return;
+  window.location.hash = `/profile/${userId}`;
+  window.dispatchEvent(new Event('navigated'));
+}
 
 // ─── Avatar component with fallback ────────────────────────────────────────
 function Avatar({ src, name, size = 40, className = '' }) {
@@ -913,7 +918,7 @@ function FeedVideo({ post }) {
       role="button"
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === 'Enter') openReel(post.id); }}
-      aria-label="Open video in Reels"
+      aria-label="Open Short Video"
     >
       <video
         ref={videoRef}
@@ -926,7 +931,7 @@ function FeedVideo({ post }) {
         onLoadedMetadata={(e) =>
           setLandscape(e.currentTarget.videoWidth > e.currentTarget.videoHeight)}
       />
-      <span className="hp-video-badge"><Play size={12} fill="currentColor" /> Watch reel</span>
+      <span className="hp-video-badge"><Play size={12} fill="currentColor" /> Watch Short Video</span>
     </div>
   );
 }
@@ -994,14 +999,27 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
       {/* Post header */}
       <div className="hp-post-header">
         <div className="hp-post-creator">
-          <Avatar src={post.creator.avatar} name={post.creator.name} size={44} />
+          <button
+            type="button"
+            onClick={() => openUserProfile(post.creator?.id)}
+            aria-label={`View ${post.creator.name}'s profile`}
+            style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', display: 'flex' }}
+          >
+            <Avatar src={post.creator.avatar} name={post.creator.name} size={44} />
+          </button>
+
           <div className="hp-post-creator-info">
             <div className="hp-post-creator-nameline">
-              <span className="hp-post-creator-name">{post.creator.name}</span>
-              {post.type === 'reel' && (
+              <span
+                className="hp-post-creator-name"
+                style={{ cursor: 'pointer' }}
+                onClick={() => openUserProfile(post.creator?.id)}
+              >
+                {post.creator.name}
+              </span>              {post.type === 'reel' && (
                 <span className="hp-post-reel-badge" aria-label="Reel">
                   <Clapperboard size={11} aria-hidden="true" />
-                  Reel
+                  ShortVideo
                 </span>
               )}
             </div>

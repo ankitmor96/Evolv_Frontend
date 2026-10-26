@@ -224,13 +224,6 @@ export const homePostService = {
 
   // ── Video / reel post ────────────────────────────────────────────────────────
   /**
-   * Create a video (reel) post.
-   *
-   * Verified: POST /api/posts/video → 201 Created
-   * Body: multipart/form-data
-   *   caption  – text
-   *   video    – File (the actual File object, not a URL)
-   *
    * @param {string} caption   – Post caption.
    * @param {File}   videoFile – The selected video File.
    * @returns {Promise<object>} Normalised feed-post object ready for the feed.

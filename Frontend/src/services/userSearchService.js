@@ -1,7 +1,7 @@
 const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? "";
 const TOKEN_KEY = "evolv_auth_token";
 
-const SEARCH_ENDPOINT = "/api/users/search";
+const SEARCH_ENDPOINT = "/api/profile/search"; 
 
 const getToken = () =>
   localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || null;
@@ -21,7 +21,7 @@ export const userSearchService = {
 
     const token = getToken();
     const res = await fetch(
-      `${API_BASE_URL}${SEARCH_ENDPOINT}?q=${encodeURIComponent(q)}`,
+      `${API_BASE_URL}${SEARCH_ENDPOINT}?search=${encodeURIComponent(q)}`, 
       {
         headers: {
           Accept: "application/json",
