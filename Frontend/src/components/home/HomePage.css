@@ -4834,3 +4834,32 @@
     display: inline-flex;
   }
 }
+.hp-document-clickable { cursor: pointer; }
+.hp-document-clickable:hover { border-color: #aa45f5; }
+
+.hp-document-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.hp-document-view {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  border: 1.5px solid #1a0a2e;
+  border-radius: 20px;
+  background: #fff;
+  color: #1a0a2e;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.hp-document-view:hover { background: #1a0a2e; color: #fff; }
+
+@media (max-width: 480px) {
+  .hp-document-actions { width: 100%; }
+  .hp-document-actions .hp-document-view,
+  .hp-document-actions .hp-document-download { flex: 1; }
+}

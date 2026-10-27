@@ -70,8 +70,8 @@ const request = async (path, opts = {}) => {
 
   const response = await fetch(url, init);
   if (response.status === 401 && token) {
-  forceLogout();
-}
+    forceLogout();
+  }
   const payload = await response.json().catch(() => ({}));
 
   console.debug(`[connectionService] ${response.status} ←`, payload);
@@ -137,10 +137,10 @@ const USER_ENDPOINTS = (id) => [
 
 // ─── Public service ───────────────────────────────────────────────────────────
 export const connectionService = {
-    /**
-   * Resolves { id, name, username, avatar } for a user ID.
-   * Cached for the session. Returns null if no endpoint works.
-   */
+  /**
+ * Resolves { id, name, username, avatar } for a user ID.
+ * Cached for the session. Returns null if no endpoint works.
+ */
   async getUserSummary(userId) {
     const key = String(userId);
     if (userCache.has(key)) return userCache.get(key);
@@ -160,6 +160,10 @@ export const connectionService = {
 
     userCache.set(key, null);
     return null;
+  },
+  async getConnectionsCountForMe() {
+    const list = await this.getMyConnections();
+    return list.filter((c) => !isDeadStatus(c?.status)).length;
   },
   /**
    * Send a connection request to another user.
@@ -208,7 +212,7 @@ export const connectionService = {
   async getReceivedRequests() {
     try {
       const result = await request('/api/connections/requests/received', { method: 'GET' });
-      console.log('[received raw]', result); 
+      console.log('[received raw]', result);
       // Normalise common envelope shapes
       return Array.isArray(result)
         ? result
@@ -281,12 +285,12 @@ export const connectionService = {
   removeConnection(connectionId) {
     return request(`/api/connections/${connectionId}`, { method: 'DELETE' });
   },
-  
-    /**
-   * Builds a Map<userId(string), { connectionId, status }> for the logged-in user.
-   * status: 'pending' (I sent), 'incoming' (they sent me), 'connected' (accepted)
-   * Never throws – returns an empty Map on failure.
-   */
+
+  /**
+ * Builds a Map<userId(string), { connectionId, status }> for the logged-in user.
+ * status: 'pending' (I sent), 'incoming' (they sent me), 'connected' (accepted)
+ * Never throws – returns an empty Map on failure.
+ */
   async getConnectionMap(currentUserId) {
     const map = new Map();
     try {

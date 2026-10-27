@@ -13,6 +13,8 @@ import {
   Clock,
   ArrowRight
 } from 'lucide-react';
+import "../discover/DiscoverPage.css";
+import { profileService } from "../../services/profileService";
 
 const CONTENT_CATEGORIES = [
   'All Categories',
@@ -55,36 +57,36 @@ export default function DiscoverPage() {
   const [category, setCategory] = useState('All Categories');
   const [contentType, setContentType] = useState('All');
   const [search, setSearch] = useState('');
+  const [mode, setMode] = useState('all');
+  const [myCuriosity, setMyCuriosity] = useState([]);
+  const [mySkills, setMySkills] = useState([]);
+  const [interest, setInterest] = useState('');
+  const [interestsLoading, setInterestsLoading] = useState(true);
+
+  const interestList = mode === 'curiosity' ? myCuriosity : mode === 'skill' ? mySkills : [];
 
   const filteredContent = useMemo(() => {
     const query = search.trim().toLowerCase();
 
+    // Words the content must relate to (only in Curiosity / Skill mode)
+    const terms =
+      mode === 'all' ? null : interest ? [interest] : interestList;
+
     return contentItems.filter((item) => {
-      const matchesDomain =
-        domain === 'All Domains' || item.domain === domain;
+      const hay = [
+        item.title, item.description, item.domain, item.category,
+        ...(item.tags || []),
+      ].join(' ').toLowerCase();
 
-      const matchesCategory =
-        category === 'All Categories' || item.category === category;
+      const matchesMode = terms === null || terms.some((t) => hay.includes(t.toLowerCase()));
+      const matchesDomain = mode !== 'all' || domain === 'All Domains' || item.domain === domain;
+      const matchesCategory = category === 'All Categories' || item.category === category;
+      const matchesType = contentType === 'All' || item.type === contentType;
+      const matchesSearch = !query || hay.includes(query);
 
-      const matchesType =
-        contentType === 'All' || item.type === contentType;
-
-      const matchesSearch =
-        !query ||
-        item.title.toLowerCase().includes(query) ||
-        item.description.toLowerCase().includes(query) ||
-        item.domain.toLowerCase().includes(query) ||
-        item.category.toLowerCase().includes(query) ||
-        item.tags.some((tag) => tag.toLowerCase().includes(query));
-
-      return (
-        matchesDomain &&
-        matchesCategory &&
-        matchesType &&
-        matchesSearch
-      );
+      return matchesMode && matchesDomain && matchesCategory && matchesType && matchesSearch;
     });
-  }, [domain, category, contentType, search]);
+  }, [contentItems, mode, interest, interestList, domain, category, contentType, search]);
 
   useEffect(() => {
     let cancelled = false;
@@ -160,6 +162,42 @@ export default function DiscoverPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const [curRes, skillRes, idToName] = await Promise.allSettled([
+          profileService.getUserCuriosity(),
+          profileService.getUserSkills(),
+          profileService.fetchSkillIdToNameMap(),
+        ]);
+        if (cancelled) return;
+
+        const map = idToName.status === 'fulfilled' ? idToName.value || {} : {};
+        const rows = (r) => {
+          if (r.status !== 'fulfilled') return [];
+          const v = r.value;
+          return Array.isArray(v) ? v : v?.data ?? v?.items ?? [];
+        };
+        const toNames = (list) => [
+          ...new Set(
+            list
+              .map((row) => map[Number(row.skillId)])
+              .filter((n) => typeof n === 'string' && n.trim())
+          ),
+        ];
+
+        setMyCuriosity(toNames(rows(curRes)));
+        setMySkills(toNames(rows(skillRes)));
+      } finally {
+        if (!cancelled) setInterestsLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, []);
+
   const filteredPosts = contentItems.filter((post) => {
     if (domain === "All Domains") return true;
 
@@ -170,496 +208,6 @@ export default function DiscoverPage() {
 
   return (
     <>
-      <style>{
-        `
-  .discover-page {
-  min-height: 100vh;
-  background: #faf9fc;
-  color: #21172d;
-  padding: 38px 46px 60px;
-  overflow-y: auto;
-}
-
-/* HEADER */
-
-.discover-header {
-  max-width: 1050px;
-  margin: 0 auto 28px;
-}
-
-.discover-eyebrow,
-.discover-section-label {
-  margin: 0 0 7px;
-  color: #9a43df;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-}
-
-.discover-header h1 {
-  margin: 0;
-  font-size: clamp(32px, 4vw, 52px);
-  line-height: 1.05;
-  letter-spacing: -1.7px;
-  font-weight: 750;
-  color: #1b1225;
-}
-
-.discover-header h1 span {
-  color: #a044e8;
-}
-
-.discover-subtitle {
-  margin: 14px 0 0;
-  max-width: 650px;
-  color: #81768c;
-  font-size: 15px;
-  line-height: 1.6;
-}
-
-/* SEARCH */
-
-.discover-search-wrapper {
-  max-width: 1050px;
-  height: 52px;
-  margin: 0 auto 36px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 0 17px;
-  background: #fff;
-  border: 1px solid #e9e2ef;
-  border-radius: 13px;
-  color: #8e819b;
-  box-shadow: 0 5px 20px rgba(46, 20, 69, 0.035);
-}
-
-.discover-search-wrapper:focus-within {
-  border-color: #a044e8;
-  box-shadow: 0 0 0 3px rgba(160, 68, 232, 0.08);
-}
-
-.discover-search-wrapper input {
-  flex: 1;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  font-size: 14px;
-  color: #24182f;
-}
-
-.discover-search-wrapper input::placeholder {
-  color: #a59bab;
-}
-
-.discover-clear {
-  border: 0;
-  background: transparent;
-  color: #9941d8;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* DOMAIN */
-
-.discover-filter-section,
-.discover-controls,
-.discover-results {
-  max-width: 1050px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.discover-section-heading h2,
-.discover-results-header h2 {
-  margin: 0;
-  font-size: 23px;
-  color: #25182f;
-}
-
-.discover-domain-scroll {
-  display: flex;
-  gap: 8px;
-  margin-top: 17px;
-  overflow-x: auto;
-  padding: 2px 2px 10px;
-  scrollbar-width: none;
-}
-
-.discover-domain-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.discover-domain-chip {
-  flex: 0 0 auto;
-  border: 1px solid #e3dbe9;
-  background: #fff;
-  color: #62566c;
-  border-radius: 30px;
-  padding: 9px 15px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: 0.2s ease;
-}
-
-.discover-domain-chip:hover {
-  border-color: #b45aef;
-  color: #9740d4;
-}
-
-.discover-domain-chip.active {
-  background: #a044e8;
-  border-color: #a044e8;
-  color: #fff;
-}
-
-/* CONTROLS */
-
-.discover-controls {
-  display: grid;
-  grid-template-columns: 230px 1fr;
-  gap: 30px;
-  margin-top: 27px;
-  padding: 20px 0;
-  border-top: 1px solid #ece6f0;
-  border-bottom: 1px solid #ece6f0;
-}
-
-.discover-controls label {
-  display: block;
-  margin-bottom: 8px;
-  color: #74677e;
-  font-size: 11px;
-  font-weight: 750;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.discover-select-wrapper {
-  position: relative;
-}
-
-.discover-select-wrapper select {
-  width: 100%;
-  height: 42px;
-  appearance: none;
-  border: 1px solid #e2d9e8;
-  border-radius: 9px;
-  padding: 0 36px 0 12px;
-  background: #fff;
-  color: #34283e;
-  outline: none;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.discover-select-wrapper svg {
-  position: absolute;
-  right: 12px;
-  top: 13px;
-  pointer-events: none;
-  color: #887991;
-}
-
-.discover-type-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.discover-type-btn {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  height: 42px;
-  padding: 0 15px;
-  border: 1px solid #e2d9e8;
-  border-radius: 9px;
-  background: #fff;
-  color: #62566c;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: 0.2s ease;
-}
-
-.discover-type-btn:hover {
-  border-color: #a044e8;
-  color: #a044e8;
-}
-
-.discover-type-btn.active {
-  border-color: #a044e8;
-  background: rgba(160, 68, 232, 0.08);
-  color: #933bd1;
-}
-
-/* RESULTS */
-
-.discover-results {
-  padding-top: 32px;
-}
-
-.discover-results-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 18px;
-}
-
-.discover-result-count {
-  color: #8b7f94;
-  font-size: 12px;
-}
-
-/* CARDS */
-
-.discover-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 15px;
-}
-
-.discover-card {
-  min-width: 0;
-  padding: 19px;
-  background: #fff;
-  border: 1px solid #ebe4ef;
-  border-radius: 14px;
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    border-color 0.2s ease;
-}
-
-.discover-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(160, 68, 232, 0.3);
-  box-shadow: 0 10px 30px rgba(64, 24, 88, 0.07);
-}
-
-.discover-card-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.discover-card-type {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: #9841d6;
-  background: rgba(160, 68, 232, 0.08);
-  border-radius: 20px;
-  padding: 6px 9px;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.discover-card-category {
-  color: #897d91;
-  font-size: 11px;
-}
-
-.discover-card-domain {
-  margin-top: 17px;
-  color: #9b44d9;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.discover-card h3 {
-  margin: 6px 0 8px;
-  color: #24172e;
-  font-size: 18px;
-  line-height: 1.3;
-}
-
-.discover-card-description {
-  margin: 0;
-  color: #756a7d;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.discover-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 15px;
-}
-
-.discover-tags span {
-  padding: 5px 8px;
-  border-radius: 5px;
-  background: #f7f3f9;
-  color: #71647a;
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.discover-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 19px;
-  padding-top: 14px;
-  border-top: 1px solid #f0ebf2;
-}
-
-.discover-author {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-
-.discover-author-avatar {
-  width: 31px;
-  height: 31px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: #eee5f4;
-  color: #9841d6;
-  font-size: 10px;
-  font-weight: 800;
-}
-
-.discover-author strong {
-  display: block;
-  color: #3a2c43;
-  font-size: 11px;
-}
-
-.discover-author span {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 2px;
-  color: #9a909f;
-  font-size: 10px;
-}
-
-.discover-read-btn {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  border: 0;
-  background: transparent;
-  color: #9941d8;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.discover-read-btn:hover {
-  color: #7220aa;
-}
-
-/* EMPTY */
-
-.discover-empty {
-  text-align: center;
-  padding: 70px 20px;
-  background: #fff;
-  border: 1px solid #ebe4ef;
-  border-radius: 14px;
-  color: #94889d;
-}
-
-.discover-empty h3 {
-  margin: 12px 0 5px;
-  color: #35283e;
-}
-
-.discover-empty p {
-  margin: 0 0 18px;
-  font-size: 13px;
-}
-
-.discover-empty button {
-  border: 0;
-  background: #a044e8;
-  color: #fff;
-  padding: 9px 16px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-/* RESPONSIVE */
-
-@media (max-width: 900px) {
-  .discover-page {
-    padding: 30px 24px 50px;
-  }
-
-  .discover-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .discover-controls {
-    grid-template-columns: 1fr;
-    gap: 18px;
-  }
-}
-
-@media (max-width: 600px) {
-  .discover-page {
-    padding: 24px 15px 40px;
-  }
-
-  .discover-header h1 {
-    font-size: 34px;
-  }
-
-  .discover-search-wrapper {
-    margin-bottom: 28px;
-  }
-
-  .discover-section-heading h2,
-  .discover-results-header h2 {
-    font-size: 20px;
-  }
-
-  .discover-card {
-    padding: 15px;
-  }
-
-  .discover-card-footer {
-    align-items: flex-end;
-  }
-
-  .discover-results-header {
-    align-items: center;
-  }
-}
-
-.content-media {
-  display: block;
-  width: 100%;
-  height: 220px;
-  object-fit: cover;
-  border-radius: 12px;
-  margin-bottom: 16px;
-  background: #f3f0f8;
-}
-
-.content-media:focus-visible {
-  outline: 2px solid #a435f0;
-  outline-offset: 3px;
-}
-
-                `}</style>
       <div className="discover-page">
         {/* Header */}
         <header className="discover-header">
@@ -702,34 +250,78 @@ export default function DiscoverPage() {
         <section className="discover-filter-section">
           <div className="discover-section-heading">
             <div>
-              <p className="discover-section-label">EXPLORE BY DOMAIN</p>
+              <p className="discover-section-label">EXPLORE BY INTEREST</p>
               <h2>Find what you’re interested in</h2>
             </div>
           </div>
 
-
-          <div className="discover-domain-scroll">
-            {domainsLoading ? (
-              <span className="discover-domain-loading">
-                Loading domains...
-              </span>
-            ) : (
-              domains.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  className={`discover-domain-chip ${domain === item ? "active" : ""
-                    }`}
-                  onClick={() => setDomain(item)}
-                  aria-pressed={domain === item}
-                >
-                  {item}
-                </button>
-
-              ))
-            )}
+          {/* Three main buttons */}
+          <div className="discover-mode-buttons" role="tablist" aria-label="Content source">
+            {[
+              { id: 'curiosity', label: 'My Curiosity' },
+              { id: 'skill', label: 'My Skills' },
+              { id: 'all', label: 'All Content' },
+            ].map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                role="tab"
+                aria-selected={mode === m.id}
+                className={`discover-mode-btn ${mode === m.id ? 'active' : ''}`}
+                onClick={() => { setMode(m.id); setInterest(''); }}
+              >
+                {m.label}
+              </button>
+            ))}
           </div>
 
+          {/* Chips under the selected button */}
+          <div className="discover-domain-scroll">
+            {mode === 'all' ? (
+              domainsLoading ? (
+                <span className="discover-domain-loading">Loading domains...</span>
+              ) : (
+                domains.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    className={`discover-domain-chip ${domain === item ? 'active' : ''}`}
+                    onClick={() => setDomain(item)}
+                    aria-pressed={domain === item}
+                  >
+                    {item}
+                  </button>
+                ))
+              )
+            ) : interestsLoading ? (
+              <span className="discover-domain-loading">Loading your {mode === 'curiosity' ? 'curiosity' : 'skills'}...</span>
+            ) : interestList.length === 0 ? (
+              <span className="discover-domain-loading">
+                You haven’t added any {mode === 'curiosity' ? 'curiosity topics' : 'skills'} yet.
+              </span>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className={`discover-domain-chip ${interest === '' ? 'active' : ''}`}
+                  onClick={() => setInterest('')}
+                >
+                  All my {mode === 'curiosity' ? 'curiosity' : 'skills'}
+                </button>
+                {interestList.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    className={`discover-domain-chip ${interest === name ? 'active' : ''}`}
+                    onClick={() => setInterest(name)}
+                    aria-pressed={interest === name}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
         </section>
 
         {/* Filters */}
@@ -779,7 +371,9 @@ export default function DiscoverPage() {
               <p className="discover-section-label">DISCOVER</p>
 
               <h2>
-                {domain === 'All Domains' ? 'All content' : domain}
+                {mode === 'all'
+                  ? (domain === 'All Domains' ? 'All content' : domain)
+                  : (interest || (mode === 'curiosity' ? 'Based on your curiosity' : 'Based on your skills'))}
               </h2>
             </div>
 

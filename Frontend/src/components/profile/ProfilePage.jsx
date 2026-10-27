@@ -459,32 +459,12 @@ function GridItem({ post }) {
           <div className="pp-grid-document-icon">
             <FileText size={42} aria-hidden="true" />
           </div>
-
           <h3 className="pp-grid-document-title">
             {post.caption || fileName}
           </h3>
-
           <p className="pp-grid-document-subtitle">
             Document attachment
           </p>
-
-          {hasSrc ? (
-            <a
-              className="pp-grid-document-download"
-              href={mediaSrc}
-              download={fileName}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`Download ${fileName}`}
-            >
-              <Download size={17} aria-hidden="true" />
-              <span>Download Document</span>
-            </a>
-          ) : (
-            <p className="pp-grid-document-unavailable">
-              Document URL is unavailable.
-            </p>
-          )}
         </div>
       ) : hasSrc ? (
         isVideo ? (
@@ -808,10 +788,19 @@ function ContentSection({ posts, onDiscuss, onDelete }) {
   const openPost = (post) => {
     const type = post.media?.type;
     const isVideo = type === 'video' || post.type === 'reel';
-    const viewable = isVideo || type === 'image' || type === 'document';
 
+    if (type === 'document' && post.media?.src) {
+      sessionStorage.setItem('evolv-doc-start', String(post.id));
+      sessionStorage.setItem('evolv-doc-back', '/profile');
+      window.location.hash = '/document';
+      sessionStorage.setItem('evolv-doc-owner', String(authUserId));
+      window.dispatchEvent(new Event('navigated'));
+      return;
+    }
+
+    const viewable = isVideo || type === 'image';
     if (viewable && post.media?.src) openMyPost(post.id, activeTab);
-    else setSelectedPost(post); // text-only posts keep the modal
+    else setSelectedPost(post);
   };
 
   const filtered = getFiltered();
@@ -885,9 +874,11 @@ function ContentSection({ posts, onDiscuss, onDelete }) {
                 onClick={() => openPost(post)}
                 role="button"
                 tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter') openPost(post); }}
                 aria-label={`Open post: ${post.caption || 'Untitled'}`}
               >
                 <GridItem post={post} />
+
               </div>
             ))}
           </div>

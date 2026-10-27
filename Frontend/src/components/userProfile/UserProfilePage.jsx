@@ -154,8 +154,18 @@ export default function UserProfilePage() {
   };
 
   const openPost = (post) => {
-    const isVideo = post.media?.type === 'video';
-    if (!isVideo && post.media?.type !== 'image') return;
+    const type = post.media?.type;
+
+    if (type === 'document' && post.media?.src) {
+      sessionStorage.setItem('evolv-doc-start', String(post.id));
+      sessionStorage.setItem('evolv-doc-back', `/profile/${userId}`);
+      sessionStorage.setItem('evolv-doc-owner', String(userId));
+      go('/document');
+      return;
+    }
+
+    const isVideo = type === 'video';
+    if (!isVideo && type !== 'image') return;
     sessionStorage.setItem(isVideo ? 'evolv-reel-start' : 'evolv-image-start', String(post.id));
     sessionStorage.setItem(isVideo ? 'evolv-reel-back' : 'evolv-image-back', `/profile/${userId}`);
     go(isVideo ? '/reels' : '/image');
@@ -186,8 +196,8 @@ export default function UserProfilePage() {
               <Avatar src={profile.avatar} name={profile.name} size={90} />
               <div className="up-stats">
                 <div><strong>{posts.length}</strong><span>Posts</span></div>
-                <div><strong>{profile.connectionsCount ?? '–'}</strong><span>Connections</span></div>
-                <div><strong>{profile.skills ? profile.skills.length : '–'}</strong><span>Skills</span></div>
+                <div><strong>{profile.connectionsCount ?? 0}</strong><span>Connections</span></div>
+                <div><strong>{profile.skills ? profile.skills.length : '0'}</strong><span>Skills</span></div>
               </div>
             </section>
 
@@ -240,6 +250,23 @@ export default function UserProfilePage() {
                     </>
                   ) : p.media?.type === 'image' && p.media.src ? (
                     <img src={p.media.src} alt="" loading="lazy" />
+                  ) : p.media?.type === 'document' ? (
+                    <div className="up-tile-doc">
+                      <FileText size={26} />
+                      <span
+                        className="up-tile-doc-view"
+                        style={{
+                          fontSize: "10px",
+                          fontWeight: 700,
+                          padding: "3px 10px",
+                          borderRadius: "999px",
+                          background: "#aa45f5",
+                          color: "#fff",
+                        }}
+                      >
+                        View
+                      </span>
+                    </div>
                   ) : (
                     <div className="up-tile-text">
                       <FileText size={18} />
@@ -253,6 +280,6 @@ export default function UserProfilePage() {
           </>
         )}
       </main>
-    </div>
+    </div >
   );
 }

@@ -313,7 +313,7 @@ export default function MyPostsViewerPage() {
                 <h3>{name}</h3>
                 <p>Document attachment</p>
                 <a href={post.media.src} target="_blank" rel="noopener noreferrer">
-                    <Download size={16} /> Open / Download
+                    Open
                 </a>
             </div>
         );

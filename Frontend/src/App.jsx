@@ -17,6 +17,7 @@ import MyPostsViewerPage from './components/profile/MyPostsViewerPage.jsx';
 import MyPostFullScreenPage from './components/profile/MyPostFullScreenPage.jsx';
 import SearchPage from './components/search/SearchPage.jsx';
 import UserProfilePage from './components/userProfile/UserProfilePage.jsx';
+import DocumentViewerPage from './components/document/DocumentViewerPage.jsx';
 import { isTokenExpired, getStoredToken, msUntilExpiry, forceLogout } from './services/sessionService.js';
 
 /**
@@ -187,6 +188,9 @@ export default function App() {
   }
   if (route === '/search') {
     return <SearchPage />;
+  }
+  if (route === '/document') {
+    return <DocumentViewerPage />;
   }
   if (route.startsWith('/profile/')) {
     return <UserProfilePage />;

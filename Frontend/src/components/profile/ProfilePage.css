@@ -1730,3 +1730,13 @@
 @media (max-width: 800px) {
   .pp-post-modal { grid-template-columns: 1fr; grid-template-rows: minmax(0, 55%) minmax(0, 45%); height: 92vh; }
 }
+.pp-grid-document-view {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #aa45f5;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}

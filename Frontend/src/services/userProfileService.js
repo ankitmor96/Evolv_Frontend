@@ -4,7 +4,7 @@ const TOKEN_KEY = 'evolv_auth_token';
 const getToken = () =>
   localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || null;
 
-const PROFILE_ENDPOINT = (id) => `/api/users/${id}`;
+const PROFILE_ENDPOINT = (id) => `/api/profile/${id}/complete`;
 const CONNECTIONS_COUNT_ENDPOINT = (id) => `/api/connections`;
 
 async function request(path) {
@@ -34,8 +34,27 @@ function toSkillList(src) {
   return null;
 }
 
+const pickNumber = (...vals) => {
+  for (const v of vals) {
+    if (v != null && v !== '' && Number.isFinite(Number(v))) return Number(v);
+  }
+  return null;
+};
+
 function normaliseProfile(raw, fallbackId) {
-  const p = raw?.data?.profile ?? raw?.profile ?? raw?.data ?? raw?.user ?? raw ?? {};
+  const root = raw?.data ?? raw ?? {};
+  const p = root.profile ?? root.user ?? root;
+
+  const connectionsCount = pickNumber(
+    p.connectionsCount, p.connectionCount, p.connections_count,
+    root.connectionsCount, root.connectionCount,
+    p.stats?.connections, p.stats?.connectionsCount,
+    root.stats?.connections, root.stats?.connectionsCount,
+    p._count?.connections,
+    Array.isArray(p.connections) ? p.connections.length : null,
+    Array.isArray(root.connections) ? root.connections.length : null,
+  );
+
   return {
     id: p.id ?? p.userId ?? p._id ?? fallbackId,
     name: p.fullName ?? p.name ?? p.username ?? 'User',
@@ -43,8 +62,8 @@ function normaliseProfile(raw, fallbackId) {
     avatar: p.avatarUrl ?? p.avatar ?? p.profileImage ?? '',
     bio: p.bio ?? p.about ?? p.description ?? '',
     field: p.role ?? p.field ?? p.headline ?? 'Community Member',
-    connectionsCount: p.connectionsCount ?? p.connections ?? null,
-    skills: toSkillList(p.skills ?? p.interests),
+    connectionsCount,
+    skills: toSkillList(p.skills ?? root.skills ?? p.interests),
   };
 }
 

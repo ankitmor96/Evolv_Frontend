@@ -35,3 +35,14 @@
 .up-tile-text { height: 100%; padding: 8px; display: flex; flex-direction: column; gap: 6px; font-size: 11px; color: #4b5563; text-align: left; overflow: hidden; }
 .up-note { grid-column: 1 / -1; text-align: center; color: #8b7aa3; font-size: 14px; padding: 24px 0; }
 .up-error { color: #dc2626; }
+
+.up-tile-doc {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; padding: 8px; text-align: center;
+  background: #f1e9ff; color: #6b2fb0 !important;
+}
+
+.up-tile-doc-view {
+  
+}

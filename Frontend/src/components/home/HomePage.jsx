@@ -892,6 +892,13 @@ function openImage(postId) {
   window.dispatchEvent(new Event('navigated'));
 }
 
+function openDocument(postId) {
+  sessionStorage.setItem('evolv-doc-start', String(postId));
+  sessionStorage.setItem('evolv-doc-back', window.location.hash.replace(/^#/, '') || '/home');
+  window.location.hash = '/document';
+  window.dispatchEvent(new Event('navigated'));
+}
+
 // Portrait box, autoplays muted when visible, click opens the Reels page
 function FeedVideo({ post }) {
   const boxRef = useRef(null);
@@ -1063,7 +1070,14 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
 
       {/* Media */}
       {post.media.type === 'document' ? (
-        <div className="hp-document-card">
+        <div
+          className="hp-document-card hp-document-clickable"
+          onClick={() => openDocument(post.id)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter') openDocument(post.id); }}
+          aria-label={`Open document ${post.media.fileName || ''}`}
+        >
           <div className="hp-document-icon">
             <BookOpen size={28} aria-hidden="true" />
           </div>
@@ -1075,17 +1089,15 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
             <span>Document attachment</span>
           </div>
 
-          {post.media.src && (
-            <a
-              className="hp-document-download"
-              href={post.media.src}
-              download={post.media.fileName || 'document'}
-              target="_blank"
-              rel="noopener noreferrer"
+          <div className="hp-document-actions" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="hp-document-view"
+              onClick={() => openDocument(post.id)}
             >
-              Download Document
-            </a>
-          )}
+              View
+            </button>
+          </div>
         </div>
       ) : post.media.type === 'video' ? (
         <FeedVideo post={post} />
