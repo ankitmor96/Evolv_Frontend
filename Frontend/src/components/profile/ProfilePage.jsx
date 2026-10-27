@@ -12,7 +12,7 @@
  * Routing: hash-based (#/profile), consistent with App.jsx
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Home,
   Compass,
@@ -31,7 +31,6 @@ import {
   FileText,
   Play,
   Heart,
-  MessageSquare,
   Menu,
   X,
   Sparkles,
@@ -49,10 +48,6 @@ import {
   Trash2,
   Download,
   BarChart3,
-  ArrowLeft,
-  ZoomIn,
-  ZoomOut,
-  CheckCircle2,
 
 } from 'lucide-react';
 
@@ -64,6 +59,7 @@ import { connectionService } from '../../services/connectionService.js';
 import socketService from '../../services/socketService.js';
 import CommentPanel from '../shared/CommentPanel.jsx';
 import { CURIOSITY_DOMAINS } from '../onboarding/onboardingData.js';
+import { sumReactionTotals } from '../../services/reactionTotals.js';
 import './ProfilePage.css';
 
 // ─── Navigation helper ───────────────────────────────────────────────────────
@@ -287,31 +283,22 @@ function ProfileRightPanel({
   skills = { canDo: [], learning: [], curiosity: [] },
   identities = [],
   postCount = 0,
+  totals = { appreciation: 0, helpful: 0, learned: 0 },
   posts = [],
   isOpen = false,
   onClose = () => { },
 }) {
-  // ── Compute real stats from the user's own posts ────────────────────────
-  // _normalisePost sets these fields from backend reaction data (REST + Socket).
-  const postList = Array.isArray(posts) ? posts : [];
-  const totalAppreciation = postList.reduce(
-    (sum, p) => sum + (Number(p.appreciations) || Number(p.likes) || 0), 0
-  );
-  const totalLearned = postList.reduce(
-    (sum, p) => sum + (Number(p.learnedCount) || 0), 0
-  );
-  const totalHelpful = postList.reduce(
-    (sum, p) => sum + (Number(p.helpfulCount) || 0), 0
-  );
+  const totalAppreciation = totals.appreciation;
+  const totalLearned = totals.learned;
+  const totalHelpful = totals.helpful;
 
-  const appreciationPct = Math.min(totalAppreciation * 10, 100);
-  const learnedPct = Math.min(totalLearned * 10, 100);
-  const helpfulPct = Math.min(totalHelpful * 10, 100);
+  const GOAL = 10;
+  const toPct = (n) => Math.min(Math.round((n / GOAL) * 100), 100);
 
   const GROWTH_ITEMS = [
-    { label: 'Appreciation', pct: appreciationPct, colorClass: '' },       // purple
-    { label: 'Learned', pct: learnedPct, colorClass: 'green' },  // green
-    { label: 'Helpful', pct: helpfulPct, colorClass: 'yellow' }, // yellow
+    { label: 'Appreciation', value: totalAppreciation, pct: toPct(totalAppreciation), colorClass: '' },
+    { label: 'Learned', value: totalLearned, pct: toPct(totalLearned), colorClass: 'green' },
+    { label: 'Helpful', value: totalHelpful, pct: toPct(totalHelpful), colorClass: 'yellow' },
   ];
 
   return (
@@ -364,11 +351,11 @@ function ProfileRightPanel({
           <p className="pp-right-card-title">Your Growth</p>
           <div className="pp-growth-section">
             {GROWTH_ITEMS.length > 0 ? (
-              GROWTH_ITEMS.map(({ label, pct, colorClass }) => (
+              GROWTH_ITEMS.map(({ label, value, pct, colorClass }) => (
                 <div key={label} className="pp-progress-item">
                   <div className="pp-progress-label">
                     <span>{label}</span>
-                    <span className="pp-progress-pct">{pct}%</span>
+                    <span className="pp-progress-pct">{value} · {pct}%</span>
                   </div>
                   <div className="pp-progress-track">
                     <div
@@ -378,18 +365,18 @@ function ProfileRightPanel({
                       aria-valuenow={pct}
                       aria-valuemin={0}
                       aria-valuemax={100}
-                      aria-label={`${label}: ${pct}%`}
+                      aria-label={`${label}: ${value}`}
                     />
                   </div>
                 </div>
               ))
             ) : (
               <p className="pp-growth-note" style={{ marginTop: 0 }}>
-                Add skills during onboarding or via Edit Skills to see your growth areas.
+                Track your total Helpful, Appreciation, and Learned counts to see the impact of your content.              
               </p>
             )}
             <p className="pp-growth-note">
-              * Skill-level % needs a dedicated growth API. Helpful % = real reactions.
+              Track your total Helpful, Appreciation, and Learned counts to see the impact of your content.
             </p>
           </div>
         </div>
@@ -516,13 +503,6 @@ function GridItem({ post }) {
           <p className="pp-grid-item-caption">
             {post.caption || ''}
           </p>
-
-          <div className="pp-grid-item-meta">
-            <Heart size={11} aria-hidden="true" />
-            <span>{post.appreciations ?? post.likes ?? 0}</span>
-            <MessageSquare size={11} aria-hidden="true" />
-            <span>{post.comments ?? 0}</span>
-          </div>
         </div>
       )}
     </article>
@@ -755,7 +735,7 @@ function PostDetailModal({ post, onClose, onDiscuss, onDelete }) {
 }
 
 // ─── Content Section ──────────────────────────────────────────────────────────
-function ContentSection({ posts, onDiscuss, onDelete }) {
+function ContentSection({ posts,authUserId, onDiscuss, onDelete }) {
   const [activeTab, setActiveTab] = useState('all');
   const [selectedPost, setSelectedPost] = useState(null);
 
@@ -1600,6 +1580,8 @@ export default function ProfilePage() {
   const [connectionsCount, setConnectionsCount] = useState(null);
   /** Guard: postIds currently being deleted (prevents duplicate requests). */
   const pendingDelete = useRef(new Set());
+  // Recomputed whenever posts change (API load, socket updates, delete)
+  const reactionTotals = useMemo(() => sumReactionTotals(posts), [posts]);
 
   const { toast, showToast } = useToast();
 
@@ -2214,6 +2196,7 @@ export default function ProfilePage() {
               ) : (
                 <ContentSection
                   posts={posts}
+                  authUserId={authUserId}
                   onDiscuss={handleDiscuss}
                   onDelete={handleDeletePost}
                 />
@@ -2235,6 +2218,7 @@ export default function ProfilePage() {
               : posts.length
           }
           posts={posts}
+          totals={reactionTotals}
           isOpen={isRightPanelOpen}
           onClose={() => setIsRightPanelOpen(false)}
         />

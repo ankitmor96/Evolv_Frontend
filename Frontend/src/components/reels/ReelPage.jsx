@@ -8,19 +8,29 @@ import { homePostService } from '../../services/homePostService.js';
 import CommentPanel from '../shared/CommentPanel.jsx';
 import "../reels/ReelPage.css";
 
+// ── Type helpers ────────────────────────────────────────────────────────────
 const isVideo = (p) => (p.media?.type === 'video' || p.type === 'reel') && p.media?.src;
+const isImage = (p) => p.media?.type === 'image' && p.media?.src;
+const isMedia = (p) => isVideo(p) || isImage(p);   // ✅ both kinds in one feed
 
-const fmt = (n = 0) => (n >= 1000 ? (n / 1000).toFixed(1).replace('.0', '') + 'K' : String(n));
+const fmt = (n = 0) =>
+  n >= 1000 ? (n / 1000).toFixed(1).replace('.0', '') + 'K' : String(n);
 
 function goBack() {
-  const back = sessionStorage.getItem('evolv-reel-back') || '/home';
+  const back =
+    sessionStorage.getItem('evolv-reel-back') ||
+    sessionStorage.getItem('evolv-image-back') ||
+    '/home';
   sessionStorage.removeItem('evolv-reel-back');
+  sessionStorage.removeItem('evolv-image-back');
   window.location.hash = back;
   window.dispatchEvent(new Event('navigated'));
 }
 
-// ─── One reel ────────────────────────────────────────────────────────────────
-function ReelItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, onDiscuss }) {
+// ─── One feed item (video OR image) ─────────────────────────────────────────
+function FeedItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, onDiscuss }) {
+  const video = isVideo(post);
+
   const itemRef = useRef(null);
   const videoRef = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -37,8 +47,6 @@ function ReelItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
     clearTimeout(pressTimer.current);
     setTip('');
   };
-
-  // Handlers shared by all four buttons
   const tipProps = (label) => ({
     onMouseEnter: () => setTip(label),
     onMouseLeave: endPress,
@@ -49,26 +57,20 @@ function ReelItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
     onContextMenu: (e) => e.preventDefault(),
   });
 
+  // Auto-play only when this item is mostly visible (videos only)
   useEffect(() => {
-    const v = videoRef.current;
-    if (v && v.readyState >= 1) {
-      setIsLandscape(v.videoWidth > v.videoHeight);
-    }
-  }, []);
-
-  // Play only the reel that is mostly visible
-  useEffect(() => {
+    if (!video) return undefined;
     const el = itemRef.current;
-    const video = videoRef.current;
-    if (!el || !video) return undefined;
+    const v = videoRef.current;
+    if (!el || !v) return undefined;
 
     const io = new IntersectionObserver(
       ([entry]) => {
         if (entry.intersectionRatio >= 0.6) {
-          video.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+          v.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
         } else {
-          video.pause();
-          video.currentTime = 0;
+          v.pause();
+          v.currentTime = 0;
           setPlaying(false);
         }
       },
@@ -76,7 +78,7 @@ function ReelItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
     );
     io.observe(el);
     return () => io.disconnect();
-  }, []);
+  }, [video]);
 
   const togglePlay = () => {
     const v = videoRef.current;
@@ -86,55 +88,69 @@ function ReelItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
 
   const creator = post.creator || {};
   const initial = (creator.name || 'U')[0].toUpperCase();
+  const backdropSrc = video ? post.media.poster : post.media.src;
 
   return (
     <section className="rl-item" ref={itemRef} data-post-id={post.id}>
       <div className="rl-card">
         <div className="rl-media">
-          {isLandscape && post.media.poster && (
-            <div
-              className="rl-backdrop"
-              style={{ backgroundImage: `url(${post.media.poster})` }}
-            />
+          {isLandscape && backdropSrc && (
+            <div className="rl-backdrop" style={{ backgroundImage: `url(${backdropSrc})` }} />
           )}
 
-          <video
-            ref={videoRef}
-            src={post.media.src}
-            poster={post.media.poster}
-            className={`rl-video ${isLandscape ? 'rl-video--landscape' : ''}`}
-            loop
-            playsInline
-            muted={muted}
-            preload="metadata"
-            onClick={togglePlay}
-            onLoadedMetadata={(e) => {
-              const v = e.currentTarget;
-              setIsLandscape(v.videoWidth > v.videoHeight);
-            }}
-            onTimeUpdate={(e) => {
-              const v = e.currentTarget;
-              setProgress(v.duration ? (v.currentTime / v.duration) * 100 : 0);
-            }}
-          />
+          {video ? (
+            <video
+              ref={videoRef}
+              src={post.media.src}
+              poster={post.media.poster}
+              className={`rl-video ${isLandscape ? 'rl-video--landscape' : ''}`}
+              loop
+              playsInline
+              muted={muted}
+              preload="metadata"
+              onClick={togglePlay}
+              onLoadedMetadata={(e) => {
+                const v = e.currentTarget;
+                setIsLandscape(v.videoWidth > v.videoHeight);
+              }}
+              onTimeUpdate={(e) => {
+                const v = e.currentTarget;
+                setProgress(v.duration ? (v.currentTime / v.duration) * 100 : 0);
+              }}
+            />
+          ) : (
+            <img
+              src={post.media.src}
+              alt={post.caption || 'Post image'}
+              className={`rl-image ${isLandscape ? 'rl-image--landscape' : ''}`}
+              draggable={false}
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                setIsLandscape(img.naturalWidth > img.naturalHeight);
+              }}
+            />
+          )}
         </div>
 
-        {!playing && (
+        {/* Video-only controls */}
+        {video && !playing && (
           <button type="button" className="rl-play" onClick={togglePlay} aria-label="Play">
             <Play size={28} fill="currentColor" />
           </button>
         )}
 
-        <button
-          type="button"
-          className="rl-mute"
-          onClick={() => setMuted((m) => !m)}
-          aria-label={muted ? 'Unmute' : 'Mute'}
-        >
-          {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-        </button>
+        {video && (
+          <button
+            type="button"
+            className="rl-mute"
+            onClick={() => setMuted((m) => !m)}
+            aria-label={muted ? 'Unmute' : 'Mute'}
+          >
+            {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+          </button>
+        )}
 
-        {/* Bottom overlay: creator + caption */}
+        {/* Bottom overlay */}
         <div className="rl-overlay">
           {post.tags?.length > 0 && (
             <div className="rl-tags">
@@ -155,9 +171,9 @@ function ReelItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
           {post.caption && <p className="rl-caption">{post.caption}</p>}
         </div>
 
-        <div className="rl-progress"><span style={{ width: `${progress}%` }} /></div>
+        {video && <div className="rl-progress"><span style={{ width: `${progress}%` }} /></div>}
 
-        {/* Actions: beside the card on desktop, over the video on mobile */}
+        {/* Actions */}
         <div className="rl-actions">
           <button
             className={`rl-act ${post.appreciated ? 'on pink' : ''}`}
@@ -208,7 +224,7 @@ function ReelItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
   );
 }
 
-// ─── Page ────────────────────────────────────────────────────────────────────
+// ─── Page ───────────────────────────────────────────────────────────────────
 export default function ReelsPage() {
   const user = authService.getCurrentUser();
   const [posts, setPosts] = useState([]);
@@ -217,65 +233,54 @@ export default function ReelsPage() {
   const [commentPostId, setCommentPostId] = useState(null);
   const feedRef = useRef(null);
   const pending = useRef(new Set());
+  const postsRef = useRef([]);
 
+  useEffect(() => { postsRef.current = posts; }, [posts]);
+
+  // Load feed + my posts → keep images AND videos
   useEffect(() => {
     let cancelled = false;
-
     (async () => {
       try {
-        const userId =
-          user?.id ?? user?.userId ?? user?._id ?? null;
+        const userId = user?.id ?? user?.userId ?? user?._id ?? null;
 
         const [feedRes, mine] = await Promise.all([
           homePostService.getFeedPosts().catch(() => ({ posts: [] })),
           homePostService.getMyPosts(userId).catch(() => []),
         ]);
 
-        const feed = (feedRes?.posts ?? []).map((p) =>
-          homePostService._normalisePost(p)
-        );
+        const feed = (feedRes?.posts ?? []).map((p) => homePostService._normalisePost(p));
 
         const map = new Map();
-
         [...(mine || []), ...feed].forEach((p) => {
-          if (p?.id && isVideo(p)) {
-            map.set(String(p.id), p);
-          }
+          if (p?.id && isMedia(p)) map.set(String(p.id), p);   // ✅ isMedia
         });
 
-        // Attach actual comment counts before updating the UI
-        const uniquePosts = [...map.values()];
+        const unique = [...map.values()];
+        const withCounts = await homePostService.attachCommentCounts(unique);
 
-        const withCounts =
-          await homePostService.attachCommentCounts(uniquePosts);
-
-        if (!cancelled) {
-          setPosts(withCounts);
-        }
+        if (!cancelled) setPosts(withCounts);
       } catch (error) {
-        console.error("Failed to load short video:", error);
+        console.error('Failed to load feed:', error);
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
-
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-
-  // Jump to the reel that was clicked
+  // Jump to the item that was clicked (works for both old keys)
   useEffect(() => {
     if (loading || posts.length === 0) return;
-    const startId = sessionStorage.getItem('evolv-reel-start');
+    const startId =
+      sessionStorage.getItem('evolv-reel-start') ||
+      sessionStorage.getItem('evolv-image-start');
     if (!startId) return;
     const el = feedRef.current?.querySelector(`[data-post-id="${startId}"]`);
     if (el) el.scrollIntoView();
     sessionStorage.removeItem('evolv-reel-start');
+    sessionStorage.removeItem('evolv-image-start');
   }, [loading, posts.length]);
 
   // Esc = back
@@ -285,64 +290,56 @@ export default function ReelsPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [commentPostId]);
 
-  // Generic optimistic toggle with rollback
+  // Optimistic toggle with rollback (fixed: snapshot taken from ref, not inside setState)
   const toggle = useCallback(async (postId, flag, countKey, onApi, offApi) => {
     const key = `${flag}:${postId}`;
     if (pending.current.has(key)) return;
     pending.current.add(key);
 
-    let before;
-    setPosts((ps) => {
-      before = ps;
-      return ps.map((p) => {
-        if (String(p.id) !== String(postId)) return p;
-        const next = !p[flag];
-        return { ...p, [flag]: next, [countKey]: Math.max(0, (p[countKey] ?? 0) + (next ? 1 : -1)) };
-      });
-    });
+    const snapshot = postsRef.current;
+    const current = snapshot.find((p) => String(p.id) === String(postId));
+    if (!current) { pending.current.delete(key); return; }
+
+    const was = Boolean(current[flag]);
+    const next = !was;
+
+    setPosts((ps) => ps.map((p) =>
+      String(p.id) !== String(postId) ? p : {
+        ...p,
+        [flag]: next,
+        [countKey]: Math.max(0, (p[countKey] ?? 0) + (next ? 1 : -1)),
+      }));
 
     try {
-      const was = before?.find((p) => String(p.id) === String(postId))?.[flag];
       await (was ? offApi() : onApi());
     } catch (err) {
-      console.warn('[Reels] reaction failed, rolling back:', err.message);
-      setPosts(before);
+      console.warn('[Feed] reaction failed, rolling back:', err.message);
+      setPosts(snapshot);
     } finally {
       pending.current.delete(key);
     }
   }, []);
 
   const onAppreciate = (id) => toggle(id, 'appreciated', 'appreciations',
-    () => homePostService.addReaction(id, 'APPRECIATE'), () => homePostService.removeReaction(id, 'APPRECIATE'));
+    () => homePostService.addReaction(id, 'APPRECIATE'),
+    () => homePostService.removeReaction(id, 'APPRECIATE'));
   const onHelpful = (id) => toggle(id, 'helpful', 'helpfulCount',
-    () => homePostService.addReaction(id, 'HELPFUL'), () => homePostService.removeReaction(id, 'HELPFUL'));
+    () => homePostService.addReaction(id, 'HELPFUL'),
+    () => homePostService.removeReaction(id, 'HELPFUL'));
   const onLearned = (id) => toggle(id, 'learned', 'learnedCount',
-    () => homePostService.markLearned(id), () => homePostService.unmarkLearned(id));
+    () => homePostService.markLearned(id),
+    () => homePostService.unmarkLearned(id));
 
   const onCommentSync = useCallback((postId, total) => {
-    setPosts((ps) =>
-      ps.map((p) =>
-        String(p.id) !== String(postId)
-          ? p
-          : { ...p, comments: total }
-      )
-    );
+    setPosts((ps) => ps.map((p) =>
+      String(p.id) !== String(postId) ? p : { ...p, comments: total }));
   }, []);
 
   const onCommentCount = useCallback((postId, delta) => {
-    setPosts((ps) =>
-      ps.map((p) =>
-        String(p.id) !== String(postId)
-          ? p
-          : {
-            ...p,
-            comments: Math.max(
-              0,
-              (Number(p.comments) || 0) + delta
-            ),
-          }
-      )
-    );
+    setPosts((ps) => ps.map((p) =>
+      String(p.id) !== String(postId)
+        ? p
+        : { ...p, comments: Math.max(0, (Number(p.comments) || 0) + delta) }));
   }, []);
 
   if (!user) return null;
@@ -350,17 +347,17 @@ export default function ReelsPage() {
   return (
     <div className="rl-page">
       <button type="button" className="rl-back" onClick={goBack} aria-label="Back">
-        <ArrowLeft size={20} /> <span>Short Video</span>
+        <ArrowLeft size={20} /> <span>Back</span>
       </button>
 
       {loading ? (
-        <div className="rl-empty">Loading Short Video...</div>
+        <div className="rl-empty">Loading…</div>
       ) : posts.length === 0 ? (
-        <div className="rl-empty">No short videos yet.</div>
+        <div className="rl-empty">No posts yet.</div>
       ) : (
         <div className="rl-feed" ref={feedRef}>
           {posts.map((post) => (
-            <ReelItem
+            <FeedItem
               key={post.id}
               post={post}
               muted={muted}

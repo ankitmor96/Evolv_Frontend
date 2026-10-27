@@ -192,6 +192,7 @@
   font-weight: 700;
   color: #09030F;
   letter-spacing: -0.3px;
+  display: inline;
 }
 
 .mp-conv-list {
@@ -840,7 +841,11 @@
     padding: 10px 14px;
   }
 }
-
+.mp-hero{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
 /* Mobile navigation menu button */
 .mp-mobile-menu-btn {

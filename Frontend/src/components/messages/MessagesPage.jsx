@@ -548,7 +548,8 @@ export default function MessagesPage() {
               aria-label="Search conversations"
             />
           </div>
-          <h1 className="mp-sidebar-title">Messages</h1>
+          <div className='mp-hero'>
+            <h1 className="mp-sidebar-title">Messages</h1>
           <button
             type="button"
             className="mp-mobile-menu-btn"
@@ -558,6 +559,7 @@ export default function MessagesPage() {
           >
             <Menu size={22} />
           </button>
+          </div>
         </div>
 
         <div className="mp-conv-list" role="list" aria-label="Conversation list">

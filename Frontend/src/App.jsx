@@ -170,12 +170,8 @@ export default function App() {
     return <ProfilePage />;
   }
 
-  if (route === '/reels') {
+  if (route === '/reels' || route=== '/image') {
     return <ReelsPage />;
-  }
-
-  if (route === '/image') {
-    return <ImageViewerPage />;
   }
   if (route === '/notifications') {
     return <NotificationsPage />;
