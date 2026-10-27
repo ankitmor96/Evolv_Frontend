@@ -1,64 +1,142 @@
-// src/services/messageService.js
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+import { forceLogout } from './sessionService.js';
+const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? '';
+const BASE = `${API_BASE_URL}/api/messaging`; 
+const TOKEN_KEYS = ['evolv_auth_token', 'token', 'accessToken', 'access_token'];
+
+// Check DevTools → Application → Local Storage and keep the key your login uses
+const getToken = () => {
+  for (const key of TOKEN_KEYS) {
+    const t = localStorage.getItem(key) || sessionStorage.getItem(key);
+    if (t) return t.replace(/^"|"$/g, '');
+  }
+  return null;
+};
 
 const authHeaders = () => ({
   'Content-Type': 'application/json',
-  Authorization: `Bearer ${localStorage.getItem('token')}`,
+  Authorization: `Bearer ${getToken()}`,
 });
 
 async function request(path, options = {}) {
-  const res = await fetch(`${BASE}${path}`, { headers: authHeaders(), ...options });
-  if (!res.ok) throw new Error(`Request failed (${res.status})`);
-  return res.json();
+  const token = getToken();
+  const url = `${BASE}${path}`;
+
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (res.status === 401 && token) forceLogout();
+
+  const payload = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const message = Array.isArray(payload?.message)
+      ? payload.message.join(' ')
+      : payload?.message || payload?.error || `Request failed (${res.status})`;
+    const err = new Error(message);
+    err.status = res.status;
+    err.payload = payload;
+    throw err;
+  }
+
+  return payload;
 }
 
-// Convert backend shape → the shape the UI already uses.
-// If your backend field names differ, change them ONLY here.
-const normaliseConversation = (c) => ({
-  id: c.id,
-  user: c.otherUser?.name ?? c.user ?? 'Unknown',
-  avatar: c.otherUser?.avatarUrl ?? c.avatar ?? '',
-  online: Boolean(c.otherUser?.online ?? c.online),
-  lastMessage: c.lastMessage?.text ?? c.lastMessage ?? '',
-  timestamp: c.lastMessage?.createdAt ?? c.timestamp ?? '',
-  unreadCount: c.unreadCount ?? 0,
-});
+// Backend sends { success, count, data: [...] }
+const toList = (res, key) => {
+  if (Array.isArray(res)) return res;
+  const d = res?.data;
+  if (Array.isArray(d)) return d;
+  if (key && Array.isArray(d?.[key])) return d[key];
+  return [];
+};
 
 const formatTime = (d) =>
   d ? new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
 
-const normaliseMessage = (m, myId) => ({
-  id: m.id,
-  sender: String(m.senderId) === String(myId) ? 'me' : 'them',
-  text: m.text ?? '',
-  timestamp: formatTime(m.createdAt) || m.timestamp || '',
-  status: m.status ?? (m.readAt ? 'read' : 'delivered'),
-  type: m.type ?? 'text',
-  card: m.card, // only for learning-card messages
-});
+// ── Backend shape → UI shape. Change field names ONLY here. ──
+const normaliseConversation = (c = {}) => {
+  const other = c.otherUser ?? c.participant ?? c.user ?? c.partner ?? {};
+  const last = c.lastMessage;
+  const lastText =
+    typeof last === 'string' ? last : last?.text ?? last?.content ?? last?.message ?? '';
+  const lastTime = typeof last === 'object' ? last?.createdAt : null;
+
+  return {
+    id: c.id ?? c.conversationId ?? c.conversation?.id,
+    user:
+      other.name ?? other.username ?? c.otherUserName ?? c.name ??
+      (typeof c.user === 'string' ? c.user : 'Unknown'),
+    avatar: other.avatarUrl ?? c.otherUserAvatar ?? c.avatarUrl ?? c.avatar ?? '',
+    online: Boolean(other.online ?? c.online),
+    lastMessage: lastText,
+    timestamp: formatTime(lastTime ?? c.updatedAt ?? c.lastMessageAt) || c.timestamp || '',
+    unreadCount: Number(c.unreadCount ?? 0),
+  };
+};
+
+const normaliseMessage = (m = {}, myId) => {
+  const senderId = m.senderId ?? m.sender_id ?? m.sender?.id;
+  return {
+    id: m.id ?? m.messageId,
+    sender: String(senderId) === String(myId) ? 'me' : 'them',
+    text: m.text ?? m.content ?? m.message ?? '',
+    timestamp: formatTime(m.createdAt ?? m.created_at) || m.timestamp || '',
+    status: m.status ?? (m.readAt || m.isRead ? 'read' : 'delivered'),
+    type: m.type ?? 'text',
+    card: m.card,
+  };
+};
 
 export const messageService = {
+  // GET /messaging/conversations
   async getConversations() {
     const res = await request('/conversations');
-    const list = Array.isArray(res) ? res : res?.data ?? [];
-    return list.map(normaliseConversation);
+    return toList(res, 'conversations').map(normaliseConversation);
   },
 
+  // GET /messaging/conversations/:id/messages
   async getMessages(conversationId, myId) {
     const res = await request(`/conversations/${conversationId}/messages`);
-    const list = Array.isArray(res) ? res : res?.data ?? [];
-    return list.map((m) => normaliseMessage(m, myId));
+    return toList(res, 'messages').map((m) => normaliseMessage(m, myId));
   },
 
+  // POST /messaging/conversations/:id/messages   body: { text }
   async sendMessage(conversationId, text, myId) {
     const res = await request(`/conversations/${conversationId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ text }),
+      // some backends expect "content" instead of "text", so we send both
+      body: JSON.stringify({ text, content: text }),
     });
-    return normaliseMessage(res?.data ?? res, myId);
+    return normaliseMessage(res?.data?.message ?? res?.data ?? res, myId);
   },
 
+  // PATCH /messaging/conversations/:id/read
   async markRead(conversationId) {
     return request(`/conversations/${conversationId}/read`, { method: 'PATCH' });
+  },
+
+  // GET /messaging/connections/search?search=kalpesh
+  // → [{ userId, name, username, avatarUrl }]
+  async searchConnections(query) {
+    const res = await request(`/connections/search?search=${encodeURIComponent(query)}`);
+    return toList(res);
+  },
+
+  // POST /messaging/conversations/start/:userId
+  async startConversation(userId, person) {
+    const res = await request(`/conversations/start/${userId}`, { method: 'POST' });
+    const raw = res?.data?.conversation ?? res?.data ?? res;
+    const conv = normaliseConversation(raw);
+    return {
+      ...conv,
+      user: conv.user === 'Unknown' ? person?.name ?? person?.username ?? 'Unknown' : conv.user,
+      avatar: conv.avatar || person?.avatarUrl || '',
+    };
   },
 };

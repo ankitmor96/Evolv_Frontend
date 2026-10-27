@@ -3,7 +3,7 @@ import {
   Home, Compass, BookOpen, MessageCircle, Users, User,
   LogOut, Search, MoreHorizontal, Pin,
   Image, Paperclip, Smile, Send, ChevronLeft,
-  CheckCheck, Check, X, Menu
+  CheckCheck, Check, X, Menu, Plus
 } from 'lucide-react';
 import { authService } from '../../services/authService.js';
 import { messageService } from '../../services/messageService.js';
@@ -277,6 +277,75 @@ function MessageComposer({ onSend }) {
     </div>
   );
 }
+// ─── New Chat Panel (search connections → start conversation) ─────────────────
+function NewChatPanel({ onPick, onClose }) {
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 2) { setResults([]); setError(''); return; }
+
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        setLoading(true);
+        setError('');
+        const list = await messageService.searchConnections(term);
+        if (!cancelled) setResults(list);
+      } catch (err) {
+        if (!cancelled) setError('Search failed.');
+        console.error('[NewChatPanel]', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }, 350); // debounce
+
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [q]);
+
+  return (
+    <div className="mp-newchat">
+      <div className="mp-newchat-top">
+        <input
+          className="mp-search-input mp-newchat-input"
+          placeholder="Search your connections…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          autoFocus
+        />
+        <button type="button" className="mp-newchat-close" onClick={onClose} aria-label="Close">
+          <X size={16} />
+        </button>
+      </div>
+
+      {loading && <div className="mp-newchat-note">Searching…</div>}
+      {error && <div className="mp-newchat-note" style={{ color: '#c41c4a' }}>{error}</div>}
+      {!loading && !error && q.trim().length >= 2 && results.length === 0 && (
+        <div className="mp-newchat-note">No connections found</div>
+      )}
+
+      {results.map((p) => (
+        <div
+          key={p.userId}
+          className="mp-conv-item"
+          role="button"
+          tabIndex={0}
+          onClick={() => onPick(p)}
+          onKeyDown={(e) => e.key === 'Enter' && onPick(p)}
+        >
+          <ConvAvatar src={p.avatarUrl} name={p.name} size={38} />
+          <div className="mp-conv-body">
+            <div className="mp-conv-name">{p.name}</div>
+            <div className="mp-conv-preview">@{p.username}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // ─── Chat Window ──────────────────────────────────────────────────────────────
 function ChatWindow({ conv, messages, onSend, onBack, chatOpen, onMenu, loading }) {
@@ -376,6 +445,7 @@ export default function MessagesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [chatOpen, setChatOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [newChatOpen, setNewChatOpen] = useState(false);
 
   const activeConv = conversations.find((c) => c.id === activeId) ?? null;
   const activeMessages = (activeId && allMessages[activeId]) || [];
@@ -398,6 +468,22 @@ export default function MessagesPage() {
     })();
     return () => { cancelled = true; };
   }, []);
+  const handleStartChat = async (person) => {
+    try {
+      const conv = await messageService.startConversation(person.userId, person);
+      if (!conv.id) throw new Error('Backend did not return a conversation id');
+
+      setConversations((prev) =>
+        prev.some((c) => c.id === conv.id) ? prev : [conv, ...prev]
+      );
+      setNewChatOpen(false);
+      setSearchQuery('');
+      handleSelectConversation(conv); // opens chat and loads messages
+    } catch (err) {
+      console.error('[MessagesPage] start conversation failed:', err);
+      setConvError('Could not start conversation.');
+    }
+  };
 
   // Filter conversations by search
   const q = searchQuery.toLowerCase();
@@ -548,20 +634,30 @@ export default function MessagesPage() {
               aria-label="Search conversations"
             />
           </div>
-          <div className='mp-hero'>
+          <div className="mp-hero">
             <h1 className="mp-sidebar-title">Messages</h1>
-          <button
-            type="button"
-            className="mp-mobile-menu-btn"
-            onClick={() => setMobileMenuOpen(true)}
-            aria-label="Open navigation menu"
-            aria-expanded={mobileMenuOpen}
-          >
-            <Menu size={22} />
-          </button>
+            <button
+              type="button"
+              className="mp-newchat-btn"
+              onClick={() => setNewChatOpen((v) => !v)}
+              aria-label="New conversation"
+            >
+              <Plus size={18} />
+            </button>
+            <button
+              type="button"
+              className="mp-mobile-menu-btn"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open navigation menu"
+              aria-expanded={mobileMenuOpen}
+            >
+              <Menu size={22} />
+            </button>
           </div>
         </div>
-
+        {newChatOpen && (
+          <NewChatPanel onPick={handleStartChat} onClose={() => setNewChatOpen(false)} />
+        )}
         <div className="mp-conv-list" role="list" aria-label="Conversation list">
           {convLoading ? (
             <div style={{ padding: '24px 20px', fontSize: 14, color: 'rgba(9,3,15,0.4)' }}>

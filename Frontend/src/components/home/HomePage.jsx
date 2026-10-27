@@ -617,7 +617,7 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
             aria-label="Go to EVOLV home"
             onClick={() => { window.location.hash = '/home'; window.dispatchEvent(new Event('navigated')); setIsSidebarOpen(false); }}
           >
-            <img src="/logo.jpeg" alt="EVOLV" className="hp-logo-img" />
+            <img src="/logo.png" alt="EVOLV" className="hp-logo-img" />
           </button>
           <button
             type="button"

@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { authService } from "../../services/authService.js";
 import { profileService } from "../../services/profileService.js";
-import evolvLogo from "/bg-remove.png";
+import evolvLogo from "/logo-remove.png";
 
 import "./LoginPage.css";
 

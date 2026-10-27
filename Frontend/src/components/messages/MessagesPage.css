@@ -859,6 +859,7 @@
   border-radius: 11px;
   background: #fff;
   color: #09030F;
+  margin-left: 5px;
   cursor: pointer;
 }
 
@@ -960,3 +961,22 @@
     animation: none;
   }
 }
+
+.mp-newchat-btn {
+  margin-left: auto;
+  width: 34px; height: 34px;
+  border: none; border-radius: 10px;
+  background: #f1e9fb; color: #7c3aed;
+  display: grid; place-items: center;
+  cursor: pointer;
+}
+.mp-newchat-btn:hover { background: #e6d8f8; }
+
+.mp-newchat { padding: 8px 12px 12px; border-bottom: 1px solid rgba(9,3,15,0.08); }
+.mp-newchat-top { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.mp-newchat-input {
+  flex: 1; padding: 9px 12px; border-radius: 10px;
+  border: 1px solid rgba(9,3,15,0.12); outline: none;
+}
+.mp-newchat-close { border: none; background: transparent; cursor: pointer; color: rgba(9,3,15,0.5); }
+.mp-newchat-note { padding: 8px 4px; font-size: 13px; color: rgba(9,3,15,0.4); }

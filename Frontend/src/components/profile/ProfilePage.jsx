@@ -174,7 +174,7 @@ function ProfileSidebar({ user, profile, isSidebarOpen, setIsSidebarOpen }) {
             aria-label="Go to EVOLV home"
             onClick={() => handleNavClick('/home')}
           >
-            <img src="/logo.jpeg" alt="EVOLV" className="pp-logo-img" />
+            <img src="/logo.png" alt="EVOLV" className="pp-logo-img" />
           </button>
           <button
             type="button"
