@@ -623,17 +623,6 @@ export default function MessagesPage() {
       {/* Conversation sidebar */}
       <aside className={`mp-sidebar${chatOpen ? ' chat-open' : ''}`} aria-label="Conversations">
         <div className="mp-sidebar-header">
-          <div className="mp-search-wrap">
-            <Search size={15} />
-            <input
-              className="mp-search-input"
-              type="search"
-              placeholder="Search conversations"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              aria-label="Search conversations"
-            />
-          </div>
           <div className="mp-hero">
             <h1 className="mp-sidebar-title">Messages</h1>
             <button
