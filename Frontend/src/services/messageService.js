@@ -1,7 +1,7 @@
 
 import { forceLogout } from './sessionService.js';
 const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? '';
-const BASE = `${API_BASE_URL}/api/messaging`; 
+const BASE = `${API_BASE_URL}/api/messaging`;
 const TOKEN_KEYS = ['evolv_auth_token', 'token', 'accessToken', 'access_token'];
 
 // Check DevTools → Application → Local Storage and keep the key your login uses
@@ -60,8 +60,15 @@ const formatTime = (d) =>
   d ? new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
 
 // ── Backend shape → UI shape. Change field names ONLY here. ──
-const normaliseConversation = (c = {}) => {
-  const other = c.otherUser ?? c.participant ?? c.user ?? c.partner ?? {};
+const normaliseConversation = (c = {}, myId) => {
+  const participants = Array.isArray(c.participants) ? c.participants : [];
+
+  // pick the participant who is NOT me; fall back to the first one
+  const other =
+    participants.find((p) => String(p.userId) !== String(myId)) ??
+    participants[0] ??
+    c.otherUser ?? c.participant ?? c.user ?? c.partner ?? {};
+
   const last = c.lastMessage;
   const lastText =
     typeof last === 'string' ? last : last?.text ?? last?.content ?? last?.message ?? '';
@@ -69,6 +76,7 @@ const normaliseConversation = (c = {}) => {
 
   return {
     id: c.id ?? c.conversationId ?? c.conversation?.id,
+    userId: other.userId ?? other.id,
     user:
       other.name ?? other.username ?? c.otherUserName ?? c.name ??
       (typeof c.user === 'string' ? c.user : 'Unknown'),
@@ -95,9 +103,21 @@ const normaliseMessage = (m = {}, myId) => {
 
 export const messageService = {
   // GET /messaging/conversations
-  async getConversations() {
+  // messageService
+  async getConversations(myId) {
     const res = await request('/conversations');
-    return toList(res, 'conversations').map(normaliseConversation);
+    return toList(res, 'conversations').map((c) => normaliseConversation(c, myId));
+  },
+
+  async startConversation(userId, person, myId) {
+    const res = await request(`/conversations/start/${userId}`, { method: 'POST' });
+    const raw = res?.data?.conversation ?? res?.data ?? res;
+    const conv = normaliseConversation(raw, myId);
+    return {
+      ...conv,
+      user: conv.user === 'Unknown' ? person?.name ?? person?.username ?? 'Unknown' : conv.user,
+      avatar: conv.avatar || person?.avatarUrl || '',
+    };
   },
 
   // GET /messaging/conversations/:id/messages

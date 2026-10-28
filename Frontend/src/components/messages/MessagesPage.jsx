@@ -457,7 +457,7 @@ export default function MessagesPage() {
       try {
         setConvLoading(true);
         setConvError('');
-        const list = await messageService.getConversations();
+        const list = await messageService.getConversations(myId);
         if (!cancelled) setConversations(list);
       } catch (err) {
         if (!cancelled) setConvError('Could not load conversations.');
@@ -470,7 +470,7 @@ export default function MessagesPage() {
   }, []);
   const handleStartChat = async (person) => {
     try {
-      const conv = await messageService.startConversation(person.userId, person);
+      const conv = await messageService.startConversation(person.userId, person, myId);
       if (!conv.id) throw new Error('Backend did not return a conversation id');
 
       setConversations((prev) =>
