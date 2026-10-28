@@ -1,167 +1,138 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Search,
-  ChevronDown,
-  SlidersHorizontal,
-  FileText,
-  PlaySquare,
-  Image,
-  Newspaper,
-  File,
-  CircleHelp,
-  Trophy,
-  Clock,
-  ArrowRight
+  Search, ChevronLeft, ChevronRight, ArrowRight, Sparkles, Code2, Mic,
+  Brain, Palette, PenLine, TrendingUp, Target, Compass, Users, Route,
+  Rocket, Globe, Lightbulb, Play,
 } from 'lucide-react';
-import "../discover/DiscoverPage.css";
-import { profileService } from "../../services/profileService";
+import '../discover/DiscoverPage.css';
+import { profileService } from '../../services/profileService';
 
-const CONTENT_CATEGORIES = [
-  'All Categories',
-  'Learning',
-  'Tutorial',
-  'Guide',
-  'Ideas',
-  'Case Study',
-  'Discussion',
-  'Resources',
-  'Career',
-  'Personal Growth',
+/* ───────────────────────── STATIC CONTENT ───────────────────────── */
+
+// The 4 options under the search bar
+const TABS = [
+  { id: 'foryou', label: 'For You' },
+  { id: 'skills', label: 'Skills' },
+  { id: 'curiosity', label: 'Curiosity' },
+  { id: 'improve', label: 'Improve Myself' },
 ];
 
-const CONTENT_TYPES = [
-  { id: 'All', label: 'All Content', icon: SlidersHorizontal },
-  { id: 'Text', label: 'Text', icon: FileText },
-  { id: 'Short Video', label: 'Short Video', icon: PlaySquare },
-  { id: 'Photos', label: 'Photos', icon: Image },
-  { id: 'Article', label: 'Article', icon: Newspaper },
-  { id: 'Document', label: 'Document', icon: File },
-  { id: 'Question', label: 'Question', icon: CircleHelp },
-  { id: 'Achievement', label: 'Achievement', icon: Trophy },
+// Hero slider
+const SLIDES = [
+  {
+    tag: "Today's question",
+    title: 'Why do we procrastinate even when we know what matters?',
+    text: 'Explore the psychology behind it and learn practical ways to overcome it.',
+    query: 'procrastinat',
+    tone: 'plum',
+  },
+  {
+    tag: 'Skill spotlight',
+    title: 'What does it take to explain an idea clearly?',
+    text: 'See how people turn complicated topics into simple stories.',
+    query: 'communication',
+    tone: 'violet',
+  },
+  {
+    tag: 'Curiosity pick',
+    title: 'How do small daily habits shape who we become?',
+    text: 'Learn how consistency beats motivation over time.',
+    query: 'habit',
+    tone: 'indigo',
+  },
+  {
+    tag: 'Try this week',
+    title: 'Can you learn something new in just 20 minutes a day?',
+    text: 'Find short lessons and posts from people who did it.',
+    query: 'time management',
+    tone: 'magenta',
+  },
 ];
 
-const DEMO_CONTENT = [];
-import { homePostService } from "../../services/homePostService";
-import { fetchHomeTabs, mapTabsToLabels } from "../../services/homeTabService";
-function getTypeIcon(type) {
-  if (type === 'Article') return FileText;
-  if (type === 'Document') return File;
-  return CircleHelp;
-}
+// TODO: replace with real posts (homePostService). Keep the same fields.
+const DEMO_POSTS = [
+  { id: 1, title: 'How to write cleaner Python code', author: 'Alex Carter', duration: '5:12', tags: ['Python', 'Programming'], tone: 'plum' },
+  { id: 2, title: '3 techniques to speak with confidence', author: 'Maya Singh', duration: '4:28', tags: ['Public Speaking', 'Communication'], tone: 'violet' },
+  { id: 3, title: 'How your brain builds habits', author: 'Dr. Leah Kim', duration: '6:15', tags: ['Psychology', 'Habits'], tone: 'indigo' },
+  { id: 4, title: 'Plan your week in 10 minutes', author: 'Ethan Moore', duration: '7:20', tags: ['Time Management', 'Productivity'], tone: 'magenta' },
+  { id: 5, title: 'Tell a story that people remember', author: 'Priya Sharma', duration: '3:40', tags: ['Storytelling', 'Writing'], tone: 'violet' },
+  { id: 6, title: 'Photography basics: light and framing', author: 'Daniel Park', duration: '5:55', tags: ['Photography', 'Design'], tone: 'plum' },
+];
+
+// TODO: replace with real people from your API.
+const DEMO_PEOPLE = [
+  { id: 1, name: 'Dr. Sarah Lin', role: 'Neuroscience • Psychology', bio: 'Sharing insights on the human mind and better habits.' },
+  { id: 2, name: 'Daniel Park', role: 'AI • Product Design', bio: 'Exploring technology, creativity and the future of work.' },
+  { id: 3, name: 'Priya Sharma', role: 'Communication • Leadership', bio: 'Helping you become a more confident, authentic speaker.' },
+  { id: 4, name: 'Arjun Menon', role: 'Web Development', bio: 'Breaking down frontend and full-stack concepts simply.' },
+];
+
+const NEW_TOPICS = [
+  { id: 1, icon: Rocket, title: 'Space Exploration', text: 'Discover the mysteries beyond our planet.', tone: 'indigo' },
+  { id: 2, icon: Globe, title: 'Ancient Civilizations', text: 'Learn how societies rose and fell.', tone: 'plum' },
+  { id: 3, icon: Brain, title: 'The Human Mind', text: 'Understand what makes us who we are.', tone: 'violet' },
+  { id: 4, icon: Lightbulb, title: 'Creativity', text: 'Explore a new way of thinking.', tone: 'magenta' },
+];
+
+const JOURNEY = [
+  { icon: Compass, text: "Follow topics you're interested in" },
+  { icon: Sparkles, text: 'Explore new skills and questions' },
+  { icon: Users, text: 'Connect with people who share knowledge' },
+  { icon: Route, text: 'Track what you want to improve' },
+];
+
+/* ───────────────────────── HELPERS ───────────────────────── */
+
+const ICON_RULES = [
+  [/python|java|code|program|web|react|develop|sql|html|css/i, Code2],
+  [/speak|communic|talk|present/i, Mic],
+  [/psych|mind|think|brain|critical/i, Brain],
+  [/design|ui|ux|art|photo/i, Palette],
+  [/writ|story|content/i, PenLine],
+  [/financ|money|invest|business/i, TrendingUp],
+  [/focus|habit|time|consisten|product/i, Target],
+];
+const iconFor = (name = '') =>
+  ICON_RULES.find(([re]) => re.test(name))?.[1] ?? Sparkles;
+
+const initials = (name = '') =>
+  name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+
+const rowsOf = (r) => {
+  if (r.status !== 'fulfilled') return [];
+  const v = r.value;
+  return Array.isArray(v) ? v : v?.data ?? v?.items ?? [];
+};
+
+/* ───────────────────────── COMPONENT ───────────────────────── */
 
 export default function DiscoverPage() {
-  const [contentItems, setContentItems] = useState([]);
-  const [domains, setDomains] = useState(["All Domains"]);
-  const [domain, setDomain] = useState("All Domains");
-  const [domainsLoading, setDomainsLoading] = useState(true);
-  const [category, setCategory] = useState('All Categories');
-  const [contentType, setContentType] = useState('All');
+  const [tab, setTab] = useState('foryou');
   const [search, setSearch] = useState('');
-  const [mode, setMode] = useState('all');
-  const [myCuriosity, setMyCuriosity] = useState([]);
-  const [mySkills, setMySkills] = useState([]);
-  const [interest, setInterest] = useState('');
-  const [interestsLoading, setInterestsLoading] = useState(true);
+  const [topic, setTopic] = useState('');
 
-  const interestList = mode === 'curiosity' ? myCuriosity : mode === 'skill' ? mySkills : [];
+  // slider
+  const [slide, setSlide] = useState(0);
+  const [paused, setPaused] = useState(false);
 
-  const filteredContent = useMemo(() => {
-    const query = search.trim().toLowerCase();
+  // user data
+  const [curiosity, setCuriosity] = useState([]);
+  const [skills, setSkills] = useState([]);
+  const [improve, setImprove] = useState([]);
+  const [allSkills, setAllSkills] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-    // Words the content must relate to (only in Curiosity / Skill mode)
-    const terms =
-      mode === 'all' ? null : interest ? [interest] : interestList;
+  const [following, setFollowing] = useState(() => new Set());
+  const postsRef = useRef(null);
 
-    return contentItems.filter((item) => {
-      const hay = [
-        item.title, item.description, item.domain, item.category,
-        ...(item.tags || []),
-      ].join(' ').toLowerCase();
-
-      const matchesMode = terms === null || terms.some((t) => hay.includes(t.toLowerCase()));
-      const matchesDomain = mode !== 'all' || domain === 'All Domains' || item.domain === domain;
-      const matchesCategory = category === 'All Categories' || item.category === category;
-      const matchesType = contentType === 'All' || item.type === contentType;
-      const matchesSearch = !query || hay.includes(query);
-
-      return matchesMode && matchesDomain && matchesCategory && matchesType && matchesSearch;
-    });
-  }, [contentItems, mode, interest, interestList, domain, category, contentType, search]);
-
+  /* auto-advance slider */
   useEffect(() => {
-    let cancelled = false;
+    if (paused) return undefined;
+    const t = setInterval(() => setSlide((s) => (s + 1) % SLIDES.length), 5000);
+    return () => clearInterval(t);
+  }, [paused]);
 
-    const loadDiscoverDomains = async () => {
-      try {
-        const raw = await fetchHomeTabs();
-
-        if (cancelled) return;
-
-        const payload = raw?.data ?? raw;
-
-        // Use the same tabs array that provides Home's interests.
-        const apiTabs = Array.isArray(payload?.tabs)
-          ? payload.tabs
-          : Array.isArray(payload)
-            ? payload
-            : Array.isArray(payload?.selectedSkills)
-              ? payload.selectedSkills
-              : [];
-
-        // Keep individual skill labels instead of grouping by category.
-        const seen = new Set();
-
-        const labels = apiTabs
-          .map((item) =>
-            String(
-              item?.label ||
-              item?.name ||
-              item?.categoryName ||
-              ""
-            ).trim()
-          )
-          .filter((label) => {
-            if (!label) return false;
-
-            const key = label.toLowerCase();
-
-            // Avoid duplicating the All Domains button.
-            if (key === "all domains") return false;
-
-            if (seen.has(key)) return false;
-
-            seen.add(key);
-            return true;
-          });
-
-        const nextDomains = ["All Domains", ...labels];
-
-        setDomains(nextDomains);
-
-        setDomain((current) =>
-          nextDomains.includes(current)
-            ? current
-            : "All Domains"
-        );
-      } catch (error) {
-        console.error(
-          "Failed to load Discover domains:",
-          error.message
-        );
-      } finally {
-        if (!cancelled) {
-          setDomainsLoading(false);
-        }
-      }
-    };
-
-    loadDiscoverDomains();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
+  /* load the user's curiosity / skills / improve lists */
   useEffect(() => {
     let cancelled = false;
 
@@ -175,336 +146,353 @@ export default function DiscoverPage() {
         if (cancelled) return;
 
         const map = idToName.status === 'fulfilled' ? idToName.value || {} : {};
-        const rows = (r) => {
-          if (r.status !== 'fulfilled') return [];
-          const v = r.value;
-          return Array.isArray(v) ? v : v?.data ?? v?.items ?? [];
-        };
-        const toNames = (list) => [
-          ...new Set(
-            list
-              .map((row) => map[Number(row.skillId)])
-              .filter((n) => typeof n === 'string' && n.trim())
-          ),
-        ];
+        const unique = (arr) => [...new Set(arr.filter(Boolean))];
+        const nameOf = (row) => map[Number(row.skillId)];
 
-        setMyCuriosity(toNames(rows(curRes)));
-        setMySkills(toNames(rows(skillRes)));
+        const userRows = rowsOf(skillRes);
+
+        setCuriosity(unique(rowsOf(curRes).map(nameOf)));
+        setSkills(
+          unique(
+            userRows
+              .filter((r) => r.relationshipType === 'CAN_DO' || r.relationshipType === 'LEARNING')
+              .map(nameOf)
+          )
+        );
+        setImprove(
+          unique(
+            userRows.filter((r) => r.relationshipType === 'WANT_TO_IMPROVE').map(nameOf)
+          )
+        );
+        setAllSkills(unique(Object.values(map)));
       } finally {
-        if (!cancelled) setInterestsLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
 
     return () => { cancelled = true; };
   }, []);
 
-  const filteredPosts = contentItems.filter((post) => {
-    if (domain === "All Domains") return true;
+  /* terms that the selected tab is "about" */
+  const tabTerms = useMemo(() => {
+    if (tab === 'skills') return skills;
+    if (tab === 'curiosity') return curiosity;
+    if (tab === 'improve') return improve;
+    return [...new Set([...skills, ...curiosity, ...improve])];
+  }, [tab, skills, curiosity, improve]);
 
-    return (
-      post.domain?.toLowerCase() === domain.toLowerCase()
-    );
-  });
+  /* skills the user does not have yet → "worth exploring" */
+  const suggestions = useMemo(() => {
+    const mine = new Set([...skills, ...curiosity, ...improve].map((s) => s.toLowerCase()));
+    return allSkills.filter((s) => !mine.has(s.toLowerCase())).slice(0, 14);
+  }, [allSkills, skills, curiosity, improve]);
+
+  /* "Based on what you want to improve" cards */
+  const improveCards = (improve.length ? improve : suggestions).slice(0, 6);
+
+  /* chips row changes with the tab */
+  const chipTitle =
+    tab === 'foryou' ? 'Skills worth exploring'
+      : tab === 'skills' ? 'Your skills'
+        : tab === 'curiosity' ? 'Things you are curious about'
+          : 'What you want to improve';
+  const chipItems = tab === 'foryou' ? suggestions : tabTerms;
+
+  /* posts */
+  const posts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return DEMO_POSTS.filter((p) => {
+      const hay = [p.title, p.author, ...p.tags].join(' ').toLowerCase();
+      const byTab =
+        tab === 'foryou' || tabTerms.length === 0
+          ? true
+          : tabTerms.some((t) => hay.includes(t.toLowerCase()));
+      const byTopic = !topic || hay.includes(topic.toLowerCase());
+      const bySearch = !q || hay.includes(q);
+      return byTab && byTopic && bySearch;
+    });
+  }, [tab, tabTerms, topic, search]);
+
+  const goToPosts = () =>
+    postsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const pickTopic = (name) => {
+    setTopic((cur) => (cur === name ? '' : name));
+    goToPosts();
+  };
+
+  const toggleFollow = (id) =>
+    setFollowing((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+
+  const prevSlide = () => setSlide((s) => (s - 1 + SLIDES.length) % SLIDES.length);
+  const nextSlide = () => setSlide((s) => (s + 1) % SLIDES.length);
 
   return (
-    <>
-      <div className="discover-page">
-        {/* Header */}
-        <header className="discover-header">
-          <div>
-            <p className="discover-eyebrow">EXPLORE & LEARN</p>
+    <div className="discover-page">
+      {/* ───── Header ───── */}
+      <header className="dx-header">
+        <h1>Discover</h1>
+        <p>Explore what interests you. Learn new skills. Become a better you.</p>
+      </header>
 
-            <h1>
-              Discover something
-              <span> worth knowing.</span>
-            </h1>
+      {/* ───── Search ───── */}
+      <div className="dx-search">
+        <Search size={19} />
+        <input
+          type="search"
+          placeholder="Search skills, topics, questions, or people..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        {search && (
+          <button type="button" className="dx-clear" onClick={() => setSearch('')}>
+            Clear
+          </button>
+        )}
+      </div>
 
-            <p className="discover-subtitle">
-              Explore ideas, knowledge and conversations from every domain.
-            </p>
-          </div>
-        </header>
+      {/* ───── 4 options ───── */}
+      <div className="dx-tabs" role="tablist" aria-label="Discover sections">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            className={`dx-tab ${tab === t.id ? 'active' : ''}`}
+            onClick={() => { setTab(t.id); setTopic(''); }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
 
-        {/* Search */}
-        <div className="discover-search-wrapper">
-          <Search size={19} />
-
-          <input
-            type="search"
-            placeholder="Search articles, documents, questions, skills..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-
-          {search && (
-            <button
-              className="discover-clear"
-              onClick={() => setSearch('')}
+      {/* ───── Hero slider ───── */}
+      <section
+        className="dx-hero"
+        aria-roledescription="carousel"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
+        <div className="dx-hero-track" style={{ transform: `translateX(-${slide * 100}%)` }}>
+          {SLIDES.map((s, i) => (
+            <div
+              key={s.title}
+              className={`dx-slide tone-${s.tone}`}
+              aria-hidden={slide !== i}
             >
-              Clear
+              <div className="dx-slide-body">
+                <span className="dx-slide-tag">{s.tag}</span>
+                <h2>{s.title}</h2>
+                <p>{s.text}</p>
+                <button
+                  type="button"
+                  className="dx-slide-btn"
+                  onClick={() => { setSearch(s.query); goToPosts(); }}
+                >
+                  Explore this question
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+              <Compass className="dx-slide-art" size={210} strokeWidth={1} aria-hidden="true" />
+            </div>
+          ))}
+        </div>
+
+        <button type="button" className="dx-arrow left" onClick={prevSlide} aria-label="Previous slide">
+          <ChevronLeft size={18} />
+        </button>
+        <button type="button" className="dx-arrow right" onClick={nextSlide} aria-label="Next slide">
+          <ChevronRight size={18} />
+        </button>
+
+        <div className="dx-dots">
+          {SLIDES.map((s, i) => (
+            <button
+              key={s.title}
+              type="button"
+              className={i === slide ? 'active' : ''}
+              onClick={() => setSlide(i)}
+              aria-label={`Go to slide ${i + 1}`}
+            />
+          ))}
+        </div>
+      </section>
+
+      {/* ───── Based on what you want to improve ───── */}
+      <section className="dx-section">
+        <div className="dx-section-head">
+          <h2>{improve.length ? 'Based on what you want to improve' : 'A good place to start'}</h2>
+        </div>
+
+        {loading ? (
+          <p className="dx-muted">Loading your interests...</p>
+        ) : improveCards.length === 0 ? (
+          <p className="dx-muted">Add skills to your profile to get personal picks here.</p>
+        ) : (
+          <div className="dx-scroll dx-improve">
+            {improveCards.map((name, i) => {
+              const Icon = iconFor(name);
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  className={`dx-improve-card tone-${SLIDES[i % SLIDES.length].tone}`}
+                  onClick={() => pickTopic(name)}
+                >
+                  <span className="dx-icon-box"><Icon size={22} /></span>
+                  <strong>{name}</strong>
+                  <span className="dx-improve-text">See posts and questions about {name.toLowerCase()}.</span>
+                  <span className="dx-improve-go"><ArrowRight size={15} /></span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ───── Skills / curiosity chips ───── */}
+      <section className="dx-section">
+        <div className="dx-section-head">
+          <h2>{chipTitle}</h2>
+        </div>
+
+        {loading ? (
+          <p className="dx-muted">Loading...</p>
+        ) : chipItems.length === 0 ? (
+          <p className="dx-muted">Nothing here yet. Add some on your profile.</p>
+        ) : (
+          <div className="dx-scroll dx-skill-row">
+            {chipItems.map((name) => {
+              const Icon = iconFor(name);
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  className={`dx-skill ${topic === name ? 'active' : ''}`}
+                  onClick={() => pickTopic(name)}
+                  aria-pressed={topic === name}
+                >
+                  <span className="dx-skill-icon"><Icon size={22} /></span>
+                  {name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* ───── Popular posts ───── */}
+      <section className="dx-section" ref={postsRef}>
+        <div className="dx-section-head">
+          <h2>{topic ? topic : 'Popular in your interests'}</h2>
+          {(topic || search) && (
+            <button
+              type="button"
+              className="dx-link"
+              onClick={() => { setTopic(''); setSearch(''); }}
+            >
+              Clear filters
             </button>
           )}
         </div>
 
-        {/* Domain */}
-        <section className="discover-filter-section">
-          <div className="discover-section-heading">
-            <div>
-              <p className="discover-section-label">EXPLORE BY INTEREST</p>
-              <h2>Find what you’re interested in</h2>
-            </div>
+        {posts.length === 0 ? (
+          <div className="dx-empty">
+            <Search size={28} />
+            <h3>No posts found</h3>
+            <p>Try another topic or search term.</p>
           </div>
-
-          {/* Three main buttons */}
-          <div className="discover-mode-buttons" role="tablist" aria-label="Content source">
-            {[
-              { id: 'curiosity', label: 'My Curiosity' },
-              { id: 'skill', label: 'My Skills' },
-              { id: 'all', label: 'All Content' },
-            ].map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                role="tab"
-                aria-selected={mode === m.id}
-                className={`discover-mode-btn ${mode === m.id ? 'active' : ''}`}
-                onClick={() => { setMode(m.id); setInterest(''); }}
-              >
-                {m.label}
-              </button>
+        ) : (
+          <div className="dx-scroll dx-posts">
+            {posts.map((p) => (
+              <article key={p.id} className="dx-post">
+                <div className={`dx-thumb tone-${p.tone}`}>
+                  <Play size={26} />
+                  <span className="dx-duration">{p.duration}</span>
+                </div>
+                <h3>{p.title}</h3>
+                <div className="dx-author">
+                  <span className="dx-avatar">{initials(p.author)}</span>
+                  {p.author}
+                </div>
+                <div className="dx-tags">
+                  {p.tags.map((t) => <span key={t}>{t}</span>)}
+                </div>
+              </article>
             ))}
           </div>
+        )}
+      </section>
 
-          {/* Chips under the selected button */}
-          <div className="discover-domain-scroll">
-            {mode === 'all' ? (
-              domainsLoading ? (
-                <span className="discover-domain-loading">Loading domains...</span>
-              ) : (
-                domains.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    className={`discover-domain-chip ${domain === item ? 'active' : ''}`}
-                    onClick={() => setDomain(item)}
-                    aria-pressed={domain === item}
-                  >
-                    {item}
-                  </button>
-                ))
-              )
-            ) : interestsLoading ? (
-              <span className="discover-domain-loading">Loading your {mode === 'curiosity' ? 'curiosity' : 'skills'}...</span>
-            ) : interestList.length === 0 ? (
-              <span className="discover-domain-loading">
-                You haven’t added any {mode === 'curiosity' ? 'curiosity topics' : 'skills'} yet.
-              </span>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className={`discover-domain-chip ${interest === '' ? 'active' : ''}`}
-                  onClick={() => setInterest('')}
-                >
-                  All my {mode === 'curiosity' ? 'curiosity' : 'skills'}
-                </button>
-                {interestList.map((name) => (
-                  <button
-                    key={name}
-                    type="button"
-                    className={`discover-domain-chip ${interest === name ? 'active' : ''}`}
-                    onClick={() => setInterest(name)}
-                    aria-pressed={interest === name}
-                  >
-                    {name}
-                  </button>
-                ))}
-              </>
-            )}
-          </div>
-        </section>
+      {/* ───── People ───── */}
+      <section className="dx-section">
+        <div className="dx-section-head">
+          <h2>People you could learn from</h2>
+        </div>
 
-        {/* Filters */}
-        <section className="discover-controls">
-          <div className="discover-select-group">
-            <label>Content Category</label>
-
-            <div className="discover-select-wrapper">
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                {CONTENT_CATEGORIES.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
-
-              <ChevronDown size={16} />
-            </div>
-          </div>
-
-          <div className="discover-type-group">
-            <label>Content Type</label>
-
-            <div className="discover-type-buttons">
-              {CONTENT_TYPES.map(({ id, label, emoji }) => (
-                <button
-                  key={id}
-                  className={`discover-type-btn ${contentType === id ? 'active' : ''
-                    }`}
-                  onClick={() => setContentType(id)}
-                >
-                  <span className="discover-type-emoji">{emoji}</span>
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Results */}
-        <section className="discover-results">
-          <div className="discover-results-header">
-            <div>
-              <p className="discover-section-label">DISCOVER</p>
-
-              <h2>
-                {mode === 'all'
-                  ? (domain === 'All Domains' ? 'All content' : domain)
-                  : (interest || (mode === 'curiosity' ? 'Based on your curiosity' : 'Based on your skills'))}
-              </h2>
-            </div>
-
-            <span className="discover-result-count">
-              {filteredContent.length} results
-            </span>
-          </div>
-
-          {filteredContent.length > 0 ? (
-            <div className="discover-grid">
-              {filteredContent.map((item) => {
-                const TypeIcon = getTypeIcon(item.type);
-
-                return (
-                  <article
-                    key={item.id}
-                    className="discover-card"
-                  >
-
-                    <div className="discover-card-top">
-                      <span className="discover-card-type">
-                        <TypeIcon size={15} />
-                        {item.type}
-                      </span>
-
-                      <span className="discover-card-category">
-                        {item.category}
-                      </span>
-                    </div>
-
-                    {/* Image and video preview */}
-                    {item.type === "Image" && item.image && (
-                      <img
-                        src={item.image}
-                        alt={item.title}
-                        className="content-media"
-                        loading="lazy"
-                        onError={(e) => {
-                          console.error("Image failed to load:", item.image);
-                          e.currentTarget.style.display = "none";
-                        }}
-                      />
-                    )}
-
-                    {item.type === "Video" && item.videoUrl && (
-                      <video
-                        className="content-media"
-                        src={item.videoUrl}
-                        poster={item.thumbnail}
-                        controls
-                        preload="metadata"
-                      >
-                        Your browser does not support video playback.
-                      </video>
-                    )}
-
-                    <div className="discover-card-domain">
-                      {item.domain}
-                    </div>
-
-                    <h3>{item.title}</h3>
-
-                    <p className="discover-card-description">
-                      {item.description}
-                    </p>
-
-                    <div className="discover-tags">
-                      {item.tags.map((tag) => (
-                        <span key={tag}>{tag}</span>
-                      ))}
-                    </div>
-
-                    <div className="discover-card-footer">
-                      <div className="discover-author">
-                        <div className="discover-author-avatar">
-                          {item.author
-                            .split(' ')
-                            .map((word) => word[0])
-                            .join('')
-                            .slice(0, 2)}
-                        </div>
-
-                        <div>
-                          <strong>{item.author}</strong>
-
-                          <span>
-                            <Clock size={12} />
-                            {item.time}
-                          </span>
-                        </div>
-                      </div>
-
-                      <button
-                        className="discover-read-btn"
-                        onClick={() =>
-                          alert(
-                            `Demo content: ${item.title}\n\nBackend integration will be added later.`
-                          )
-                        }
-                      >
-                        Explore
-                        <ArrowRight size={15} />
-                      </button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="discover-empty">
-              <Search size={32} />
-              <h3>No content found</h3>
-              <p>
-                Try another domain, category, content type or search term.
-              </p>
-
+        <div className="dx-scroll dx-people">
+          {DEMO_PEOPLE.map((p) => (
+            <div key={p.id} className="dx-person">
+              <div className="dx-person-top">
+                <span className="dx-avatar big">{initials(p.name)}</span>
+                <div>
+                  <strong>{p.name}</strong>
+                  <span>{p.role}</span>
+                </div>
+              </div>
+              <p>{p.bio}</p>
               <button
-                onClick={() => {
-                  setDomain('All Domains');
-                  setCategory('All Categories');
-                  setContentType('All');
-                  setSearch('');
-                }}
+                type="button"
+                className={`dx-follow ${following.has(p.id) ? 'on' : ''}`}
+                onClick={() => toggleFollow(p.id)}
               >
-                Clear all filters
+                {following.has(p.id) ? 'Following' : 'Follow'}
               </button>
             </div>
-          )}
-        </section>
-      </div>
-    </>
-  );
+          ))}
+        </div>
+      </section>
 
+      {/* ───── Explore something new ───── */}
+      <section className="dx-section">
+        <div className="dx-section-head">
+          <h2>Explore something new</h2>
+        </div>
+
+        <div className="dx-scroll dx-new">
+          {NEW_TOPICS.map(({ id, icon: Icon, title, text, tone }) => (
+            <button
+              key={id}
+              type="button"
+              className={`dx-new-card tone-${tone}`}
+              onClick={() => { setSearch(title); goToPosts(); }}
+            >
+              <Icon size={22} />
+              <strong>{title}</strong>
+              <span>{text}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* ───── Discovery journey ───── */}
+      <section className="dx-journey">
+        <h2>Your Discovery Journey</h2>
+        <p>The more you explore, the better we can recommend for you.</p>
+        <div className="dx-journey-grid">
+          {JOURNEY.map(({ icon: Icon, text }) => (
+            <div key={text} className="dx-journey-item">
+              <span className="dx-journey-icon"><Icon size={20} /></span>
+              {text}
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
 }
