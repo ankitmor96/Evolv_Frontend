@@ -4,7 +4,7 @@ import { authService } from '../../services/authService.js';
 import { homePostService } from '../../services/homePostService.js';
 import { connectionService } from '../../services/connectionService.js';
 import { userProfileService } from '../../services/userProfileService.js';
-import './UserProfilePage.css';
+import './Userprofilepage.css';
 
 function go(path) {
   window.location.hash = path;
