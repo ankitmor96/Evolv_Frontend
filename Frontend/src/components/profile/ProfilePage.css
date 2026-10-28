@@ -1740,3 +1740,44 @@
   font-size: 12px;
   font-weight: 600;
 }
+.pp-settings-delete-label {
+  display: block;
+  margin: 16px 0 6px;
+  font-size: 13px;
+  color: #4b3b63;
+  text-align: center;
+}
+
+.pp-settings-delete-input {
+  width: 100%;
+  max-width: 260px;
+  display: block;
+  margin: 0 auto 10px;
+  padding: 10px 12px;
+  border: 1.5px solid rgba(9, 3, 15, 0.15);
+  border-radius: 10px;
+  font-size: 14px;
+  text-align: center;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.pp-settings-delete-input:focus {
+  border-color: #e0446a;
+}
+
+.pp-settings-delete-confirm-btn {
+  padding: 10px 18px;
+  border: none;
+  border-radius: 10px;
+  background: #e0446a;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.pp-settings-delete-confirm-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

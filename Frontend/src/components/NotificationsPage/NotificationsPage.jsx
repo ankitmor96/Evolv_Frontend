@@ -2,7 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Check, X, UserPlus, Bell } from 'lucide-react';
 import { connectionService } from '../../services/connectionService.js';
 import { authService } from '../../services/authService.js';
-import { getStoredToken } from '../../services/sessionService.js'; 
+import { getStoredToken } from '../../services/sessionService.js';
+import { notificationService } from '../../services/notificationService.js';
+import { isMessageNotification } from '../../components/hooks/useNotificationCount.jsx';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 const goTo = (hash) => {
@@ -61,6 +63,12 @@ function PersonAvatar({ src, name }) {
   );
 }
 
+const TYPE_LABEL = {
+  POST_CREATED: '📝',
+  CONNECTION_REQUEST: '🤝',
+  CONNECTION_ACCEPTED: '✅',
+};
+
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function NotificationsPage() {
   const user = authService.getCurrentUser();
@@ -72,6 +80,7 @@ export default function NotificationsPage() {
   const [busyId, setBusyId] = useState(null);
   const [toast, setToast] = useState('');
   const [people, setPeople] = useState({});
+  const [all, setAll] = useState([]);
 
   // Guard: must be logged in
   useEffect(() => {
@@ -81,16 +90,20 @@ export default function NotificationsPage() {
 
   const load = useCallback(async (silent = false) => {
     if (!getStoredToken()) {
-    setLoading(false);       
-    return;
-  }
+      setLoading(false);
+      return;
+    }
     if (!silent) setLoading(true);
-    const [r, s] = await Promise.all([
+
+    const [r, s, n] = await Promise.all([
       connectionService.getReceivedRequests(),
       connectionService.getSentRequests(),
+      notificationService.getAll().catch(() => []),
     ]);
+
     setReceived(r.filter(isPending));
     setSent(s.filter(isPending));
+    setAll(n);
     if (!silent) setLoading(false);
   }, []);
 
@@ -133,6 +146,35 @@ export default function NotificationsPage() {
     setToast(msg);
     setTimeout(() => setToast(''), 2500);
   };
+  const unreadCount = all.filter((n) => !n.isRead).length;
+
+  const openNotification = async (n) => {
+    if (n.type === 'CONNECTION_REQUEST') setTab('received');
+
+    if (!n.isRead) {
+      setAll((l) => l.map((x) => (x.id === n.id ? { ...x, isRead: true } : x)));
+      try {
+        await notificationService.markRead(n.id);
+        window.dispatchEvent(new Event('notifications-changed'));
+      } catch {
+        setAll((l) => l.map((x) => (x.id === n.id ? { ...x, isRead: false } : x)));
+      }
+    }
+
+    if (isMessageNotification(n)) goTo('/messages');
+  };
+
+  const markAllRead = async () => {
+    const prev = all;
+    setAll((l) => l.map((x) => ({ ...x, isRead: true })));
+    try {
+      await notificationService.markAllRead();
+      window.dispatchEvent(new Event('notifications-changed'));
+    } catch {
+      setAll(prev);
+      showToast('Could not mark all as read');
+    }
+  };
 
   const act = async (rec, action) => {
     const id = rec.id ?? rec.connectionId;
@@ -152,7 +194,8 @@ export default function NotificationsPage() {
       // Remove from the list immediately
       setReceived((l) => l.filter((x) => (x.id ?? x.connectionId) !== id));
       setSent((l) => l.filter((x) => (x.id ?? x.connectionId) !== id));
-      window.dispatchEvent(new Event('connections-changed'));   
+      window.dispatchEvent(new Event('connections-changed'));
+      window.dispatchEvent(new Event('notifications-changed'));
     } catch (err) {
       showToast(err.message || 'Something went wrong');
       load(true);
@@ -193,11 +236,52 @@ export default function NotificationsPage() {
         >
           Sent {sent.length > 0 && <span className="np-count muted">{sent.length}</span>}
         </button>
+        <button
+          role="tab"
+          aria-selected={tab === 'all'}
+          className={`np-tab ${tab === 'all' ? 'active' : ''}`}
+          onClick={() => setTab('all')}
+        >
+          All {unreadCount > 0 && <span className="np-count">{unreadCount}</span>}
+        </button>
       </div>
 
       <main className="np-list">
         {loading ? (
           <p className="np-empty">Loading…</p>
+        ) : tab === 'all' ? (
+          all.length === 0 ? (
+            <div className="np-empty">
+              <Bell size={32} />
+              <p>No notifications yet.</p>
+            </div>
+          ) : (
+            <>
+              {unreadCount > 0 && (
+                <button className="np-markall" onClick={markAllRead}>
+                  Mark all as read
+                </button>
+              )}
+              {all.map((n) => (
+                <div
+                  key={n.id}
+                  className={`np-item np-notif${n.isRead ? '' : ' unread'}`}
+                  onClick={() => openNotification(n)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' && openNotification(n)}
+                >
+                  <div className="np-notif-icon">{TYPE_LABEL[n.type] ?? '🔔'}</div>
+                  <div className="np-info">
+                    <p className="np-text"><strong>{n.title}</strong></p>
+                    <p className="np-text">{n.message}</p>
+                    <span className="np-time">{timeAgo(n.createdAt)}</span>
+                  </div>
+                  {!n.isRead && <span className="np-dot" aria-label="Unread" />}
+                </div>
+              ))}
+            </>
+          )
         ) : list.length === 0 ? (
           <div className="np-empty">
             <Bell size={32} />
@@ -272,6 +356,11 @@ export default function NotificationsPage() {
 }
 
 const CSS = `
+.np-notif{cursor:pointer}
+.np-notif.unread{background:#f6efff;border-color:rgba(170,69,245,.35)}
+.np-notif-icon{width:42px;height:42px;border-radius:50%;background:rgba(170,69,245,.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.np-dot{width:10px;height:10px;border-radius:50%;background:#aa45f5;flex-shrink:0}
+.np-markall{align-self:flex-end;background:none;border:none;color:#aa45f5;font-size:13px;font-weight:600;cursor:pointer}
 .np-page{min-height:100dvh;background:#f4f3fa;font-family:'Inter',sans-serif;color:#09030f;padding-bottom:40px}
 .np-header{display:flex;align-items:center;gap:12px;padding:16px;background:#fff;border-bottom:1px solid rgba(9,3,15,.08);position:sticky;top:0;z-index:5}
 .np-header h1{font-size:18px;font-weight:700;margin:0}

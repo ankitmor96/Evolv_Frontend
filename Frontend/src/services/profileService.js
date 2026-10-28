@@ -297,9 +297,12 @@ export const profileService = {
     return { created: true, data: created };
   },
 
-  /** DELETE /api/profile */
-  deleteProfile() {
-    return request("/api/profile", { method: "DELETE" });
+  async deleteAccount() {
+    const res = await request("/api/auth/delete-account", { method: "DELETE" });
+    if (res?.success === false) {
+      throw new Error(res?.message || "Could not delete your account.");
+    }
+    return res;
   },
 
   /**
@@ -631,6 +634,16 @@ export const profileService = {
       imageCount: Number(data?.imageCount ?? 0),
       videoCount: Number(data?.videoCount ?? 0),
       documentCount: Number(data?.documentCount ?? 0),
+    };
+  },
+  // GET /api/posts/my-posts/engagement-counts
+  async getMyEngagementCounts() {
+    const res = await request('/api/posts/my-posts/engagement-counts');
+    const d = res?.data ?? res ?? {};
+    return {
+      appreciation: Number(d.appreciateCount ?? d.appreciationCount ?? d.appreciations ?? 0) || 0,
+      helpful: Number(d.helpfulCount ?? 0) || 0,
+      learned: Number(d.learnedCount ?? 0) || 0,
     };
   },
   /**

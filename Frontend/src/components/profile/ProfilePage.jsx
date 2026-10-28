@@ -372,12 +372,9 @@ function ProfileRightPanel({
               ))
             ) : (
               <p className="pp-growth-note" style={{ marginTop: 0 }}>
-                Track your total Helpful, Appreciation, and Learned counts to see the impact of your content.              
+                Track your total Helpful, Appreciation, and Learned counts to see the impact of your content.
               </p>
             )}
-            <p className="pp-growth-note">
-              Track your total Helpful, Appreciation, and Learned counts to see the impact of your content.
-            </p>
           </div>
         </div>
 
@@ -735,7 +732,7 @@ function PostDetailModal({ post, onClose, onDiscuss, onDelete }) {
 }
 
 // ─── Content Section ──────────────────────────────────────────────────────────
-function ContentSection({ posts,authUserId, onDiscuss, onDelete }) {
+function ContentSection({ posts, authUserId, onDiscuss, onDelete }) {
   const [activeTab, setActiveTab] = useState('all');
   const [selectedPost, setSelectedPost] = useState(null);
 
@@ -1023,16 +1020,13 @@ function ProfileHero({ profile, user, identities, showToast, onOpenSettings, pos
   );
 }
 
-// ─── Settings Modal ─────────────────────────────────────────────────────────
-/**
- * Four options: About Us (w/ submenu) | Help | Log Out | Delete Account.
- * Reuses existing authService.logout() and navigate() helpers.
- * No fake API calls — Delete Account shows an informative message.
- */
 function SettingsModal({ onClose }) {
-  // 'main' | 'about' | 'help' | 'deleteConfirm'
   const [view, setView] = useState('main');
+
   const overlayRef = useRef(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [confirmText, setConfirmText] = useState('');
 
   // Close on Escape
   useEffect(() => {
@@ -1050,6 +1044,29 @@ function SettingsModal({ onClose }) {
   const handleLogout = () => {
     authService.logout();
     navigate('/login');
+  };
+  const handleDeleteAccount = async () => {
+    if (deleting) return;
+    if (confirmText.trim().toUpperCase() !== 'DELETE') return;
+
+    setDeleting(true);
+    setDeleteError('');
+
+    try {
+      await profileService.deleteAccount();
+
+      // Account is gone: clear the session locally.
+      try { await authService.logout(); } catch { /* ignore */ }
+      localStorage.removeItem('evolv_auth_token');
+      sessionStorage.removeItem('evolv_auth_token');
+
+      onClose();
+      navigate('/login');
+    } catch (err) {
+      console.error('[SettingsModal] Delete account failed:', err);
+      setDeleteError(err.message || 'Could not delete your account. Please try again.');
+      setDeleting(false);
+    }
   };
 
   // ── Shared back arrow ──────────────────────────────────────────────────────
@@ -1109,9 +1126,15 @@ function SettingsModal({ onClose }) {
     </>
   );
 
-  const DeleteConfirmView = () => (
+  const renderDeleteConfirm = () => (
     <>
-      <BackBtn onClick={() => setView('main')} />
+      <BackBtn
+        onClick={() => {
+          if (deleting) return;
+          resetDeleteState();
+          setView('main');
+        }}
+      />
       <div className="pp-settings-delete-confirm">
         <span className="pp-settings-delete-icon">⚠️</span>
         <p className="pp-settings-delete-title">Delete Account</p>
@@ -1119,20 +1142,47 @@ function SettingsModal({ onClose }) {
           Account deletion is a <strong>permanent and irreversible</strong> action.
           All your posts, skills, and progress will be lost.
         </p>
-        <div className="pp-settings-delete-notice">
-          <AlertCircle size={14} aria-hidden="true" />
-          <span>
-            This feature requires backend support and is not yet available.
-            Please contact <strong>support@evolv.app</strong> to request account deletion.
-          </span>
+
+        <label className="pp-settings-delete-label" htmlFor="pp-delete-confirm-input">
+          Type <strong>DELETE</strong> to confirm
+        </label>
+        <input
+          id="pp-delete-confirm-input"
+          type="text"
+          className="pp-settings-delete-input"
+          value={confirmText}
+          onChange={(e) => setConfirmText(e.target.value)}
+          placeholder="DELETE"
+          autoComplete="off"
+          disabled={deleting}
+        />
+
+        {deleteError && (
+          <div className="pp-settings-delete-notice" role="alert">
+            <AlertCircle size={14} aria-hidden="true" />
+            <span>{deleteError}</span>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 12 }}>
+          <button
+            type="button"
+            className="pp-settings-delete-dismiss-btn"
+            onClick={() => { resetDeleteState(); setView('main'); }}
+            disabled={deleting}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="pp-settings-delete-confirm-btn"
+            onClick={handleDeleteAccount}
+            disabled={deleting || confirmText.trim().toUpperCase() !== 'DELETE'}
+            aria-busy={deleting}
+          >
+            {deleting ? 'Deleting…' : 'Delete my account'}
+          </button>
         </div>
-        <button
-          type="button"
-          className="pp-settings-delete-dismiss-btn"
-          onClick={() => setView('main')}
-        >
-          Got it
-        </button>
       </div>
     </>
   );
@@ -1149,8 +1199,8 @@ function SettingsModal({ onClose }) {
           onBack={() => setView('main')}
         />
       );
-      case 'deleteConfirm': return <DeleteConfirmView />;
-      default: return null; // main view rendered below
+      case 'deleteConfirm': return renderDeleteConfirm();
+      default: return null;
     }
   };
 
@@ -1581,8 +1631,26 @@ export default function ProfilePage() {
   /** Guard: postIds currently being deleted (prevents duplicate requests). */
   const pendingDelete = useRef(new Set());
   // Recomputed whenever posts change (API load, socket updates, delete)
-  const reactionTotals = useMemo(() => sumReactionTotals(posts), [posts]);
+  const [engagement, setEngagement] = useState(null); // null = use fallback
 
+  const loadEngagement = useCallback(() => {
+    return profileService
+      .getMyEngagementCounts()
+      .then(setEngagement)
+      .catch((err) => {
+        console.warn('[ProfilePage] engagement counts failed:', err.message);
+        // keep previous value / null so sumReactionTotals(posts) is used as fallback
+      });
+  }, []);
+
+  useEffect(() => {
+    if (authUser) loadEngagement();
+  }, [loadEngagement]);
+
+  const reactionTotals = useMemo(
+    () => engagement ?? sumReactionTotals(posts),
+    [engagement, posts]
+  );
   const { toast, showToast } = useToast();
 
   // ── Auth guard ────────────────────────────────────────────────────────────
@@ -2023,10 +2091,10 @@ export default function ProfilePage() {
     try {
       await homePostService.deletePost(postId);
 
-      // Remove post from local list — only after backend confirms success
+      // Remove post from local list only after backend confirms success
       setPosts((prev) => prev.filter((p) => String(p.id) !== String(postId)));
 
-      // Refresh authoritative post counts from the backend
+      // Refresh post counts
       profileService
         .getMyPostCounts()
         .then((counts) => setPostCounts(counts))
@@ -2034,13 +2102,14 @@ export default function ProfilePage() {
           console.warn('[ProfilePage] Post counts refresh after delete:', err.message)
         );
 
+      // Refresh appreciation / helpful / learned totals (AFTER the delete succeeds)
+      loadEngagement();
+
       showToast('Post deleted.');
     } finally {
       pendingDelete.current.delete(String(postId));
     }
-    // posts is needed to find the target post; authUserId and showToast are stable
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [posts, authUserId, showToast]);
+  }, [posts, authUserId, showToast, loadEngagement]);
 
   const handleCommentCountChange = useCallback((postId, delta) => {
     setPosts(prev => prev.map(p =>
@@ -2048,7 +2117,6 @@ export default function ProfilePage() {
         : { ...p, comments: Math.max(0, (p.comments ?? 0) + delta) }
     ));
   }, []);
-
   if (!authUser) return null;
   // ── Render ─────────────────────────────────────────────────────────────────
   return (

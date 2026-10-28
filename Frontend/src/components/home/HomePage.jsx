@@ -41,6 +41,7 @@ import { profileService } from '../../services/profileService.js';
 import { getProfile } from '../../services/getProfile.js';
 import socketService from '../../services/socketService.js';
 import { CREATORS, INTEREST_TABS } from '../../data/homeData.js';
+import { useUnreadCounts } from '../../components/hooks/useNotificationCount.jsx';
 import { useConnectionRequestCount } from '../../components/hooks/useConnectionRequestCount.jsx';
 import './HomePage.css';
 
@@ -744,7 +745,7 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
 // HEADER (top of feed)
 // ─────────────────────────────────────────────────────────────────────────────
 function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRightSidebar }) {
-  const pendingCount = useConnectionRequestCount();
+  const { bell: pendingCount, messages: messageCount } = useUnreadCounts();
 
   return (
     <header className="hp-feed-header" style={{ marginTop: "10px" }}>
@@ -761,16 +762,22 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
 
       <div className="hp-feed-header-right" style={{ display: "flex", justifyContent: "end", alignItems: "center", gap: "8px" }}>
         {/* Search: mobile only */}
+        {/* Messages */}
         <button
-          type="button"
-          className="hp-icon-btn hp-mobile-search-btn"
-          aria-label="Search people"
+          className="hp-icon-btn"
+          aria-label={`Messages${messageCount ? ` (${messageCount} new)` : ''}`}
           onClick={() => {
-            window.location.hash = '/search';
+            window.location.hash = '/messages';
             window.dispatchEvent(new Event('navigated'));
           }}
+          style={{ marginRight: "10px" }}
         >
-          <Search size={20} aria-hidden="true" />
+          <MessageCircle size={20} aria-hidden="true" />
+          {messageCount > 0 && (
+            <span className="hp-notif-badge" aria-hidden="true">
+              {messageCount > 9 ? '9+' : messageCount}
+            </span>
+          )}
         </button>
         {/* Notification bell */}
         <button
@@ -790,16 +797,6 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
         </button>
 
         &nbsp;
-        {/* Messages */}
-        <button className="hp-icon-btn"
-          aria-label="Messages"
-          onClick={() => {
-            window.location.hash = '/messages';
-            window.dispatchEvent(new Event('navigated'));
-          }}
-          style={{ marginRight: "10px" }}>
-          <MessageCircle size={20} aria-hidden="true" />
-        </button>
 
         {/* Right-sidebar toggle: only on mobile */}
         <button

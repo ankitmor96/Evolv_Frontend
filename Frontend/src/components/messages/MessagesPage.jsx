@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { authService } from '../../services/authService.js';
 import { messageService } from '../../services/messageService.js';
+import { notificationService } from '../../services/notificationService.js';
+import { isMessageNotification } from '../../components/hooks/useNotificationCount.jsx';
 import './MessagesPage.css';
 
 // ─── Navigation helper ────────────────────────────────────────────────────────
@@ -484,6 +486,65 @@ export default function MessagesPage() {
       setConvError('Could not start conversation.');
     }
   };
+  const [msgNotifs, setMsgNotifs] = useState([]);
+
+  const loadMsgNotifs = useCallback(async () => {
+    try {
+      const list = await notificationService.getAll();
+      setMsgNotifs(list.filter((n) => !n.isRead && isMessageNotification(n)));
+    } catch {
+      /* keep previous */
+    }
+  }, []);
+
+  // Load now, refresh every 15s, and when another page changes notifications
+  useEffect(() => {
+    loadMsgNotifs();
+    const t = setInterval(loadMsgNotifs, 15000);
+    window.addEventListener('notifications-changed', loadMsgNotifs);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener('notifications-changed', loadMsgNotifs);
+    };
+  }, [loadMsgNotifs]);
+
+  // Keep the conversation list fresh so new messages appear
+  useEffect(() => {
+    const t = setInterval(async () => {
+      try {
+        setConversations(await messageService.getConversations(myId));
+      } catch { /* ignore */ }
+    }, 15000);
+    return () => clearInterval(t);
+  }, [myId]);
+
+  // Notification text is "<Name> sent you a message." so match on the name
+  const notifsFor = (conv) => {
+    const name = (conv?.user || '').toLowerCase();
+    if (!name) return [];
+    return msgNotifs.filter((n) => String(n.message || '').toLowerCase().includes(name));
+  };
+
+  const unreadFor = (conv) => Math.max(conv.unreadCount || 0, notifsFor(conv).length);
+
+  const markConvNotifsRead = async (conv) => {
+    const mine = notifsFor(conv);
+    if (mine.length === 0) return;
+    setMsgNotifs((prev) => prev.filter((n) => !mine.some((m) => m.id === n.id))); // instant
+    try {
+      await Promise.all(mine.map((n) => notificationService.markRead(n.id)));
+      window.dispatchEvent(new Event('notifications-changed')); // updates Home badge
+    } catch {
+      loadMsgNotifs(); // restore the real state if it failed
+    }
+  };
+
+  // If a new message arrives while that chat is open, clear it straight away
+  useEffect(() => {
+    if (activeConv) markConvNotifsRead(activeConv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [msgNotifs]);
+
 
   // Filter conversations by search
   const q = searchQuery.toLowerCase();
@@ -495,6 +556,7 @@ export default function MessagesPage() {
   const handleSelectConversation = async (conv) => {
     setActiveId(conv.id);
     setChatOpen(true);
+    markConvNotifsRead(conv);
 
     // clear unread badge locally
     setConversations((prev) =>
@@ -662,7 +724,7 @@ export default function MessagesPage() {
             filteredConversations.map((conv) => (
               <ConversationItem
                 key={conv.id}
-                conv={conv}
+                conv={{ ...conv, unreadCount: conv.id === activeId ? 0 : unreadFor(conv) }}
                 isActive={conv.id === activeId}
                 onClick={() => handleSelectConversation(conv)}
               />
