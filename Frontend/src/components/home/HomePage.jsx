@@ -42,6 +42,7 @@ import { getProfile } from '../../services/getProfile.js';
 import socketService from '../../services/socketService.js';
 import { CREATORS, INTEREST_TABS } from '../../data/homeData.js';
 import { useUnreadCounts } from '../../components/hooks/useNotificationCount.jsx';
+import { userSearchService } from '../../services/userSearchService.js';
 import { useConnectionRequestCount } from '../../components/hooks/useConnectionRequestCount.jsx';
 import './HomePage.css';
 
@@ -85,7 +86,7 @@ const MAIN_NAV = [
   { id: 'home', label: 'Home', icon: Home, href: '#/home' },
   { id: 'discover', label: 'Discover', icon: Compass, href: '#/discover' },
   { id: 'mylearning', label: 'My Learning', icon: BookOpen, href: '#/learning' },
-  { id: 'saved', label: 'Saved', icon: Bookmark, href: '#/saved' },
+  { id: 'bookmark', label: 'Bookmark', icon: Bookmark, href: '#/saved' },
 ];
 
 const COMMUNITY_NAV = [
@@ -1316,14 +1317,68 @@ function RightSidebar({ user, isOpen, onClose }) {
   const [growthTab, setGrowthTab] = useState('Learning');
   const [growthItems, setGrowthItems] = useState([]);
   const [growthLoading, setGrowthLoading] = useState(true);
+  // ── People search ───────────────────────────────────────────
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchBoxRef = useRef(null);
 
-  // People to learn from — reuses existing CREATORS data
-  const filteredPeople = CREATORS.slice(0, 3).filter(c =>
-    !search.trim() ||
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.username.toLowerCase().includes(search.toLowerCase()) ||
-    c.field.toLowerCase().includes(search.toLowerCase())
-  );
+  // Debounced API call
+  useEffect(() => {
+    const q = search.trim();
+
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      setSearchError('');
+      return undefined;
+    }
+
+    let cancelled = false;
+    setSearchLoading(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const people = await userSearchService.searchUsers(q);
+        if (cancelled) return;
+        setSearchResults(people);
+        setSearchError('');
+      } catch (err) {
+        if (cancelled) return;
+        console.error('[RightSidebar] Search failed:', err);
+        setSearchResults([]);
+        setSearchError('Could not search right now. Please try again.');
+      } finally {
+        if (!cancelled) setSearchLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [search]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target)) {
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
+
+  const handleSelectPerson = (person) => {
+    setSearchOpen(false);
+    setSearch('');
+    onClose?.();
+    openUserProfile(person.id);
+  };
+
+  const filteredPeople = CREATORS.slice(0, 3);
 
   const toggleLearn = useCallback((id) => {
     setFollowed(prev => {
@@ -1437,6 +1492,55 @@ function RightSidebar({ user, isOpen, onClose }) {
   return (
     <>
       <style>{`
+      .hp-search-wrap { position: relative; }
+
+.hp-search-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid rgba(9, 3, 15, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(26, 10, 46, 0.14);
+}
+
+.hp-search-status {
+  margin: 0;
+  padding: 12px;
+  font-size: 13px;
+  color: #8b7aa3;
+}
+.hp-search-status.error { color: #dc2626; }
+
+.hp-search-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.hp-search-result:hover,
+.hp-search-result:focus-visible { background: rgba(170, 69, 245, 0.08); outline: none; }
+
+.hp-search-result-info { display: flex; flex-direction: column; min-width: 0; }
+.hp-search-result-name { font-size: 13px; font-weight: 600; color: #2d1b4e; }
+.hp-search-result-sub {
+  font-size: 11px;
+  color: #8b7aa3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 html,
 body,
 #root {
@@ -1804,19 +1908,62 @@ body {
         </div>
 
         {/* Search */}
-        <div className="hp-search-bar">
-          <Search size={16} className="hp-search-icon" aria-hidden="true" />
-          <input
-            type="search"
-            placeholder="Search people, skills, interests..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="hp-search-input"
-            aria-label="Search people, skills, and interests"
-          />
-          <button className="hp-search-filter" aria-label="Filter search results">
-            <SlidersHorizontal size={16} aria-hidden="true" />
-          </button>
+        <div className="hp-search-wrap" ref={searchBoxRef}>
+          <div className="hp-search-bar">
+            <Search size={16} className="hp-search-icon" aria-hidden="true" />
+            <input
+              type="search"
+              placeholder="Search people, skills, interests..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setSearchOpen(true); }}
+              onFocus={() => setSearchOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && searchResults.length > 0) {
+                  handleSelectPerson(searchResults[0]);
+                }
+                if (e.key === 'Escape') setSearchOpen(false);
+              }}
+              className="hp-search-input"
+              aria-label="Search people, skills, and interests"
+              aria-expanded={searchOpen}
+              autoComplete="off"
+            />
+            <button className="hp-search-filter" aria-label="Filter search results">
+              <SlidersHorizontal size={16} aria-hidden="true" />
+            </button>
+          </div>
+
+          {searchOpen && search.trim().length >= 2 && (
+            <div className="hp-search-dropdown" role="listbox" aria-label="Search results">
+              {searchLoading && <p className="hp-search-status">Searching...</p>}
+
+              {!searchLoading && searchError && (
+                <p className="hp-search-status error">{searchError}</p>
+              )}
+
+              {!searchLoading && !searchError && searchResults.length === 0 && (
+                <p className="hp-search-status">No people found for "{search.trim()}".</p>
+              )}
+
+              {!searchLoading && searchResults.map((person) => (
+                <button
+                  key={person.id}
+                  type="button"
+                  role="option"
+                  className="hp-search-result"
+                  onClick={() => handleSelectPerson(person)}
+                >
+                  <Avatar src={person.avatar} name={person.name} size={34} />
+                  <span className="hp-search-result-info">
+                    <span className="hp-search-result-name">{person.name}</span>
+                    <span className="hp-search-result-sub">
+                      {person.username ? `@${person.username}` : person.field}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Your Growth */}
@@ -2670,7 +2817,19 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
         ]);
 
         const backendPosts = response?.posts ?? [];
+        console.log('[Feed API raw response]:', response);
 
+        const pickPosts = (res) => {
+          const value = res?.data ?? res;
+          if (Array.isArray(value)) return value;
+          if (Array.isArray(value?.posts)) return value.posts;
+          if (Array.isArray(value?.data)) return value.data;
+          if (Array.isArray(value?.data?.posts)) return value.data.posts;
+          if (Array.isArray(value?.items)) return value.items;
+          if (Array.isArray(value?.results)) return value.results;
+          return [];
+        };
+        console.log('[Feed] posts found:', backendPosts.length);
 
         if (cancelled) return;
         connectionMapRef.current = connectionMap;

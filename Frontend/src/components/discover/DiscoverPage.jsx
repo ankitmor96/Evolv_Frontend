@@ -335,8 +335,16 @@ export default function DiscoverPage() {
           <p className="dx-muted">Add skills to your profile to get personal picks here.</p>
         ) : (
           <div className="dx-scroll dx-improve">
-            {improveCards.map((name, i) => {
+            {[
+              "Web Development",
+              "JavaScript",
+              "React",
+              "Node.js",
+              "UI/UX Design",
+              "Data Science",
+            ].map((name, i) => {
               const Icon = iconFor(name);
+
               return (
                 <button
                   key={name}
@@ -344,10 +352,19 @@ export default function DiscoverPage() {
                   className={`dx-improve-card tone-${SLIDES[i % SLIDES.length].tone}`}
                   onClick={() => pickTopic(name)}
                 >
-                  <span className="dx-icon-box"><Icon size={22} /></span>
+                  <span className="dx-icon-box">
+                    <Icon size={22} />
+                  </span>
+
                   <strong>{name}</strong>
-                  <span className="dx-improve-text">See posts and questions about {name.toLowerCase()}.</span>
-                  <span className="dx-improve-go"><ArrowRight size={15} /></span>
+
+                  <span className="dx-improve-text">
+                    See posts and questions about {name.toLowerCase()}.
+                  </span>
+
+                  <span className="dx-improve-go">
+                    <ArrowRight size={15} />
+                  </span>
                 </button>
               );
             })}
@@ -409,19 +426,57 @@ export default function DiscoverPage() {
           </div>
         ) : (
           <div className="dx-scroll dx-posts">
-            {posts.map((p) => (
+            {[
+              {
+                id: 1,
+                title: "Build Modern Websites with React",
+                author: "Rahul Patel",
+                tone: "purple",
+                duration: "12:45",
+                tags: ["React", "Frontend", "Web Development"],
+              },
+              {
+                id: 2,
+                title: "JavaScript Fundamentals Explained",
+                author: "Priya Shah",
+                tone: "blue",
+                duration: "08:30",
+                tags: ["JavaScript", "Programming", "Basics"],
+              },
+              {
+                id: 3,
+                title: "Getting Started with Node.js",
+                author: "Aarav Mehta",
+                tone: "green",
+                duration: "15:20",
+                tags: ["Node.js", "Backend", "JavaScript"],
+              },
+              {
+                id: 4,
+                title: "UI/UX Design Principles",
+                author: "Neha Desai",
+                tone: "orange",
+                duration: "10:15",
+                tags: ["UI/UX", "Design", "Creativity"],
+              },
+            ].map((p) => (
               <article key={p.id} className="dx-post">
                 <div className={`dx-thumb tone-${p.tone}`}>
                   <Play size={26} />
                   <span className="dx-duration">{p.duration}</span>
                 </div>
+
                 <h3>{p.title}</h3>
+
                 <div className="dx-author">
                   <span className="dx-avatar">{initials(p.author)}</span>
                   {p.author}
                 </div>
+
                 <div className="dx-tags">
-                  {p.tags.map((t) => <span key={t}>{t}</span>)}
+                  {p.tags.map((t) => (
+                    <span key={t}>{t}</span>
+                  ))}
                 </div>
               </article>
             ))}
