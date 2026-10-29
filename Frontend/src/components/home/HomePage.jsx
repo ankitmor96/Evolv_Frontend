@@ -762,6 +762,17 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
 
       <div className="hp-feed-header-right" style={{ display: "flex", justifyContent: "end", alignItems: "center", gap: "8px" }}>
         {/* Search: mobile only */}
+        <button
+          type="button"
+          className="hp-icon-btn hp-mobile-search-btn"
+          aria-label="Search people"
+          onClick={() => {
+            window.location.hash = '/search';
+            window.dispatchEvent(new Event('navigated'));
+          }}
+        >
+          <Search size={20} aria-hidden="true" />
+        </button>
         {/* Messages */}
         <button
           className="hp-icon-btn"
