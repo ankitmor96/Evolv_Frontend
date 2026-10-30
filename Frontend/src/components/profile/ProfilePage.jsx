@@ -48,6 +48,10 @@ import {
   Trash2,
   Download,
   BarChart3,
+  Palette,
+  Sun,
+  Moon,
+  Monitor
 
 } from 'lucide-react';
 
@@ -60,6 +64,7 @@ import socketService from '../../services/socketService.js';
 import CommentPanel from '../shared/CommentPanel.jsx';
 import { CURIOSITY_DOMAINS } from '../onboarding/onboardingData.js';
 import { sumReactionTotals } from '../../services/reactionTotals.js';
+import useTheme from '../hooks/useTheme.js';
 import './ProfilePage.css';
 
 // ─── Navigation helper ───────────────────────────────────────────────────────
@@ -1027,6 +1032,7 @@ function SettingsModal({ onClose }) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [confirmText, setConfirmText] = useState('');
+  const { theme, setTheme } = useTheme();
 
   // Close on Escape
   useEffect(() => {
@@ -1040,6 +1046,11 @@ function SettingsModal({ onClose }) {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
+
+  const resetDeleteState = () => {
+    setConfirmText('');
+    setDeleteError('');
+  };
 
   const handleLogout = () => {
     authService.logout();
@@ -1187,6 +1198,38 @@ function SettingsModal({ onClose }) {
     </>
   );
 
+  const THEME_OPTIONS = [
+    { id: 'light', label: 'Light', desc: 'Bright background', icon: Sun },
+    { id: 'dark', label: 'Dark', desc: 'Easy on the eyes', icon: Moon },
+    { id: 'system', label: 'System', desc: 'Match your device setting', icon: Monitor },
+  ];
+
+  const renderThemeView = () => (
+    <>
+      <BackBtn onClick={() => setView('main')} />
+      <h3 className="pp-settings-sub-title">Theme</h3>
+      <div className="pp-settings-menu" role="radiogroup" aria-label="Choose theme">
+        {THEME_OPTIONS.map(({ id, label, desc, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            aria-checked={theme === id}
+            className={`pp-settings-item pp-theme-option ${theme === id ? 'selected' : ''}`}
+            onClick={() => setTheme(id)}
+          >
+            <span className="pp-settings-item-icon"><Icon size={18} aria-hidden="true" /></span>
+            <span className="pp-theme-text">
+              <span className="pp-settings-item-label">{label}</span>
+              <span className="pp-theme-desc">{desc}</span>
+            </span>
+            {theme === id && <Check size={16} className="pp-theme-check" aria-hidden="true" />}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+
   // ── Render ─────────────────────────────────────────────────────────────────
   const renderView = () => {
     switch (view) {
@@ -1200,6 +1243,7 @@ function SettingsModal({ onClose }) {
         />
       );
       case 'deleteConfirm': return renderDeleteConfirm();
+      case 'theme': return renderThemeView();
       default: return null;
     }
   };
@@ -1246,7 +1290,12 @@ function SettingsModal({ onClose }) {
                 <span className="pp-settings-item-label">About Us</span>
                 <ChevronRight size={14} className="pp-settings-item-arrow" aria-hidden="true" />
               </button>
-
+              {/* theme  */}
+              <button type="button" className="pp-settings-item" onClick={() => setView('theme')}>
+                <span className="pp-settings-item-icon"><Palette size={18} aria-hidden="true" /></span>
+                <span className="pp-settings-item-label">Theme</span>
+                <ChevronRight size={14} className="pp-settings-item-arrow" aria-hidden="true" />
+              </button>
               {/* Help */}
               <button
                 type="button"

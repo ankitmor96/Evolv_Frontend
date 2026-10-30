@@ -19,7 +19,7 @@ import UserProfilePage from './components/userProfile/UserProfilePage.jsx';
 import DocumentViewerPage from './components/document/DocumentViewerPage.jsx';
 import LearningPage from "./components/learning/LearningPage.jsx";
 import { isTokenExpired, getStoredToken, msUntilExpiry, forceLogout } from './services/sessionService.js';
-
+import './theme-dark.css'; 
 
 function bootstrapOAuthCallback() {
   const { pathname, search } = window.location;

@@ -1,17 +1,33 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Buy TikTok or Instagram Followers, Likes & Views. Fast. Stormlikes is the only service where you get likes from real & active people at affordable prices." />
-    <title>Stormlikes – Buy TikTok & Instagram Followers, Likes & Views</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description"
+    content="Buy TikTok or Instagram Followers, Likes & Views. Fast. Stormlikes is the only service where you get likes from real & active people at affordable prices." />
+  <title>Stormlikes – Buy TikTok & Instagram Followers, Likes & Views</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet" />
+  <script>
+    (function () {
+      try {
+        var p = localStorage.getItem('evolv-theme') || 'light';
+        var dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        var t = p === 'system' ? (dark ? 'dark' : 'light') : p;
+        document.documentElement.setAttribute('data-theme', t);
+        document.documentElement.style.colorScheme = t;
+      } catch (e) { }
+    })();
+  </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
 </html>

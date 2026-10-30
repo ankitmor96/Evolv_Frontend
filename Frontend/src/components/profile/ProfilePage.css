@@ -1781,3 +1781,8 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
+.pp-theme-option { display: flex; align-items: center; gap: 12px; }
+.pp-theme-text { display: flex; flex-direction: column; flex: 1; text-align: left; }
+.pp-theme-desc { font-size: 12px; color: var(--text-soft); }
+.pp-theme-option.selected { border-color: var(--purple); background: var(--surface-2); }
+.pp-theme-check { color: var(--purple); }

@@ -1,0 +1,651 @@
+/* =====================================================================
+   EVOLV — DARK THEME OVERRIDES
+   Only applies when <html data-theme="dark">. Light mode is untouched.
+   ===================================================================== */
+
+/* ---------- Shared ---------- */
+[data-theme="dark"] body { background: var(--bg); color: var(--text); }
+
+/* Black logo stays visible on dark surfaces */
+[data-theme="dark"] .pp-logo-img,
+[data-theme="dark"] .lp-logo {
+  background: #fff;
+  border-radius: 10px;
+  padding: 4px 8px;
+}
+
+/* =====================================================================
+   PROFILE PAGE (pp-)
+   ===================================================================== */
+[data-theme="dark"] .pp-layout { background: var(--bg); color: var(--text); }
+
+[data-theme="dark"] .pp-sidebar,
+[data-theme="dark"] .pp-topbar,
+[data-theme="dark"] .pp-hero-card,
+[data-theme="dark"] .pp-skills-card,
+[data-theme="dark"] .pp-content-card,
+[data-theme="dark"] .pp-right-card,
+[data-theme="dark"] .pp-modal,
+[data-theme="dark"] .pp-post-modal,
+[data-theme="dark"] .pp-modal-skills-grid {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+[data-theme="dark"] .pp-right {
+  background: var(--bg);
+  border-color: var(--line);
+}
+
+[data-theme="dark"] .pp-sidebar-logo,
+[data-theme="dark"] .pp-sidebar-footer,
+[data-theme="dark"] .pp-tabs-bar,
+[data-theme="dark"] .pp-settings-divider { border-color: var(--line); }
+[data-theme="dark"] .pp-settings-divider { background: var(--line); }
+
+/* Text */
+[data-theme="dark"] .pp-nav-item,
+[data-theme="dark"] .pp-sidebar-user-name,
+[data-theme="dark"] .pp-topbar-title,
+[data-theme="dark"] .pp-hero-name,
+[data-theme="dark"] .pp-card-title,
+[data-theme="dark"] .pp-stat-value,
+[data-theme="dark"] .pp-right-card-title,
+[data-theme="dark"] .pp-modal-title,
+[data-theme="dark"] .pp-empty-title,
+[data-theme="dark"] .pp-identity-item,
+[data-theme="dark"] .pp-progress-label,
+[data-theme="dark"] .pp-completeness-label,
+[data-theme="dark"] .pp-settings-item-label,
+[data-theme="dark"] .pp-settings-sub-title,
+[data-theme="dark"] .pp-settings-placeholder-title,
+[data-theme="dark"] .pp-settings-delete-title,
+[data-theme="dark"] .pp-post-modal-details,
+[data-theme="dark"] .pp-post-modal-stat strong,
+[data-theme="dark"] .pp-modal-skill-chip,
+[data-theme="dark"] .pp-modal-cancel-btn,
+[data-theme="dark"] .pp-settings-delete-dismiss-btn { color: var(--text); }
+
+[data-theme="dark"] .pp-settings-item-label--danger { color: #ef476f; }
+
+[data-theme="dark"] .pp-hero-bio,
+[data-theme="dark"] .pp-settings-delete-msg { color: var(--text-soft); }
+
+[data-theme="dark"] .pp-nav-section-label,
+[data-theme="dark"] .pp-hero-username,
+[data-theme="dark"] .pp-hero-country,
+[data-theme="dark"] .pp-stat-label,
+[data-theme="dark"] .pp-sidebar-user-handle,
+[data-theme="dark"] .pp-skill-group-label,
+[data-theme="dark"] .pp-quick-stat-label,
+[data-theme="dark"] .pp-progress-pct,
+[data-theme="dark"] .pp-tab-btn,
+[data-theme="dark"] .pp-modal-subtitle,
+[data-theme="dark"] .pp-modal-domain-label,
+[data-theme="dark"] .pp-modal-chevron,
+[data-theme="dark"] .pp-empty-state,
+[data-theme="dark"] .pp-settings-back-btn,
+[data-theme="dark"] .pp-settings-placeholder-msg,
+[data-theme="dark"] .pp-settings-delete-label,
+[data-theme="dark"] .pp-post-modal-stat span,
+[data-theme="dark"] .pp-post-modal-heading span,
+[data-theme="dark"] .pp-post-modal-note { color: var(--text-soft); }
+
+[data-theme="dark"] .pp-tab-btn:hover,
+[data-theme="dark"] .pp-tab-btn.active,
+[data-theme="dark"] .pp-nav-item:hover,
+[data-theme="dark"] .pp-nav-item.active { color: var(--purple-light); }
+
+/* Tags (lighter text so they read on dark) */
+[data-theme="dark"] .pp-skill-tag.can-do   { color: #d2a8ff; }
+[data-theme="dark"] .pp-skill-tag.learning { color: #aeb0ff; }
+[data-theme="dark"] .pp-skill-tag.curiosity{ color: #f5c26b; }
+[data-theme="dark"] .pp-hero-role-badge    { color: #d2a8ff; }
+
+/* Buttons / inputs / surfaces */
+[data-theme="dark"] .pp-icon-btn,
+[data-theme="dark"] .pp-edit-btn,
+[data-theme="dark"] .pp-mobile-menu-btn,
+[data-theme="dark"] .pp-mobile-overview-btn,
+[data-theme="dark"] .pp-right-close-btn,
+[data-theme="dark"] .pp-sidebar-close,
+[data-theme="dark"] .pp-logout-btn,
+[data-theme="dark"] .pp-modal-close-btn,
+[data-theme="dark"] .pp-post-modal-close,
+[data-theme="dark"] .pp-modal-skill-chip,
+[data-theme="dark"] .pp-modal-cancel-btn,
+[data-theme="dark"] .pp-settings-delete-dismiss-btn {
+  background: var(--surface-2);
+  border-color: var(--line);
+  color: var(--text);
+}
+[data-theme="dark"] .pp-edit-btn { color: var(--purple-light); border-color: var(--purple); }
+[data-theme="dark"] .pp-edit-btn:hover { background: var(--purple); color: #fff; }
+[data-theme="dark"] .pp-modal-skill-chip.selected { color: #d2a8ff; }
+
+[data-theme="dark"] .pp-settings-item:hover { background: var(--surface-hover); }
+[data-theme="dark"] .pp-settings-delete-input {
+  background: var(--surface-2); color: var(--text); border-color: var(--line);
+}
+
+[data-theme="dark"] .pp-modal-domain { border-color: var(--line); }
+[data-theme="dark"] .pp-modal-domain-header { background: var(--surface-2); }
+
+[data-theme="dark"] .pp-grid-item { background: var(--surface-2); border-color: var(--line); }
+[data-theme="dark"] .pp-grid-document-item,
+[data-theme="dark"] .pp-grid-document-card { background: var(--surface-2); border-color: var(--line); }
+[data-theme="dark"] .pp-grid-document-title { color: var(--text); }
+[data-theme="dark"] .pp-grid-document-subtitle { color: var(--text-soft); }
+[data-theme="dark"] .pp-grid-document-icon { background: rgba(170,69,245,.2); color: var(--purple-light); }
+
+[data-theme="dark"] .pp-post-modal-stat { background: var(--surface-2); border-color: var(--line); }
+[data-theme="dark"] .pp-post-modal-heading { border-color: var(--line); }
+
+[data-theme="dark"] .pp-hero-avatar,
+[data-theme="dark"] .pp-hero-avatar-fallback { border-color: var(--surface); }
+
+[data-theme="dark"] .pp-progress-track,
+[data-theme="dark"] .pp-completeness-track { background: rgba(255,255,255,.12); }
+
+[data-theme="dark"] .pp-skeleton {
+  background: linear-gradient(90deg, #1e1336 25%, #2a1c4a 50%, #1e1336 75%);
+  background-size: 200% 100%;
+}
+
+/* Theme picker rows */
+[data-theme="dark"] .pp-theme-option.selected { background: var(--surface-2); border-color: var(--purple); }
+[data-theme="dark"] .pp-theme-desc { color: var(--text-soft); }
+
+/* =====================================================================
+   MESSAGES PAGE (mp-)
+   ===================================================================== */
+[data-theme="dark"] .mp-layout { background: var(--bg); color: var(--text); }
+
+[data-theme="dark"] .mp-nav-rail,
+[data-theme="dark"] .mp-sidebar,
+[data-theme="dark"] .mp-chat-header,
+[data-theme="dark"] .mp-composer,
+[data-theme="dark"] .mp-mobile-nav-drawer {
+  background: var(--surface);
+  border-color: var(--line);
+}
+[data-theme="dark"] .mp-chat { background: var(--bg); }
+[data-theme="dark"] .mp-nav-logo { background: var(--surface-2); }
+
+[data-theme="dark"] .mp-sidebar-title,
+[data-theme="dark"] .mp-conv-name,
+[data-theme="dark"] .mp-conv-preview.unread,
+[data-theme="dark"] .mp-chat-header-name,
+[data-theme="dark"] .mp-lc-title,
+[data-theme="dark"] .mp-back-btn,
+[data-theme="dark"] .mp-composer-textarea { color: var(--text); }
+
+[data-theme="dark"] .mp-conv-time,
+[data-theme="dark"] .mp-conv-preview,
+[data-theme="dark"] .mp-msg-time,
+[data-theme="dark"] .mp-date-sep-label,
+[data-theme="dark"] .mp-empty-chat,
+[data-theme="dark"] .mp-nav-btn,
+[data-theme="dark"] .mp-header-action-btn,
+[data-theme="dark"] .mp-composer-icon-btn,
+[data-theme="dark"] .mp-lc-progress-label,
+[data-theme="dark"] .mp-mobile-nav-item { color: var(--text-soft); }
+
+[data-theme="dark"] .mp-nav-btn:hover,
+[data-theme="dark"] .mp-nav-btn.active,
+[data-theme="dark"] .mp-mobile-nav-item:hover,
+[data-theme="dark"] .mp-mobile-nav-item.active { color: var(--purple-light); }
+
+[data-theme="dark"] .mp-conv-item:hover { background: var(--surface-hover); }
+[data-theme="dark"] .mp-conv-item.active { background: rgba(170,69,245,.18); }
+[data-theme="dark"] .mp-online-dot { border-color: var(--surface); }
+
+[data-theme="dark"] .mp-date-sep-label { background: var(--bg); }
+[data-theme="dark"] .mp-date-sep::before,
+[data-theme="dark"] .mp-date-sep::after,
+[data-theme="dark"] .mp-nav-divider,
+[data-theme="dark"] .mp-mobile-nav-divider { background: var(--line); }
+
+[data-theme="dark"] .mp-msg-row.them .mp-bubble { background: var(--surface-2); color: var(--text); box-shadow: none; }
+[data-theme="dark"] .mp-msg-row.me .mp-bubble   { background: var(--purple); color: #fff; }
+
+[data-theme="dark"] .mp-composer-inner { background: var(--surface-2); border-color: var(--line); }
+[data-theme="dark"] .mp-composer-textarea::placeholder { color: var(--text-soft); }
+[data-theme="dark"] .mp-send-btn { background: var(--purple); }
+
+[data-theme="dark"] .mp-learning-card { background: var(--surface-2); border-color: var(--line); }
+[data-theme="dark"] .mp-lc-btn { background: var(--purple); }
+
+[data-theme="dark"] .mp-mobile-menu-btn { background: var(--surface-2); border-color: var(--line); color: var(--text); }
+[data-theme="dark"] .mp-newchat-btn { background: rgba(170,69,245,.2); color: var(--purple-light); }
+[data-theme="dark"] .mp-newchat { border-color: var(--line); }
+[data-theme="dark"] .mp-newchat-input { background: var(--surface-2); color: var(--text); border-color: var(--line); }
+
+/* Mobile rules use !important, so match them */
+@media (max-width: 768px) {
+  [data-theme="dark"] .mp-layout .mp-sidebar { background: var(--surface) !important; }
+  [data-theme="dark"] .mp-layout .mp-chat    { background: var(--bg) !important; }
+}
+
+/* =====================================================================
+   MY LEARNING PAGE (lp-) — redefine its local variables
+   ===================================================================== */
+[data-theme="dark"] .lp-layout {
+  --bg: #0B0614;
+  --panel: #150D26;
+  --line: rgba(255,255,255,.10);
+  --text: #F5F3FF;
+  --text-2: #E3DCF5;
+  --muted: #9d90b8;
+  --accent-soft: rgba(170,69,245,.18);
+}
+[data-theme="dark"] .lp-donut-num { fill: #F5F3FF; }
+[data-theme="dark"] .lp-donut-bg  { stroke: rgba(255,255,255,.10); }
+[data-theme="dark"] .lp-bar       { background: rgba(255,255,255,.12); }
+[data-theme="dark"] .lp-chip.alt svg { color: #f5c26b; }
+
+/* =====================================================================
+   NOTIFICATIONS PAGE (np-) — redefine its local variables
+   ===================================================================== */
+[data-theme="dark"] .np-page {
+  --text: #F5F3FF;
+  --muted: #9d90b8;
+  --line: rgba(255,255,255,.10);
+  --accent-soft: rgba(170,69,245,.18);
+  background: var(--bg);
+}
+[data-theme="dark"] .np-side,
+[data-theme="dark"] .np-item,
+[data-theme="dark"] .np-empty { background: var(--surface); border-color: var(--line); }
+
+[data-theme="dark"] .np-back,
+[data-theme="dark"] .np-btn.reject { background: var(--surface-2); border-color: var(--line); color: var(--text); }
+[data-theme="dark"] .np-tab { color: var(--text); }
+[data-theme="dark"] .np-sub { color: var(--text-soft); }
+[data-theme="dark"] .np-notif.unread { background: rgba(170,69,245,.16); border-color: rgba(170,69,245,.4); }
+[data-theme="dark"] .np-count.muted { background: rgba(255,255,255,.15); color: var(--text); }
+
+@media (max-width: 1024px) {
+  [data-theme="dark"] .np-side { background: var(--surface); }
+  [data-theme="dark"] .np-tab  { background: var(--surface-2); border-color: var(--line); }
+  [data-theme="dark"] .np-tab.active { background: var(--purple); }
+}
+
+/* =====================================================================
+   HOME PAGE (hp-)
+   ===================================================================== */
+[data-theme="dark"] .hp-layout { background: var(--bg); color: var(--text); }
+
+/* Logo stays readable */
+[data-theme="dark"] .hp-logo-img {
+  background: #fff;
+  border-radius: 10px;
+  padding: 4px 8px;
+}
+
+/* Surfaces */
+[data-theme="dark"] .hp-sidebar,
+[data-theme="dark"] .hp-right-sidebar,
+[data-theme="dark"] .hp-tabs-wrapper,
+[data-theme="dark"] .hp-feed-header {
+  background: var(--surface);
+  border-color: var(--line);
+}
+[data-theme="dark"] .hp-feed { background: var(--bg); }
+
+/* Cards */
+[data-theme="dark"] .hp-post,
+[data-theme="dark"] .hp-right-card,
+[data-theme="dark"] .hp-composer,
+[data-theme="dark"] .hp-feed-empty,
+[data-theme="dark"] .hp-profile-card,
+[data-theme="dark"] .hp-search-dropdown,
+[data-theme="dark"] .hp-post-menu {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--text);
+}
+[data-theme="dark"] .hp-post:hover { box-shadow: 0 6px 24px rgba(0,0,0,.45); }
+
+/* Dividers */
+[data-theme="dark"] .hp-sidebar-logo,
+[data-theme="dark"] .hp-sidebar-footer,
+[data-theme="dark"] .hp-post-actions,
+[data-theme="dark"] .hp-growth-tabs,
+[data-theme="dark"] .hp-mobile-drawer-header { border-color: var(--line); }
+
+/* Main text */
+[data-theme="dark"] .hp-nav-item,
+[data-theme="dark"] .hp-sidebar-user-name,
+[data-theme="dark"] .hp-post-creator-name,
+[data-theme="dark"] .hp-post-caption,
+[data-theme="dark"] .hp-text-post,
+[data-theme="dark"] .hp-right-card-title,
+[data-theme="dark"] .hp-creator-name,
+[data-theme="dark"] .hp-profile-card-name,
+[data-theme="dark"] .hp-learn-person-name,
+[data-theme="dark"] .hp-learned-text,
+[data-theme="dark"] .hp-progress-label,
+[data-theme="dark"] .hp-continue-title,
+[data-theme="dark"] .hp-composer-prompt,
+[data-theme="dark"] .hp-recommended-text strong,
+[data-theme="dark"] .hp-search-result-name,
+[data-theme="dark"] .hp-article-title,
+[data-theme="dark"] .hp-question-title,
+[data-theme="dark"] .hp-question-text,
+[data-theme="dark"] .hp-achievement-title,
+[data-theme="dark"] .hp-document-name,
+[data-theme="dark"] .hp-skill-item,
+[data-theme="dark"] .hp-post-menu-item,
+[data-theme="dark"] .hp-article-heading-input,
+[data-theme="dark"] .hp-article-body-input,
+[data-theme="dark"] .hp-composer-input,
+[data-theme="dark"] .hp-composer-caption-input,
+[data-theme="dark"] .hp-search-input { color: var(--text); }
+
+/* Soft text */
+[data-theme="dark"] .hp-nav-section-label,
+[data-theme="dark"] .hp-post-creator-field,
+[data-theme="dark"] .hp-sidebar-user-handle,
+[data-theme="dark"] .hp-creator-field,
+[data-theme="dark"] .hp-learn-person-field,
+[data-theme="dark"] .hp-learn-person-meta,
+[data-theme="dark"] .hp-learned-when,
+[data-theme="dark"] .hp-progress-pct,
+[data-theme="dark"] .hp-continue-sub,
+[data-theme="dark"] .hp-recommended-text,
+[data-theme="dark"] .hp-composer-placeholder,
+[data-theme="dark"] .hp-profile-card-handle,
+[data-theme="dark"] .hp-profile-card-label,
+[data-theme="dark"] .hp-search-result-sub,
+[data-theme="dark"] .hp-search-status,
+[data-theme="dark"] .hp-feed-empty,
+[data-theme="dark"] .hp-growth-tab,
+[data-theme="dark"] .hp-article-subtitle,
+[data-theme="dark"] .hp-article-subtitle-input,
+[data-theme="dark"] .hp-question-subtitle,
+[data-theme="dark"] .hp-article-body p,
+[data-theme="dark"] .hp-question-details p,
+[data-theme="dark"] .hp-achievement-desc,
+[data-theme="dark"] .hp-document-info span,
+[data-theme="dark"] .hp-action-btn,
+[data-theme="dark"] .hp-save-btn,
+[data-theme="dark"] .hp-post-more-btn { color: var(--text-soft); }
+
+[data-theme="dark"] .hp-search-input::placeholder,
+[data-theme="dark"] .hp-composer-input::placeholder,
+[data-theme="dark"] .hp-composer-caption-input::placeholder,
+[data-theme="dark"] .hp-article-heading-input::placeholder,
+[data-theme="dark"] .hp-article-subtitle-input::placeholder,
+[data-theme="dark"] .hp-article-body-input::placeholder { color: var(--text-soft); opacity: .7; }
+
+/* Nav hover / active */
+[data-theme="dark"] .hp-nav-item:hover { background: var(--surface-hover); color: var(--purple-light); }
+[data-theme="dark"] .hp-nav-item.active { background: var(--purple); color: #fff; }
+[data-theme="dark"] .hp-growth-tab.active { color: var(--purple-light); border-bottom-color: var(--purple); }
+
+/* Buttons & inputs */
+[data-theme="dark"] .hp-sidebar-user,
+[data-theme="dark"] .hp-search-bar,
+[data-theme="dark"] .hp-composer-caption-input {
+  background: var(--surface-2);
+  border-color: var(--line);
+}
+[data-theme="dark"] .hp-search-bar:focus-within { background: var(--surface); }
+
+[data-theme="dark"] .hp-tab,
+[data-theme="dark"] .hp-tabs-arrow,
+[data-theme="dark"] .hp-reels-arrow,
+[data-theme="dark"] .hp-logout-btn,
+[data-theme="dark"] .hp-sidebar-close,
+[data-theme="dark"] .hp-icon-btn,
+[data-theme="dark"] .hp-mobile-menu-btn,
+[data-theme="dark"] .hp-mobile-filter-btn,
+[data-theme="dark"] .hp-mobile-user-btn,
+[data-theme="dark"] .hp-header-avatar-btn,
+[data-theme="dark"] .hp-composer-type-btn,
+[data-theme="dark"] .hp-composer-upload-area button,
+[data-theme="dark"] .hp-learn-btn,
+[data-theme="dark"] .hp-question-answer-btn,
+[data-theme="dark"] .hp-document-view,
+[data-theme="dark"] .hp-mobile-drawer-header button {
+  background: var(--surface-2);
+  border-color: var(--line);
+  color: var(--text);
+}
+[data-theme="dark"] .hp-tab:hover,
+[data-theme="dark"] .hp-composer-type-btn:hover { border-color: var(--purple); color: var(--purple-light); }
+[data-theme="dark"] .hp-tab.active { background: var(--purple); border-color: var(--purple); color: #fff; }
+[data-theme="dark"] .hp-composer-type-btn.active {
+  background: rgba(170,69,245,.2); border-color: var(--purple); color: var(--purple-light);
+}
+[data-theme="dark"] .hp-learn-btn:hover,
+[data-theme="dark"] .hp-learn-btn.following,
+[data-theme="dark"] .hp-question-answer-btn:hover { background: var(--purple); color: #fff; border-color: var(--purple); }
+
+/* Dark buttons that would vanish on a dark background */
+[data-theme="dark"] .hp-composer-post-btn,
+[data-theme="dark"] .hp-document-download,
+[data-theme="dark"] .hp-create-btn { background: var(--purple); color: #fff; }
+[data-theme="dark"] .hp-composer-post-btn:hover,
+[data-theme="dark"] .hp-document-download:hover { background: var(--purple-light); }
+
+/* Connect / follow buttons */
+[data-theme="dark"] .hp-follow-btn,
+[data-theme="dark"] .hp-follow-pill { border-color: var(--text-soft); color: var(--text); }
+[data-theme="dark"] .hp-follow-btn:hover,
+[data-theme="dark"] .hp-follow-pill:hover { background: var(--text); color: var(--bg); }
+[data-theme="dark"] .hp-follow-btn.following,
+[data-theme="dark"] .hp-follow-pill.following {
+  background: rgba(170,69,245,.18); border-color: var(--purple); color: var(--purple-light);
+}
+
+/* Hover states */
+[data-theme="dark"] .hp-action-btn:hover,
+[data-theme="dark"] .hp-post-menu-item:hover,
+[data-theme="dark"] .hp-search-result:hover { background: var(--surface-hover); color: var(--text); }
+[data-theme="dark"] .hp-profile-card:hover { background: var(--surface-hover); }
+
+/* Tags */
+[data-theme="dark"] .hp-post-tag { background: rgba(170,69,245,.2); color: #d2a8ff; }
+
+/* Post body blocks */
+[data-theme="dark"] .hp-article-post { background: var(--surface-2); border-color: var(--line); border-left-color: var(--purple); }
+[data-theme="dark"] .hp-question-post { background: rgba(91,92,240,.14); border-color: rgba(91,92,240,.35); }
+[data-theme="dark"] .hp-question-label { color: #aeb0ff; }
+[data-theme="dark"] .hp-achievement-post {
+  background: linear-gradient(135deg, #2a2210 0%, #2a1530 55%, #1f1236 100%);
+  border-color: rgba(234,179,8,.3);
+}
+[data-theme="dark"] .hp-achievement-badge { background: var(--surface-2); }
+[data-theme="dark"] .hp-document-card { background: var(--surface-2); border-color: var(--line); }
+[data-theme="dark"] .hp-document-icon { background: rgba(170,69,245,.2); color: var(--purple-light); }
+[data-theme="dark"] .hp-post-image-wrapper,
+[data-theme="dark"] .hp-post-video-wrapper { background: #000 !important; border-color: var(--line); }
+
+/* Right sidebar extras */
+[data-theme="dark"] .hp-progress-track { background: rgba(255,255,255,.12); }
+[data-theme="dark"] .hp-continue-card { background: rgba(170,69,245,.14); border-color: rgba(170,69,245,.3); }
+[data-theme="dark"] .hp-learned-check { background: rgba(34,197,94,.2); }
+
+/* Motivational card gets a border so it separates from the sidebar */
+[data-theme="dark"] .hp-motivational-card { background: var(--surface-2); border: 1px solid var(--line); }
+
+/* Notification badge ring */
+[data-theme="dark"] .hp-notif-badge { box-shadow: 0 0 0 2px var(--surface); }
+
+/* Scrollbars */
+[data-theme="dark"] .hp-feed,
+[data-theme="dark"] .hp-sidebar,
+[data-theme="dark"] .hp-right-sidebar { scrollbar-color: rgba(170,69,245,.4) transparent; }
+
+/* =====================================================================
+   DISCOVER PAGE (dx-)
+   ===================================================================== */
+[data-theme="dark"] .discover-page {
+  --dx-bg: var(--bg, #0B0614);
+  --dx-card: var(--surface, #150D26);
+  --dx-line: var(--line, rgba(255,255,255,.10));
+  --dx-ink: var(--text, #F5F3FF);
+  --dx-muted: var(--text-soft, #9d90b8);
+  --dx-soft: rgba(170,69,245,.18);
+}
+
+/* Search */
+[data-theme="dark"] .dx-search { background: var(--surface); border-color: var(--line); color: var(--text-soft); }
+[data-theme="dark"] .dx-search input { color: var(--text); }
+[data-theme="dark"] .dx-search input::placeholder { color: var(--text-soft); }
+[data-theme="dark"] .dx-clear { color: var(--purple-light); }
+
+/* Tabs */
+[data-theme="dark"] .dx-tab { background: var(--surface); border-color: var(--line); color: var(--text-soft); }
+[data-theme="dark"] .dx-tab:hover { border-color: var(--purple); color: var(--purple-light); }
+[data-theme="dark"] .dx-tab.active { background: var(--purple); border-color: var(--purple); color: #fff; }
+
+/* Section links */
+[data-theme="dark"] .dx-link { color: var(--purple-light); }
+
+/* Skill chips */
+[data-theme="dark"] .dx-skill { background: var(--surface); border-color: var(--line); color: var(--text); }
+[data-theme="dark"] .dx-skill-icon { color: var(--purple-light); }
+[data-theme="dark"] .dx-skill.active { background: rgba(170,69,245,.18); border-color: var(--purple); }
+
+/* Posts */
+[data-theme="dark"] .dx-author { color: var(--text-soft); }
+[data-theme="dark"] .dx-avatar { background: rgba(170,69,245,.22); color: #d2a8ff; }
+[data-theme="dark"] .dx-tags span { background: var(--surface-2); color: var(--text-soft); }
+
+/* People */
+[data-theme="dark"] .dx-person { background: var(--surface); border-color: var(--line); }
+[data-theme="dark"] .dx-person p { color: var(--text-soft); }
+[data-theme="dark"] .dx-follow.on { background: transparent; color: var(--purple-light); }
+
+/* Journey */
+[data-theme="dark"] .dx-journey {
+  background: linear-gradient(135deg, #1d1236, #150D26);
+  border-color: var(--line);
+}
+[data-theme="dark"] .dx-journey-item { color: var(--text); }
+[data-theme="dark"] .dx-journey-icon { background: var(--surface-2); color: var(--purple-light); }
+
+/* Empty state */
+[data-theme="dark"] .dx-empty { background: var(--surface); border-color: var(--line); color: var(--text-soft); }
+[data-theme="dark"] .dx-empty h3 { color: var(--text); }
+
+/* =====================================================================
+   IMAGE VIEWER (iv-) — only the white details panel
+   ===================================================================== */
+[data-theme="dark"] .iv-details { background: var(--surface); color: var(--text); }
+[data-theme="dark"] .iv-creator span,
+[data-theme="dark"] .iv-act span { color: var(--text-soft); }
+[data-theme="dark"] .iv-tags span { background: rgba(170,69,245,.2); color: #d2a8ff; }
+[data-theme="dark"] .iv-act { background: var(--surface-2); color: var(--text); }
+[data-theme="dark"] .iv-act:hover { background: var(--surface-hover); }
+[data-theme="dark"] .iv-act.on.pink  { color: #ff6b94; }
+[data-theme="dark"] .iv-act.on.blue  { color: #aeb0ff; }
+[data-theme="dark"] .iv-act.on.green { color: #4ade80; }
+
+/* Delete zone */
+[data-theme="dark"] .iv-delete-zone { border-top-color: var(--line); }
+[data-theme="dark"] .iv-delete-btn { background: rgba(220,38,38,.12); border-color: rgba(252,165,165,.4); color: #fca5a5; }
+[data-theme="dark"] .iv-delete-btn:hover { background: rgba(220,38,38,.22); }
+[data-theme="dark"] .iv-delete-confirm p { color: var(--text-soft); }
+[data-theme="dark"] .iv-delete-cancel { background: var(--surface-2); color: var(--text); border-color: var(--line); }
+[data-theme="dark"] .iv-delete-error { color: #fca5a5; }
+/* =====================================================================
+   SEARCH PAGE (sp-)
+   ===================================================================== */
+[data-theme="dark"] .sp-page,
+[data-theme="dark"] .sp-header { background: var(--bg); }
+[data-theme="dark"] .sp-header { border-bottom-color: var(--line); }
+[data-theme="dark"] .sp-back { color: var(--text); }
+[data-theme="dark"] .sp-search-box { background: var(--surface-2); color: var(--text-soft); }
+[data-theme="dark"] .sp-search-box input { color: var(--text); }
+[data-theme="dark"] .sp-search-box input::placeholder { color: var(--text-soft); }
+[data-theme="dark"] .sp-clear,
+[data-theme="dark"] .sp-note,
+[data-theme="dark"] .sp-row-sub { color: var(--text-soft); }
+[data-theme="dark"] .sp-row-name { color: var(--text); }
+[data-theme="dark"] .sp-error { color: #fca5a5; }
+[data-theme="dark"] .sp-connect { background: transparent; color: var(--purple-light); border-color: var(--purple); }
+[data-theme="dark"] .sp-connect.on { background: var(--purple); color: #fff; }
+[data-theme="dark"] .sp-tile { background: var(--surface-2); }
+
+/* =====================================================================
+   USER PROFILE PAGE (up-)
+   ===================================================================== */
+[data-theme="dark"] .up-page { background: var(--bg); color: var(--text); }
+[data-theme="dark"] .up-header { background: var(--bg); border-bottom-color: var(--line); }
+[data-theme="dark"] .up-back,
+[data-theme="dark"] .up-header-title,
+[data-theme="dark"] .up-name,
+[data-theme="dark"] .up-bio { color: var(--text); }
+[data-theme="dark"] .up-stats span,
+[data-theme="dark"] .up-field,
+[data-theme="dark"] .up-note { color: var(--text-soft); }
+[data-theme="dark"] .up-error { color: #fca5a5; }
+[data-theme="dark"] .up-btn { background: var(--surface-2); border-color: var(--line); color: var(--text); }
+[data-theme="dark"] .up-btn.primary { background: var(--purple); border-color: var(--purple); color: #fff; }
+[data-theme="dark"] .up-skill { background: rgba(170,69,245,.2); color: #d2a8ff; }
+[data-theme="dark"] .up-tabs { border-top-color: var(--line); }
+[data-theme="dark"] .up-tabs button { color: var(--text-soft); }
+[data-theme="dark"] .up-tabs button.active { color: var(--text); border-top-color: var(--text); }
+[data-theme="dark"] .up-tile { background: var(--surface-2); }
+[data-theme="dark"] .up-tile-text { color: var(--text-soft); }
+[data-theme="dark"] .up-tile-doc { background: rgba(170,69,245,.18); color: #d2a8ff !important; }
+
+/* =====================================================================
+   LEGAL PAGE (lg-)
+   ===================================================================== */
+[data-theme="dark"] .lg-page { background: var(--bg); color: var(--text); }
+[data-theme="dark"] .lg-header { background: var(--surface); border-bottom-color: var(--line); }
+[data-theme="dark"] .lg-header h1 { color: var(--text); }
+[data-theme="dark"] .lg-back { background: var(--surface-2); border-color: var(--line); color: var(--text); }
+[data-theme="dark"] .lg-back:hover { border-color: var(--purple); color: var(--purple-light); }
+[data-theme="dark"] .lg-body { background: var(--surface); border-color: var(--line); }
+[data-theme="dark"] .lg-section h2 { color: var(--text); }
+[data-theme="dark"] .lg-section h3 { color: #d2a8ff; }
+[data-theme="dark"] .lg-section p,
+[data-theme="dark"] .lg-section li { color: var(--text-soft); }
+[data-theme="dark"] .lg-updated,
+[data-theme="dark"] .lg-end { color: var(--text-soft); }
+[data-theme="dark"] .lg-end { border-top-color: var(--line); }
+
+/* =====================================================================
+   COMMENT PANEL (cp-) — inline styles, so !important is required
+   ===================================================================== */
+[data-theme="dark"] .hp-comment-panel {
+  background: var(--surface) !important;
+  box-shadow: -4px 0 32px rgba(0,0,0,.6) !important;
+}
+[data-theme="dark"] .hp-comment-backdrop { background: rgba(0,0,0,.6) !important; }
+
+[data-theme="dark"] .cp-header,
+[data-theme="dark"] .cp-footer { border-color: var(--line) !important; }
+[data-theme="dark"] .cp-comment { border-bottom-color: var(--line) !important; }
+
+[data-theme="dark"] .cp-title,
+[data-theme="dark"] .cp-author,
+[data-theme="dark"] .cp-text { color: var(--text) !important; }
+
+[data-theme="dark"] .cp-muted,
+[data-theme="dark"] .cp-close { color: var(--text-soft) !important; }
+
+[data-theme="dark"] .cp-avatar { background: rgba(170,69,245,.25) !important; color: #d2a8ff !important; }
+
+[data-theme="dark"] .cp-input {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border-color: var(--line) !important;
+}
+[data-theme="dark"] .cp-input::placeholder { color: var(--text-soft); }
+[data-theme="dark"] .cp-input:focus { border-color: var(--purple) !important; }
+
+[data-theme="dark"] .cp-cancel {
+  color: var(--text-soft) !important;
+  border-color: var(--line) !important;
+}
+
+/* The dark "Post" button would disappear on a dark panel */
+[data-theme="dark"] .cp-post { background: var(--purple) !important; }

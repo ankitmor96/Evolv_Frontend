@@ -39,7 +39,9 @@
 /* ===================================================
    RESET & BASE
 =================================================== */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -52,14 +54,16 @@ html {
 
 body {
   font-family: var(--font-body);
-  background-color: var(--color-outer-bg);
-  color: var(--color-dark);
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color .25s ease, color .25s ease;
   min-height: 100vh;
   overflow-x: hidden;
   line-height: 1.6;
 }
 
-img, svg {
+img,
+svg {
   display: block;
   max-width: 100%;
 }
@@ -76,7 +80,8 @@ a {
   color: inherit;
 }
 
-ul, ol {
+ul,
+ol {
   list-style: none;
 }
 
@@ -86,100 +91,237 @@ ul, ol {
 
 /* Entrance animations */
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(25px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(25px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-15px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-15px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideFromLeft {
-  from { opacity: 0; transform: translateX(-30px); }
-  to   { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes slideFromRight {
-  from { opacity: 0; transform: translateX(30px); }
-  to   { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.94) translateY(15px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(15px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 /* Continuous floating animations */
 @keyframes floatY {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-8px); }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 @keyframes floatYSm {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-5px); }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
 }
 
 @keyframes floatRotate {
-  0%, 100% { transform: translateY(0px) rotate(0deg) scale(1); }
-  50%       { transform: translateY(-8px) rotate(-1deg) scale(1.015); }
+
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+  }
+
+  50% {
+    transform: translateY(-8px) rotate(-1deg) scale(1.015);
+  }
 }
 
 @keyframes charFloat1 {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-6px); }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 @keyframes charFloat2 {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-8px); }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
 }
 
 @keyframes charFloat3 {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-4px); }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-4px);
+  }
 }
 
 @keyframes charFloat4 {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50%       { transform: translateY(-5px) rotate(1.5deg); }
+
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-5px) rotate(1.5deg);
+  }
 }
 
 @keyframes bubbleFloat {
-  0%, 100% { transform: translateY(0px) rotate(0deg); }
-  50%       { transform: translateY(-6px) rotate(2deg); }
+
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-6px) rotate(2deg);
+  }
 }
 
 @keyframes pulseBeat {
-  0%, 100% { transform: scale(1); }
-  50%       { transform: scale(1.12); }
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.12);
+  }
 }
 
 @keyframes starSpin {
-  0%   { transform: rotate(0deg) scale(1); opacity: 1; }
-  50%  { transform: rotate(180deg) scale(1.1); opacity: 0.7; }
-  100% { transform: rotate(360deg) scale(1); opacity: 1; }
+  0% {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: rotate(180deg) scale(1.1);
+    opacity: 0.7;
+  }
+
+  100% {
+    transform: rotate(360deg) scale(1);
+    opacity: 1;
+  }
 }
 
 @keyframes starFloat {
-  0%, 100% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
-  50%       { transform: translateY(-5px) rotate(15deg) scale(1.1); opacity: 0.8; }
+
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: translateY(-5px) rotate(15deg) scale(1.1);
+    opacity: 0.8;
+  }
 }
 
 @keyframes lineSwayX {
-  0%, 100% { transform: translateX(0); }
-  50%       { transform: translateX(8px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(8px);
+  }
 }
 
 @keyframes mobileMenuOpen {
-  from { opacity: 0; max-height: 0; }
-  to   { opacity: 1; max-height: 400px; }
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+
+  to {
+    opacity: 1;
+    max-height: 400px;
+  }
 }
 
 /* ===================================================
@@ -303,6 +445,7 @@ ul, ol {
    REDUCED MOTION
 =================================================== */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -312,3 +455,27 @@ ul, ol {
   }
 }
 
+:root {
+  --bg: #F4F3FA;
+  --surface: #FFFFFF;
+  --surface-2: #F5F0FF;
+  --surface-hover: #F3EEFB;
+  --text: #09030F;
+  --text-soft: #5B5470;
+  --line: rgba(9, 3, 15, 0.10);
+  --shadow: 0 4px 20px rgba(9, 3, 15, 0.06);
+  --overlay: rgba(9, 3, 15, 0.45);
+}
+
+[data-theme="dark"] {
+  --bg: #0B0614;
+  --surface: #150D26;
+  --surface-2: #1E1336;
+  --surface-hover: #241846;
+  --text: #F5F3FF;
+  --text-soft: rgba(245, 243, 255, 0.65);
+  --line: rgba(255, 255, 255, 0.10);
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  --overlay: rgba(0, 0, 0, 0.65);
+  --color-outer-bg: #0B0614;
+}
