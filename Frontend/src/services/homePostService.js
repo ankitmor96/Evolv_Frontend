@@ -44,6 +44,11 @@ const VIDEO_POST_ENDPOINT = "/api/posts/video";
 /** GET /api/posts — not yet implemented; returns 404 (kept for legacy getPosts()) */
 const GET_ENDPOINT = "/api/posts";
 
+// POST /api/posts/text — text / article / question / achievement (JSON body)
+const TEXT_POST_ENDPOINT = "/api/posts/text";
+
+const TEXT_KINDS = ["text", "article", "question", "achievement"];
+
 /**
  * GET /api/posts/feed — paginated public feed (confirmed via Postman)
  * Query params: cursor=<id>  (omit for first page)
@@ -302,6 +307,35 @@ export const homePostService = {
         postData.caption,
         postData.imageFile
       );
+    }
+
+    // ── Text-based posts: text / article / question / achievement ──
+    if (TEXT_KINDS.includes(postData.type)) {
+      const body = {
+        postType: postData.type.toUpperCase(),
+        caption: postData.caption || "",
+        title: postData.title || "",
+        subtitle: postData.subtitle || "",
+        content: postData.content || "",
+        description: postData.description || "",
+      };
+
+      const payload = await request(TEXT_POST_ENDPOINT, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
+
+      const post = this._normalisePost(payload, postData.type);
+
+      // Fill gaps in case the backend only returns an id
+      return {
+        ...post,
+        kind: postData.type,
+        title: post.title || body.title,
+        subtitle: post.subtitle || body.subtitle,
+        content: post.content || body.content,
+        description: post.description || body.description,
+      };
     }
 
     throw new Error("Unsupported post type.");
@@ -732,12 +766,25 @@ export const homePostService = {
       p.videoUrl ??
       p.imageUrl ??
       "";
+    const declaredKind = String(
+      p.postType ?? p.postKind ?? p.type ?? ""
+    ).toLowerCase();
 
+    const kind = TEXT_KINDS.includes(declaredKind)
+      ? declaredKind
+      : TEXT_KINDS.includes(fallbackType)
+        ? fallbackType
+        : "media";
 
     return {
       id: p.postId ?? p.id ?? p._id ?? `local-${Date.now()}`,
       type: isVideo ? "reel" : "post",
       caption: p.caption ?? "",
+      kind,
+      title: p.title ?? "",
+      subtitle: p.subtitle ?? p.subTitle ?? "",
+      content: p.content ?? p.body ?? p.text ?? "",
+      description: p.description ?? "",
       tags: Array.isArray(p.tags) ? p.tags : [],
       category: p.category ?? "Discover",
       timestamp: p.createdAt

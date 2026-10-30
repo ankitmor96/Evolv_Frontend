@@ -951,6 +951,90 @@ function FeedVideo({ post }) {
     </div>
   );
 }
+// ─── Text-based post bodies ────────────────────────────────────────────────
+function TextPostBody({ post }) {
+  return <p className="hp-text-post">{post.content || post.caption}</p>;
+}
+
+function ArticlePostBody({ post }) {
+  const [expanded, setExpanded] = useState(false);
+  const text = post.content || post.caption || '';
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  const readMins = Math.max(1, Math.ceil(words / 200));
+  const isLong = text.length > 400;
+
+  return (
+    <div className="hp-article-post">
+      <span className="hp-article-label">
+        <BookOpen size={12} aria-hidden="true" /> Article · {readMins} min read
+      </span>
+      <h3 className="hp-article-title">{post.title}</h3>
+      {post.subtitle && <p className="hp-article-subtitle">{post.subtitle}</p>}
+      <div className={`hp-article-body ${!expanded && isLong ? 'clamped' : ''}`}>
+        {text.split(/\n{2,}/).map((para, i) => (
+          <p key={i}>{para}</p>
+        ))}
+      </div>
+      {isLong && (
+        <button
+          type="button"
+          className="hp-article-toggle"
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? 'Show less' : 'Read full article'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function QuestionPostBody({ post, onDiscuss }) {
+  // Old questions only have `content`; new ones have title (+ optional subtitle/details)
+  const heading = post.title || post.content || post.caption;
+  const details =
+    post.title && post.content && post.content.trim() !== post.title.trim()
+      ? post.content
+      : '';
+
+  return (
+    <div className="hp-question-post">
+      <span className="hp-question-label">❓ Question</span>
+      <h3 className="hp-question-title">{heading}</h3>
+      {post.subtitle && <p className="hp-question-subtitle">{post.subtitle}</p>}
+      {details && (
+        <div className="hp-question-details">
+          {details.split(/\n{2,}/).map((para, i) => (
+            <p key={i}>{para}</p>
+          ))}
+        </div>
+      )}
+      <button
+        type="button"
+        className="hp-question-answer-btn"
+        onClick={() => onDiscuss?.(post.id)}
+      >
+        <MessageCircle size={15} aria-hidden="true" />
+        {post.comments > 0
+          ? `View ${post.comments} answer${post.comments > 1 ? 's' : ''}`
+          : 'Be the first to answer'}
+      </button>
+    </div>
+  );
+}
+
+function AchievementPostBody({ post }) {
+  return (
+    <div className="hp-achievement-post">
+      <div className="hp-achievement-badge" aria-hidden="true">🏆</div>
+      <span className="hp-achievement-label">Achievement unlocked</span>
+      <h3 className="hp-achievement-title">{post.title}</h3>
+      {(post.description || post.content) && (
+        <p className="hp-achievement-desc">{post.description || post.content}</p>
+      )}
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // FEED POST
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1010,6 +1094,7 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
     currentUserId != null &&
     creatorId != null &&
     String(currentUserId) === String(creatorId);
+  const isTextKind = ['text', 'article', 'question', 'achievement'].includes(post.kind);
   return (
     <article className="hp-post" aria-label={`${post.type === 'reel' ? 'Reel' : 'Post'} by ${post.creator.name}`}>
       {/* Post header */}
@@ -1075,10 +1160,16 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
       </div>
 
       {/* Caption */}
-      <p className="hp-post-caption">{post.caption}</p>
+      {post.kind === 'text' && <TextPostBody post={post} />}
+      {post.kind === 'article' && <ArticlePostBody post={post} />}
+      {post.kind === 'question' && <QuestionPostBody post={post} onDiscuss={onDiscuss} />}
+      {post.kind === 'achievement' && <AchievementPostBody post={post} />}
+      {!isTextKind && post.caption && (
+        <p className="hp-post-caption">{post.caption}</p>
+      )}
 
       {/* Media */}
-      {post.media.type === 'document' ? (
+      {isTextKind ? null : post.media.type === 'document' ? (
         <div
           className="hp-document-card hp-document-clickable"
           onClick={() => openDocument(post.id)}
@@ -2155,6 +2246,7 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
     type: 'text',
     content: '',
     title: '',
+    subtitle: '',
     description: '',
     files: [],
   });
@@ -2174,6 +2266,7 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
       type,
       content: '',
       title: '',
+      subtitle: '',
       description: '',
       files: [],
     }));
@@ -2235,18 +2328,37 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
   // ─────────────────────────────────────
 
   const handlePost = async () => {
+    if (selectedType === 'question' && !postData.title.trim()) {
+      setPostError('Please add your question heading.');
+      return;
+    }
     if (selectedType === 'document' && !selectedFile) {
       setPostError('Please choose a document before posting.');
       return;
     }
+    if (selectedType === 'text' && !postData.content.trim()) {
+      setPostError('Please write something before posting.');
+      return;
+    }
+    if (selectedType === 'article') {
+      if (!postData.title.trim()) {
+        setPostError('Please add an article heading.');
+        return;
+      }
+      if (postData.content.trim().length < 50) {
+        setPostError('Article body is too short. Write at least 50 characters.');
+        return;
+      }
+    }
+    if (selectedType === 'achievement' && !postData.title.trim()) {
+      setPostError('Please add an achievement title.');
+      return;
+    }
     if (
-      !caption.trim() &&
-      !postData.content.trim() &&
-      !postData.title.trim() &&
-      postData.files.length === 0 &&
-      !selectedFile
+      ['short_video', 'photos'].includes(selectedType) &&
+      postData.files.length === 0
     ) {
-      setPostError('Please add a caption, content, title, or media.');
+      setPostError('Please choose a file before posting.');
       return;
     }
     if (isPosting) return;
@@ -2306,6 +2418,29 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
             },
           };
         }
+
+      } else if (['text', 'article', 'question', 'achievement'].includes(selectedType)) {
+        newPost = await homePostService.createPost({
+          type: selectedType,
+          caption: '',
+          title: postData.title.trim(),
+          subtitle: postData.subtitle.trim(),
+          // Question details are optional; fall back to the heading so the backend never gets an empty body
+          content: postData.content.trim() || (selectedType === 'question' ? postData.title.trim() : ''),
+          description: postData.description.trim(),
+        });
+
+        // Make sure the author shows correctly right after posting
+        newPost = {
+          ...newPost,
+          creator: {
+            id: user?.id ?? user?.userId ?? user?._id,
+            name: profileName || user?.name || user?.username || 'You',
+            username: user?.username || '',
+            field: user?.field || 'Community Member',
+            avatar: profileAvatar || user?.avatar || user?.profileImage || '',
+          },
+        };
 
       } else {
         // ── Text / article / question / achievement / document ───────────────
@@ -2396,6 +2531,7 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
         type: 'text',
         content: '',
         title: '',
+        subtitle: '',
         description: '',
         files: [],
       });
@@ -2452,6 +2588,12 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
   };
 
   const isMultiple = selectedType === 'photos';
+  const articleWords = postData.content.trim()
+    ? postData.content.trim().split(/\s+/).length
+    : 0;
+  const articleReadMins = Math.max(1, Math.ceil(articleWords / 200));
+  const isArticleForm = selectedType === 'article' || selectedType === 'question';
+  const isQuestion = selectedType === 'question';
 
   return (
     <div className="hp-composer" aria-label="Create a post">
@@ -2510,30 +2652,48 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
             </div>
           )}
 
-          {/* ARTICLE */}
-
-          {/* ARTICLE TITLE AND CONTENT */}
-          {!isMediaType && selectedType === 'article' && (
-            <>
+          {/* {selectedType === 'article' && (
+            <div className="hp-article-form">
               <input
                 type="text"
                 name="title"
                 value={postData.title}
                 onChange={handleChange}
-                className="hp-composer-input"
-                placeholder="Article title"
+                className="hp-article-heading-input"
+                placeholder="Article heading"
+                maxLength={120}
+                aria-label="Article heading"
+              />
+
+              <input
+                type="text"
+                name="subtitle"
+                value={postData.subtitle}
+                onChange={handleChange}
+                className="hp-article-subtitle-input"
+                placeholder="Add a subtitle (optional)"
+                maxLength={200}
+                aria-label="Article subtitle"
               />
 
               <textarea
                 name="content"
                 value={postData.content}
                 onChange={handleChange}
-                className="hp-composer-input"
-                placeholder="Write your article..."
-                rows={5}
+                className="hp-article-body-input"
+                placeholder="Write your article here..."
+                rows={8}
+                aria-label="Article body"
               />
-            </>
-          )}
+
+              <div className="hp-article-form-meta">
+                <span>
+                  {articleWords} {articleWords === 1 ? 'word' : 'words'} · {articleReadMins} min read
+                </span>
+                <span>{postData.title.length}/120</span>
+              </div>
+            </div>
+          )} */}
 
           {/* DOCUMENT */}
           {selectedType === "document" && (
@@ -2563,17 +2723,54 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
             </div>
           )}
 
+          {/* ARTICLE / QUESTION FORM */}
+          {isArticleForm && (
+            <div className="hp-article-form">
+              <input
+                type="text"
+                name="title"
+                value={postData.title}
+                onChange={handleChange}
+                className="hp-article-heading-input"
+                placeholder={isQuestion ? 'Question heading' : 'Article heading'}
+                maxLength={120}
+                aria-label={isQuestion ? 'Question heading' : 'Article heading'}
+              />
 
-          {/* QUESTION */}
-          {!isMediaType && selectedType === 'question' && (
-            <textarea
-              name="content"
-              value={postData.content}
-              onChange={handleChange}
-              className="hp-composer-input"
-              placeholder="What would you like to ask the community?"
-              rows={3}
-            />
+              <input
+                type="text"
+                name="subtitle"
+                value={postData.subtitle}
+                onChange={handleChange}
+                className="hp-article-subtitle-input"
+                placeholder="Add a subtitle (optional)"
+                maxLength={200}
+                aria-label={isQuestion ? 'Question subtitle' : 'Article subtitle'}
+              />
+
+              <textarea
+                name="content"
+                value={postData.content}
+                onChange={handleChange}
+                className="hp-article-body-input"
+                placeholder={
+                  isQuestion
+                    ? 'Add details or context for your question (optional)...'
+                    : 'Write your article here...'
+                }
+                rows={8}
+                aria-label={isQuestion ? 'Question details' : 'Article body'}
+              />
+
+              <div className="hp-article-form-meta">
+                <span>
+                  {isQuestion
+                    ? `${articleWords} ${articleWords === 1 ? 'word' : 'words'}`
+                    : `${articleWords} ${articleWords === 1 ? 'word' : 'words'} · ${articleReadMins} min read`}
+                </span>
+                <span>{postData.title.length}/120</span>
+              </div>
+            </div>
           )}
 
           {/* ACHIEVEMENT */}
