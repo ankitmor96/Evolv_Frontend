@@ -8,7 +8,6 @@ import MessagesPage from './components/messages/MessagesPage';
 import DiscoverPage from './components/discover/DiscoverPage';
 import ProfilePage from './components/profile/ProfilePage';
 import ReelsPage from './components/reels/ReelPage.jsx';
-import ImageViewerPage from './components/image/ImageViewerPage.jsx';
 import NotificationsPage from './components/NotificationsPage/NotificationsPage.jsx';
 import LegalPage from './components/legal/LegalPage.jsx';
 import { guardProtectedRoute } from './services/sessionService.js';
@@ -18,39 +17,21 @@ import MyPostFullScreenPage from './components/profile/MyPostFullScreenPage.jsx'
 import SearchPage from './components/search/SearchPage.jsx';
 import UserProfilePage from './components/userProfile/UserProfilePage.jsx';
 import DocumentViewerPage from './components/document/DocumentViewerPage.jsx';
+import LearningPage from "./components/learning/LearningPage.jsx";
 import { isTokenExpired, getStoredToken, msUntilExpiry, forceLogout } from './services/sessionService.js';
 
-/**
- * The backend Google OAuth callback redirects to a plain pathname URL like
- * `/login?token=...&email=...&name=...` (or `/login?authError=...`).
- * Because that URL has no hash, getRoute() would return '/' and render the
- * Hero landing page instead of LoginPage, silently discarding the token.
- *
- * This one-time bootstrap converts the pathname redirect into a hash URL so
- * that LoginPage is rendered and can process the callback as designed.
- * The search string is preserved so LoginPage's existing query-param parsing
- * continues to work without any changes.
- */
+
 function bootstrapOAuthCallback() {
   const { pathname, search } = window.location;
-  // Only redirect when the backend has delivered a Google callback (/login path
-  // + either a token or an authError query param).  Do NOT redirect on normal
-  // hash-based navigation (pathname would be '/' in that case).
   if (pathname === '/login') {
     const params = new URLSearchParams(search);
     if (params.has('token') || params.has('authError')) {
-      // Replace the history entry so the back-button doesn't loop back here.
-      // IMPORTANT: put the search params BEFORE the '#' so that
-      //   window.location.search = '?token=...'  (LoginPage reads this)
-      //   window.location.hash   = '#/login'     (App.jsx routes to LoginPage)
-      // '/#/login?token=...' would put everything into the hash fragment,
-      // making window.location.search empty and breaking both reading and routing.
       window.history.replaceState(
         {},
         '',
         '/' + search + '#/login',
       );
-      return true; // signal that we mutated the URL
+      return true; 
     }
   }
   return false;
@@ -164,6 +145,10 @@ export default function App() {
 
   if (route === '/discover') {
     return <DiscoverPage />;
+  }
+
+  if (route === '/learning') {
+    return <LearningPage />;
   }
 
   if (route === '/profile') {
