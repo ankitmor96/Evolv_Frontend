@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Check, X, UserPlus, Bell } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  ArrowLeft, Check, X, Bell, CheckCheck, FileText, UserPlus, UserCheck, MessageCircle,
+} from 'lucide-react';
 import { connectionService } from '../../services/connectionService.js';
 import { authService } from '../../services/authService.js';
 import { getStoredToken } from '../../services/sessionService.js';
@@ -48,9 +50,34 @@ const timeAgo = (iso) => {
   return `${Math.floor(s / 86400)}d ago`;
 };
 
-const isPending = (rec) => {
-  const s = String(rec?.status ?? 'PENDING').toUpperCase();
-  return s === 'PENDING';
+/** Hides technical IDs, e.g. "(ID: 98)" or "#75", from the text users see */
+const cleanText = (text) =>
+  String(text ?? '')
+    .replace(/\s*\(\s*ID:?\s*\d+\s*\)/gi, '')
+    .replace(/\s*#\d+/g, '')
+    .replace(/\s+([.,!?])/g, '$1')
+    .trim();
+
+const isPending = (rec) => String(rec?.status ?? 'PENDING').toUpperCase() === 'PENDING';
+
+/** Which group a notification belongs to: today | week | earlier */
+const bucketOf = (iso) => {
+  if (!iso) return 'earlier';
+  const d = new Date(iso);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return 'today';
+  return now - d < 7 * 86400000 ? 'week' : 'earlier';
+};
+const GROUPS = [
+  { key: 'today', label: 'Today' },
+  { key: 'week', label: 'This week' },
+  { key: 'earlier', label: 'Earlier' },
+];
+
+const TYPE_ICON = {
+  POST_CREATED: { icon: FileText, tone: 'purple' },
+  CONNECTION_REQUEST: { icon: UserPlus, tone: 'blue' },
+  CONNECTION_ACCEPTED: { icon: UserCheck, tone: 'green' },
 };
 
 function PersonAvatar({ src, name }) {
@@ -63,17 +90,20 @@ function PersonAvatar({ src, name }) {
   );
 }
 
-const TYPE_LABEL = {
-  POST_CREATED: '📝',
-  CONNECTION_REQUEST: '🤝',
-  CONNECTION_ACCEPTED: '✅',
-};
+function Empty({ text }) {
+  return (
+    <div className="np-empty">
+      <span className="np-empty-icon"><Bell size={28} /></span>
+      <p>{text}</p>
+    </div>
+  );
+}
 
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function NotificationsPage() {
   const user = authService.getCurrentUser();
 
-  const [tab, setTab] = useState('received');
+  const [tab, setTab] = useState('all');
   const [received, setReceived] = useState([]);
   const [sent, setSent] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -82,11 +112,9 @@ export default function NotificationsPage() {
   const [people, setPeople] = useState({});
   const [all, setAll] = useState([]);
 
-  // Guard: must be logged in
   useEffect(() => {
     if (!user) goTo('/login');
   }, [user]);
-
 
   const load = useCallback(async (silent = false) => {
     if (!getStoredToken()) {
@@ -120,14 +148,13 @@ export default function NotificationsPage() {
     if (missing.length === 0) return;
 
     let cancelled = false;
-
     Promise.all(
       missing.map(async (id) => [id, await connectionService.getUserSummary(id)])
     ).then((entries) => {
       if (cancelled) return;
       setPeople((prev) => {
         const next = { ...prev };
-        entries.forEach(([id, user]) => { next[id] = user; });
+        entries.forEach(([id, u]) => { next[id] = u; });
         return next;
       });
     });
@@ -138,7 +165,7 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     load();
-    const t = setInterval(() => load(true), 30000); // refresh every 30s
+    const t = setInterval(() => load(true), 30000);
     return () => clearInterval(t);
   }, [load]);
 
@@ -146,7 +173,14 @@ export default function NotificationsPage() {
     setToast(msg);
     setTimeout(() => setToast(''), 2500);
   };
+
   const unreadCount = all.filter((n) => !n.isRead).length;
+
+  const grouped = useMemo(
+    () => GROUPS.map((g) => ({ ...g, items: all.filter((n) => bucketOf(n.createdAt) === g.key) }))
+      .filter((g) => g.items.length > 0),
+    [all]
+  );
 
   const openNotification = async (n) => {
     if (n.type === 'CONNECTION_REQUEST') setTab('received');
@@ -188,10 +222,9 @@ export default function NotificationsPage() {
         await connectionService.rejectConnectionRequest(id);
         showToast('Request rejected');
       } else {
-        await connectionService.removeConnection(id); // cancel my sent request
+        await connectionService.removeConnection(id);
         showToast('Request cancelled');
       }
-      // Remove from the list immediately
       setReceived((l) => l.filter((x) => (x.id ?? x.connectionId) !== id));
       setSent((l) => l.filter((x) => (x.id ?? x.connectionId) !== id));
       window.dispatchEvent(new Event('connections-changed'));
@@ -206,149 +239,152 @@ export default function NotificationsPage() {
 
   if (!user) return null;
 
+  const TABS = [
+    { id: 'all', label: 'All', count: unreadCount, hot: true },
+    { id: 'received', label: 'Requests', count: received.length, hot: true },
+    { id: 'sent', label: 'Sent', count: sent.length, hot: false },
+  ];
+
   const list = tab === 'received' ? received : sent;
+
+  // ── Renderers ──
+  const renderNotification = (n) => {
+    const { icon: Icon, tone } = TYPE_ICON[n.type] ?? (
+      isMessageNotification(n) ? { icon: MessageCircle, tone: 'blue' } : { icon: Bell, tone: 'purple' }
+    );
+    return (
+      <li key={n.id}>
+        <div
+          className={`np-item np-notif${n.isRead ? '' : ' unread'}`}
+          onClick={() => openNotification(n)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && openNotification(n)}
+        >
+          <span className={`np-icon ${tone}`}><Icon size={20} aria-hidden="true" /></span>
+          <div className="np-info">
+            <p className="np-text"><strong>{cleanText(n.title)}</strong></p>
+            <p className="np-text np-sub">{cleanText(n.message)}</p>
+            <span className="np-time">{timeAgo(n.createdAt)}</span>
+          </div>
+          {!n.isRead && <span className="np-dot" aria-label="Unread" />}
+        </div>
+      </li>
+    );
+  };
+
+  const renderRequest = (rec) => {
+    const id = rec.id ?? rec.connectionId;
+    const base = getPerson(rec, tab);
+    const extra = people[String(base.id)];
+    const person = {
+      ...base,
+      name: extra?.name ?? base.name,
+      username: extra?.username || base.username,
+      avatar: extra?.avatar || base.avatar,
+    };
+    const busy = busyId === id;
+
+    return (
+      <li key={id}>
+        <div className="np-item">
+          <button
+            type="button"
+            className="np-avatar-btn"
+            onClick={() => person.id != null && goTo(`/profile/${person.id}`)}
+            aria-label={`View ${person.name}'s profile`}
+          >
+            <PersonAvatar src={person.avatar} name={person.name} />
+          </button>
+
+          <div className="np-info">
+            <p className="np-text">
+              <strong>{person.name}</strong>{' '}
+              {tab === 'received' ? 'wants to connect with you' : 'has not responded yet'}
+            </p>
+            <span className="np-time">
+              {person.username && `@${person.username} · `}{timeAgo(rec.createdAt)}
+            </span>
+          </div>
+
+          {tab === 'received' ? (
+            <div className="np-actions">
+              <button className="np-btn accept" disabled={busy} onClick={() => act(rec, 'accept')}>
+                <Check size={14} /> Accept
+              </button>
+              <button className="np-btn reject" disabled={busy} onClick={() => act(rec, 'reject')} aria-label="Reject request">
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <div className="np-actions">
+              <button className="np-btn reject wide" disabled={busy} onClick={() => act(rec, 'cancel')}>
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
+      </li>
+    );
+  };
 
   return (
     <div className="np-page">
       <style>{CSS}</style>
 
-      <header className="np-header">
-        <button className="np-back" onClick={() => goTo('/home')} aria-label="Back to home">
-          <ArrowLeft size={20} />
-        </button>
-        <h1>Notifications</h1>
-      </header>
-
-      <div className="np-tabs" role="tablist">
-        <button
-          role="tab"
-          aria-selected={tab === 'received'}
-          className={`np-tab ${tab === 'received' ? 'active' : ''}`}
-          onClick={() => setTab('received')}
-        >
-          Requests {received.length > 0 && <span className="np-count">{received.length}</span>}
-        </button>
-        <button
-          role="tab"
-          aria-selected={tab === 'sent'}
-          className={`np-tab ${tab === 'sent' ? 'active' : ''}`}
-          onClick={() => setTab('sent')}
-        >
-          Sent {sent.length > 0 && <span className="np-count muted">{sent.length}</span>}
-        </button>
-        <button
-          role="tab"
-          aria-selected={tab === 'all'}
-          className={`np-tab ${tab === 'all' ? 'active' : ''}`}
-          onClick={() => setTab('all')}
-        >
-          All {unreadCount > 0 && <span className="np-count">{unreadCount}</span>}
-        </button>
-      </div>
-
-      <main className="np-list">
-        {loading ? (
-          <p className="np-empty">Loading…</p>
-        ) : tab === 'all' ? (
-          all.length === 0 ? (
-            <div className="np-empty">
-              <Bell size={32} />
-              <p>No notifications yet.</p>
-            </div>
-          ) : (
-            <>
-              {unreadCount > 0 && (
-                <button className="np-markall" onClick={markAllRead}>
-                  Mark all as read
-                </button>
-              )}
-              {all.map((n) => (
-                <div
-                  key={n.id}
-                  className={`np-item np-notif${n.isRead ? '' : ' unread'}`}
-                  onClick={() => openNotification(n)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => e.key === 'Enter' && openNotification(n)}
-                >
-                  <div className="np-notif-icon">{TYPE_LABEL[n.type] ?? '🔔'}</div>
-                  <div className="np-info">
-                    <p className="np-text"><strong>{n.title}</strong></p>
-                    <p className="np-text">{n.message}</p>
-                    <span className="np-time">{timeAgo(n.createdAt)}</span>
-                  </div>
-                  {!n.isRead && <span className="np-dot" aria-label="Unread" />}
-                </div>
-              ))}
-            </>
-          )
-        ) : list.length === 0 ? (
-          <div className="np-empty">
-            <Bell size={32} />
-            <p>{tab === 'received' ? 'No pending connection requests.' : 'You have no pending sent requests.'}</p>
+      <div className="np-shell">
+        {/* Desktop: left panel · Mobile: sticky top bar */}
+        <aside className="np-side">
+          <div className="np-top">
+            <button className="np-back" onClick={() => goTo('/home')} aria-label="Back to home">
+              <ArrowLeft size={20} />
+            </button>
+            <h1>Notifications</h1>
+            {unreadCount > 0 && (
+              <button className="np-markall" onClick={markAllRead} aria-label="Mark all as read">
+                <CheckCheck size={18} />
+                <span>Mark all as read</span>
+              </button>
+            )}
           </div>
-        ) : (
-          list.map((rec) => {
-            const id = rec.id ?? rec.connectionId;
-            const base = getPerson(rec, tab);
-            const extra = people[String(base.id)];
-            const person = {
-              ...base,
-              name: extra?.name ?? base.name,
-              username: extra?.username || base.username,
-              avatar: extra?.avatar || base.avatar,
-            };
-            const busy = busyId === id;
 
-            return (
-              <div className="np-item" key={id}>
-                <PersonAvatar src={person.avatar} name={person.name} />
+          <div className="np-tabs" role="tablist" aria-label="Notification filters">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                role="tab"
+                aria-selected={tab === t.id}
+                className={`np-tab ${tab === t.id ? 'active' : ''}`}
+                onClick={() => setTab(t.id)}
+              >
+                <span>{t.label}</span>
+                {t.count > 0 && <span className={`np-count${t.hot ? '' : ' muted'}`}>{t.count}</span>}
+              </button>
+            ))}
+          </div>
+        </aside>
 
-                <div className="np-info">
-                  <p className="np-text">
-                    <strong>{person.name}</strong>{' '}
-                    {tab === 'received'
-                      ? 'wants to connect with you'
-                      : 'has not responded yet'}
-                  </p>
-                  <span className="np-time">
-                    {person.username && `@${person.username} · `}
-                    {timeAgo(rec.createdAt)}
-                  </span>
-                </div>
-
-                {tab === 'received' ? (
-                  <div className="np-actions">
-                    <button
-                      className="np-btn accept"
-                      disabled={busy}
-                      onClick={() => act(rec, 'accept')}
-                    >
-                      <Check size={14} /> Accept
-                    </button>
-                    <button
-                      className="np-btn reject"
-                      disabled={busy}
-                      onClick={() => act(rec, 'reject')}
-                      aria-label="Reject request"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    className="np-btn reject wide"
-                    disabled={busy}
-                    onClick={() => act(rec, 'cancel')}
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-            );
-          })
-        )}
-      </main>
+        <main className="np-main">
+          {loading ? (
+            <p className="np-loading" role="status">Loading…</p>
+          ) : tab === 'all' ? (
+            grouped.length === 0 ? (
+              <Empty text="No notifications yet." />
+            ) : (
+              grouped.map((g) => (
+                <section key={g.key} className="np-group">
+                  <h2 className="np-group-title">{g.label}</h2>
+                  <ul className="np-list">{g.items.map(renderNotification)}</ul>
+                </section>
+              ))
+            )
+          ) : list.length === 0 ? (
+            <Empty text={tab === 'received' ? 'No pending connection requests.' : 'You have no pending sent requests.'} />
+          ) : (
+            <ul className="np-list">{list.map(renderRequest)}</ul>
+          )}
+        </main>
+      </div>
 
       {toast && <div className="np-toast" role="status">{toast}</div>}
     </div>
@@ -356,38 +392,113 @@ export default function NotificationsPage() {
 }
 
 const CSS = `
-.np-notif{cursor:pointer}
-.np-notif.unread{background:#f6efff;border-color:rgba(170,69,245,.35)}
-.np-notif-icon{width:42px;height:42px;border-radius:50%;background:rgba(170,69,245,.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
-.np-dot{width:10px;height:10px;border-radius:50%;background:#aa45f5;flex-shrink:0}
-.np-markall{align-self:flex-end;background:none;border:none;color:#aa45f5;font-size:13px;font-weight:600;cursor:pointer}
-.np-page{min-height:100dvh;background:#f4f3fa;font-family:'Inter',sans-serif;color:#09030f;padding-bottom:40px}
-.np-header{display:flex;align-items:center;gap:12px;padding:16px;background:#fff;border-bottom:1px solid rgba(9,3,15,.08);position:sticky;top:0;z-index:5}
-.np-header h1{font-size:18px;font-weight:700;margin:0}
-.np-back{width:38px;height:38px;border-radius:12px;border:1px solid rgba(9,3,15,.12);background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
-.np-back:hover{border-color:#aa45f5;color:#aa45f5}
-.np-tabs{display:flex;gap:8px;max-width:680px;margin:16px auto 0;padding:0 16px}
-.np-tab{padding:8px 18px;border:1px solid rgba(9,3,15,.12);border-radius:999px;background:#fff;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
-.np-tab.active{background:#aa45f5;border-color:#aa45f5;color:#fff}
-.np-count{background:#ef476f;color:#fff;border-radius:999px;font-size:11px;padding:1px 7px}
-.np-count.muted{background:rgba(9,3,15,.15);color:#09030f}
-.np-tab.active .np-count.muted{background:rgba(255,255,255,.3);color:#fff}
-.np-list{max-width:680px;margin:14px auto 0;padding:0 16px;display:flex;flex-direction:column;gap:10px}
-.np-item{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid rgba(9,3,15,.08);border-radius:14px;padding:12px 14px}
-.np-avatar{width:46px;height:46px;border-radius:50%;object-fit:cover;flex-shrink:0}
-.np-avatar-fallback{background:#aa45f5;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
+.np-page{--accent:#aa45f5;--accent-soft:rgba(170,69,245,.1);--text:#1a0a2e;--muted:#8b7aa3;--line:rgba(9,3,15,.08);
+  min-height:100dvh;background:#f4f3fa;color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.45}
+.np-page *{box-sizing:border-box}
+.np-page h1,.np-page h2,.np-page p,.np-page ul{margin:0;padding:0}
+.np-page ul{list-style:none}
+.np-page button{font:inherit;cursor:pointer}
+.np-page button:focus-visible,.np-notif:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ── Desktop (≥1025px): left panel + right list ── */
+.np-shell{display:grid;grid-template-columns:300px minmax(0,720px);gap:28px;justify-content:center;max-width:1120px;margin:0 auto;padding:32px 24px 48px;align-items:start}
+.np-side{position:sticky;top:32px;display:flex;flex-direction:column;gap:20px;padding:22px;background:#fff;border:1px solid var(--line);border-radius:18px}
+.np-top{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+.np-top h1{flex:1;font-size:22px;font-weight:700;letter-spacing:-.01em}
+.np-back{display:grid;place-items:center;width:38px;height:38px;border:1px solid rgba(9,3,15,.12);border-radius:12px;background:#fff;color:var(--text)}
+.np-back:hover{border-color:var(--accent);color:var(--accent)}
+.np-markall{display:inline-flex;align-items:center;gap:8px;width:100%;order:3;padding:9px 12px;border:none;border-radius:10px;background:var(--accent-soft);color:var(--accent);font-size:13px;font-weight:600}
+.np-markall:hover{background:rgba(170,69,245,.18)}
+
+.np-tabs{display:flex;flex-direction:column;gap:4px}
+.np-tab{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:11px 14px;border:none;border-radius:10px;background:none;color:#2d1b4e;font-size:14px;font-weight:600;text-align:left;transition:background .2s,color .2s}
+.np-tab:hover{background:var(--accent-soft)}
+.np-tab.active{background:var(--accent);color:#fff}
+.np-count{min-width:22px;padding:1px 8px;border-radius:999px;background:#ef476f;color:#fff;font-size:11px;font-weight:700;text-align:center}
+.np-count.muted{background:rgba(9,3,15,.12);color:var(--text)}
+.np-tab.active .np-count{background:#fff;color:var(--accent)}
+
+.np-main{min-width:0}
+.np-group{margin-bottom:24px}
+.np-group-title{margin-bottom:10px;padding-left:4px;font-size:13px;font-weight:700;color:var(--muted)}
+.np-list{display:flex;flex-direction:column;gap:10px}
+
+.np-item{display:flex;align-items:center;gap:14px;padding:14px 16px;background:#fff;border:1px solid var(--line);border-radius:16px}
+.np-notif{cursor:pointer;transition:border-color .2s,transform .15s}
+.np-notif:hover{border-color:rgba(170,69,245,.4)}
+.np-notif.unread{background:#f8f1ff;border-color:rgba(170,69,245,.3)}
+
+.np-icon{flex-shrink:0;display:grid;place-items:center;width:44px;height:44px;border-radius:50%}
+.np-icon.purple{background:rgba(170,69,245,.13);color:var(--accent)}
+.np-icon.blue{background:rgba(59,130,246,.13);color:#2f6fe0}
+.np-icon.green{background:rgba(34,197,94,.14);color:#16a05d}
+
+.np-avatar-btn{flex-shrink:0;padding:0;border:none;background:none;border-radius:50%;display:flex}
+.np-avatar{width:46px;height:46px;border-radius:50%;object-fit:cover}
+.np-avatar-fallback{display:flex;align-items:center;justify-content:center;background:var(--accent);color:#fff;font-weight:700}
+
 .np-info{flex:1;min-width:0}
-.np-text{margin:0 0 2px;font-size:14px;line-height:1.35}
-.np-time{font-size:12px;color:#8b7aa3}
-.np-actions{display:flex;gap:6px;flex-shrink:0}
-.np-btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:7px 14px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid transparent}
+.np-text{font-size:14px;overflow-wrap:anywhere}
+.np-text strong{font-weight:700}
+.np-sub{color:#4a3d63}
+.np-time{display:block;margin-top:3px;font-size:12px;color:var(--muted)}
+.np-dot{flex-shrink:0;width:10px;height:10px;border-radius:50%;background:#ef476f}
+
+.np-actions{display:flex;gap:8px;flex-shrink:0}
+.np-btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:8px 16px;border:1.5px solid transparent;border-radius:999px;font-size:13px;font-weight:600}
 .np-btn:disabled{opacity:.5;cursor:not-allowed}
-.np-btn.accept{background:#aa45f5;color:#fff}
+.np-btn.accept{background:var(--accent);color:#fff}
 .np-btn.accept:hover:not(:disabled){background:#8a2be2}
-.np-btn.reject{background:#fff;border-color:rgba(9,3,15,.2);color:#444;padding:7px 10px}
-.np-btn.reject.wide{padding:7px 14px}
+.np-btn.reject{padding:8px 11px;background:#fff;border-color:rgba(9,3,15,.2);color:#444}
+.np-btn.reject.wide{padding:8px 16px}
 .np-btn.reject:hover:not(:disabled){border-color:#ef476f;color:#ef476f}
-.np-empty{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;color:#8b7aa3;padding:60px 0;font-size:14px}
-.np-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a0a2e;color:#fff;padding:10px 18px;border-radius:999px;font-size:13px;z-index:50}
-@media(max-width:480px){.np-item{flex-wrap:wrap}.np-actions{width:100%;justify-content:flex-end}}
+
+.np-empty{display:flex;flex-direction:column;align-items:center;gap:12px;padding:80px 16px;text-align:center;color:var(--muted);background:#fff;border:1px dashed rgba(9,3,15,.15);border-radius:18px}
+.np-empty-icon{display:grid;place-items:center;width:60px;height:60px;border-radius:50%;background:var(--accent-soft);color:var(--accent)}
+.np-loading{padding:60px 0;text-align:center;color:var(--muted)}
+
+.np-toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:50;max-width:90vw;padding:10px 18px;border-radius:999px;background:#1a0a2e;color:#fff;font-size:13px}
+
+/* ── Laptop small (≤1180px) ── */
+@media (max-width:1180px){
+  .np-shell{grid-template-columns:250px minmax(0,1fr);gap:20px;padding:24px 20px 40px}
+  .np-side{padding:18px}
+  .np-top h1{font-size:20px}
+}
+
+/* ── Tablet & Mobile (≤1024px): sticky top bar + pill tabs, single column ── */
+@media (max-width:1024px){
+  .np-shell{display:block;max-width:760px;padding:0 0 40px}
+  .np-side{position:sticky;top:0;z-index:10;gap:12px;padding:12px 16px 12px;background:#fff;border:none;border-bottom:1px solid var(--line);border-radius:0}
+  .np-top{flex-wrap:nowrap;gap:10px}
+  .np-top h1{font-size:18px}
+  .np-markall{width:auto;order:0;padding:8px;border-radius:50%}
+  .np-markall span{display:none}
+  .np-tabs{flex-direction:row;gap:8px;overflow-x:auto;scrollbar-width:none}
+  .np-tabs::-webkit-scrollbar{display:none}
+  .np-tab{width:auto;flex-shrink:0;padding:8px 16px;border:1px solid rgba(9,3,15,.12);border-radius:999px;background:#fff}
+  .np-tab.active{border-color:var(--accent)}
+  .np-main{padding:16px 16px 0}
+}
+
+/* ── Phones (≤480px) ── */
+@media (max-width:480px){
+  .np-side{padding:10px 12px}
+  .np-main{padding:12px 12px 0}
+  .np-item{flex-wrap:wrap;gap:12px;padding:12px}
+  .np-icon{width:40px;height:40px}
+  .np-avatar{width:42px;height:42px}
+  .np-text{font-size:13px}
+  .np-actions{width:100%;justify-content:flex-end}
+  .np-btn{flex:1;padding:10px 14px}
+  .np-btn.reject:not(.wide){flex:0 0 auto}
+  .np-notif .np-info{flex:1 1 0}
+  .np-group{margin-bottom:18px}
+  .np-empty{padding:56px 16px}
+}
+@media (max-width:360px){
+  .np-top h1{font-size:16px}
+  .np-tab{padding:7px 12px;font-size:13px}
+}
+@media (prefers-reduced-motion:reduce){.np-page *{transition:none!important}}
 `;
