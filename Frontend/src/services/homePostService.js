@@ -204,7 +204,7 @@ export const homePostService = {
     return posts;
   },
 
-  async createImagePost(caption, imageFile) {
+  async createImagePost(caption, imageFile,skillIds = []) {
     if (!getToken()) {
       throw new Error("Please log in before creating a post.");
     }
@@ -214,8 +214,8 @@ export const homePostService = {
 
     const formData = new FormData();
     formData.append("caption", caption ?? "");
-    // Field name verified against Postman: must be "image", not "images" or "files".
     formData.append("image", imageFile);
+    formData.append('skillIds', JSON.stringify(skillIds));      
 
     console.debug("[homePostService] POST", IMAGE_POST_ENDPOINT, "— image post");
 
@@ -234,7 +234,7 @@ export const homePostService = {
    * @returns {Promise<object>} Normalised feed-post object ready for the feed.
    * @throws {Error} On auth failure, network error, or server error.
    */
-  async createVideoPost(caption, videoFile) {
+  async createVideoPost(caption, videoFile,skillIds = []) {
     if (!getToken()) {
       throw new Error("Please log in before creating a post.");
     }
@@ -244,8 +244,8 @@ export const homePostService = {
 
     const formData = new FormData();
     formData.append("caption", caption ?? "");
-    // Field name verified against Postman: must be "video".
     formData.append("video", videoFile);
+    formData.append('skillIds', JSON.stringify(skillIds));    
 
     console.debug("[homePostService] POST", VIDEO_POST_ENDPOINT, "— video post");
 
@@ -273,73 +273,72 @@ export const homePostService = {
    * @param {string} postData.description
    */
   async createPost(postData) {
-    if (!getToken()) {
-      throw new Error("Please log in first.");
+  if (!getToken()) {
+    throw new Error("Please log in first.");
+  }
+
+  const skillIds = Array.isArray(postData.skillIds) ? postData.skillIds : [];
+
+  // ── Document ──
+  if (postData.type === "document") {
+    const file = postData.file;
+
+    if (!(file instanceof File)) {
+      throw new Error("Please select a valid document");
     }
 
-    // Documents need a dedicated backend upload endpoint.
-    if (postData.type === "document") {
-      const file = postData.file;
+    const formData = new FormData();
+    formData.append("document", file);
+    formData.append("caption", postData.caption || "");
+    formData.append("skillIds", JSON.stringify(skillIds));
 
-      if (!(file instanceof File)) {
-        throw new Error("Please select a valid document");
-      }
+    return request("/api/posts/document", {
+      method: "POST",
+      body: formData,
+    });
+  }
 
-      const formData = new FormData();
-      formData.append("document", file);
-      formData.append("caption", postData.caption || "");
+  // ── Video / reel ──
+  if (postData.type === "video" || postData.type === "reel") {
+    return this.createVideoPost(postData.caption, postData.videoFile, skillIds);
+  }
 
-      return request("/api/posts/document", {
-        method: "POST",
-        body: formData,
-      });
-    }
+  // ── Image ──
+  if (postData.type === "image") {
+    return this.createImagePost(postData.caption, postData.imageFile, skillIds);
+  }
 
-    if (postData.type === "video" || postData.type === "reel") {
-      return this.createVideoPost(
-        postData.caption,
-        postData.videoFile
-      );
-    }
+  // ── Text-based: text / article / question / achievement ──
+  if (TEXT_KINDS.includes(postData.type)) {
+    const body = {
+      postType: postData.type.toUpperCase(),
+      caption: postData.caption || "",
+      title: postData.title || "",
+      subtitle: postData.subtitle || "",
+      content: postData.content || "",
+      description: postData.description || "",
+      skillIds,
+    };
 
-    if (postData.type === "image") {
-      return this.createImagePost(
-        postData.caption,
-        postData.imageFile
-      );
-    }
+    const payload = await request(TEXT_POST_ENDPOINT, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
 
-    // ── Text-based posts: text / article / question / achievement ──
-    if (TEXT_KINDS.includes(postData.type)) {
-      const body = {
-        postType: postData.type.toUpperCase(),
-        caption: postData.caption || "",
-        title: postData.title || "",
-        subtitle: postData.subtitle || "",
-        content: postData.content || "",
-        description: postData.description || "",
-      };
+    const post = this._normalisePost(payload, postData.type);
 
-      const payload = await request(TEXT_POST_ENDPOINT, {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
+    return {
+      ...post,
+      kind: postData.type,
+      title: post.title || body.title,
+      subtitle: post.subtitle || body.subtitle,
+      content: post.content || body.content,
+      description: post.description || body.description,
+    };
+  }
 
-      const post = this._normalisePost(payload, postData.type);
-
-      // Fill gaps in case the backend only returns an id
-      return {
-        ...post,
-        kind: postData.type,
-        title: post.title || body.title,
-        subtitle: post.subtitle || body.subtitle,
-        content: post.content || body.content,
-        description: post.description || body.description,
-      };
-    }
-
-    throw new Error("Unsupported post type.");
-  },
+  throw new Error("Unsupported post type.");
+},
   // ── Feed fetch ───────────────────────────────────────────────────────────────
   /**
    * Fetch posts for the Home Feed.

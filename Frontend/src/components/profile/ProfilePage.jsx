@@ -51,8 +51,8 @@ import {
   Palette,
   Sun,
   Moon,
-  Monitor
-
+  Monitor,
+  
 } from 'lucide-react';
 
 import { getProfile } from "../../services/getProfile.js";

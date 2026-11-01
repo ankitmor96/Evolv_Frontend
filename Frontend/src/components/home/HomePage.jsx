@@ -32,7 +32,10 @@ import {
   CheckCircle2,
   Menu,
   LayoutDashboard,
+  Tag
 } from 'lucide-react';
+import { CURIOSITY_DOMAINS } from '../onboarding/onboardingData.js';
+
 import { authService } from '../../services/authService.js';
 import { homePostService } from '../../services/homePostService.js';
 import { connectionService } from '../../services/connectionService.js';
@@ -2232,6 +2235,127 @@ const COMPOSER_TYPES = [
   { label: 'Question', type: 'question', icon: '❓' },
   { label: 'Achievement', type: 'achievement', icon: '🏆' },
 ];
+// ─────────────────────────────────────────────────────────────────────────────
+// SKILL PICKER MODAL (used by PostComposer)
+// ─────────────────────────────────────────────────────────────────────────────
+function SkillPickerModal({ initialSelected = [], onClose, onApply }) {
+  const [selected, setSelected] = useState(() => new Set(initialSelected));
+  const [expanded, setExpanded] = useState(
+    () => new Set(CURIOSITY_DOMAINS.slice(0, 2).map((d) => d.id))
+  );
+  const overlayRef = useRef(null);
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  const toggleDomain = (id) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const toggleSkill = (name) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(name) ? next.delete(name) : next.add(name);
+      return next;
+    });
+
+  return (
+    <div
+      className="hp-skillmodal-overlay"
+      ref={overlayRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Choose skills for your post"
+      onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
+    >
+      <div className="hp-skillmodal">
+        <div className="hp-skillmodal-header">
+          <div>
+            <h2 className="hp-skillmodal-title">Choose Skills</h2>
+            <p className="hp-skillmodal-sub">
+              {selected.size} skill{selected.size !== 1 ? 's' : ''} selected
+            </p>
+          </div>
+          <button
+            type="button"
+            className="hp-skillmodal-close"
+            onClick={onClose}
+            aria-label="Close skill picker"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="hp-skillmodal-body">
+          {CURIOSITY_DOMAINS.map((domain) => {
+            const isOpen = expanded.has(domain.id);
+            const skills = [...new Set(domain.skills)];
+            const count = skills.filter((s) => selected.has(s)).length;
+
+            return (
+              <div key={domain.id} className="hp-skillmodal-domain">
+                <button
+                  type="button"
+                  className="hp-skillmodal-domain-header"
+                  onClick={() => toggleDomain(domain.id)}
+                  aria-expanded={isOpen}
+                >
+                  <span>{domain.label}</span>
+                  {count > 0 && <span className="hp-skillmodal-count">{count}</span>}
+                  <span className={`hp-skillmodal-chevron ${isOpen ? 'open' : ''}`}>▾</span>
+                </button>
+
+                {isOpen && (
+                  <div className="hp-skillmodal-grid">
+                    {skills.map((name) => {
+                      const on = selected.has(name);
+                      return (
+                        <button
+                          key={name}
+                          type="button"
+                          className={`hp-skillmodal-chip ${on ? 'selected' : ''}`}
+                          onClick={() => toggleSkill(name)}
+                          aria-pressed={on}
+                        >
+                          {on && <Check size={11} aria-hidden="true" />}
+                          {name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="hp-skillmodal-footer">
+          <button type="button" className="hp-skillmodal-cancel" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="hp-skillmodal-save"
+            onClick={() => { onApply([...selected]); onClose(); }}
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
   const [selectedType, setSelectedType] = useState('text');
@@ -2241,6 +2365,9 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
   const [caption, setCaption] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewFiles, setPreviewFiles] = useState([]);
+  const [selectedSkills, setSelectedSkills] = useState([]);
+  const [showSkillPicker, setShowSkillPicker] = useState(false);
+  const skillIdMapRef = useRef(null);
 
   const [postData, setPostData] = useState({
     type: 'text',
@@ -2322,12 +2449,31 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
       prev.filter((_, i) => i !== index)
     );
   };
-
+  const resolveSkillIds = async (names) => {
+    if (!skillIdMapRef.current) {
+      const idToName = await profileService.fetchSkillIdToNameMap(); // { id: name }
+      const map = new Map();
+      Object.entries(idToName || {}).forEach(([id, name]) => {
+        map.set(String(name).trim().toLowerCase(), Number(id));
+      });
+      skillIdMapRef.current = map;
+    }
+    return names
+      .map((n) => skillIdMapRef.current.get(String(n).trim().toLowerCase()))
+      .filter((id) => id != null);
+  };
   // ─────────────────────────────────────
   // Post
   // ─────────────────────────────────────
 
   const handlePost = async () => {
+    if (isPosting) return;
+
+    // ── Validation ──
+    if (selectedSkills.length === 0) {
+      setPostError('Please choose at least one skill for your post.');
+      return;
+    }
     if (selectedType === 'question' && !postData.title.trim()) {
       setPostError('Please add your question heading.');
       return;
@@ -2341,10 +2487,7 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
       return;
     }
     if (selectedType === 'article') {
-      if (!postData.title.trim()) {
-        setPostError('Please add an article heading.');
-        return;
-      }
+      if (!postData.title.trim()) { setPostError('Please add an article heading.'); return; }
       if (postData.content.trim().length < 50) {
         setPostError('Article body is too short. Write at least 50 characters.');
         return;
@@ -2354,70 +2497,46 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
       setPostError('Please add an achievement title.');
       return;
     }
-    if (
-      ['short_video', 'photos'].includes(selectedType) &&
-      postData.files.length === 0
-    ) {
+    if (['short_video', 'photos'].includes(selectedType) && postData.files.length === 0) {
       setPostError('Please choose a file before posting.');
       return;
     }
-    if (isPosting) return;
 
     setIsPosting(true);
     setPostError('');
 
     try {
+      // Convert selected skill names -> backend IDs
+      const skillIds = await resolveSkillIds(selectedSkills);
+      if (skillIds.length === 0) {
+        throw new Error('Could not match the selected skills. Please try again.');
+      }
+
+      const me = {
+        id: user?.id ?? user?.userId ?? user?._id,
+        name: profileName || user?.name || user?.username || 'You',
+        username: user?.username || '',
+        field: user?.field || 'Community Member',
+        avatar: profileAvatar || user?.avatar || user?.profileImage || '',
+      };
+
       let newPost;
 
       if (selectedType === 'photos') {
-        // ── Image post: POST /api/posts, field name "image" ──────────────────
-        const imageFile = postData.files[0];
-        if (!imageFile) {
-          throw new Error('Please select an image file before posting.');
-        }
         newPost = await homePostService.createImagePost(
           caption.trim(),
-          imageFile
+          postData.files[0],
+          skillIds
         );
-        // Merge in local creator info if the backend omitted it
-        // (the service's _normalisePost already handles backend fields;
-        //  this only fills gaps when the backend returns no creator data).
-        if (!newPost.creator?.name) {
-          newPost = {
-            ...newPost,
-            creator: {
-              id: user?.id ?? user?.userId ?? user?._id,
-              name: user?.name || user?.username || 'You',
-              username: user?.username || '',
-              field: user?.field || 'Community Member',
-              avatar: profileAvatar || user?.avatar || user?.profileImage || '',
-            },
-          };
-        }
+        if (!newPost.creator?.name) newPost = { ...newPost, creator: me };
 
       } else if (selectedType === 'short_video') {
-        // ── Video post: POST /api/posts/video, field name "video" ────────────
-        const videoFile = postData.files[0];
-        if (!videoFile) {
-          throw new Error('Please select a video file before posting.');
-        }
         newPost = await homePostService.createVideoPost(
           caption.trim(),
-          videoFile
+          postData.files[0],
+          skillIds
         );
-        if (!newPost.creator?.name) {
-          newPost = {
-            ...newPost,
-            creator: {
-              id: user?.id ?? user?.userId ?? user?._id,
-              name: profileName || user?.name || user?.username || 'You',
-              avatar: profileAvatar || user?.avatar || user?.profileImage || '',
-              username: user?.username || '',
-              field: user?.field || 'Community Member',
-              avatar: profileAvatar || user?.avatar || user?.profileImage || '',
-            },
-          };
-        }
+        if (!newPost.creator?.name) newPost = { ...newPost, creator: me };
 
       } else if (['text', 'article', 'question', 'achievement'].includes(selectedType)) {
         newPost = await homePostService.createPost({
@@ -2425,26 +2544,16 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
           caption: '',
           title: postData.title.trim(),
           subtitle: postData.subtitle.trim(),
-          // Question details are optional; fall back to the heading so the backend never gets an empty body
-          content: postData.content.trim() || (selectedType === 'question' ? postData.title.trim() : ''),
+          content:
+            postData.content.trim() ||
+            (selectedType === 'question' ? postData.title.trim() : ''),
           description: postData.description.trim(),
+          skillIds,
         });
-
-        // Make sure the author shows correctly right after posting
-        newPost = {
-          ...newPost,
-          creator: {
-            id: user?.id ?? user?.userId ?? user?._id,
-            name: profileName || user?.name || user?.username || 'You',
-            username: user?.username || '',
-            field: user?.field || 'Community Member',
-            avatar: profileAvatar || user?.avatar || user?.profileImage || '',
-          },
-        };
+        newPost = { ...newPost, creator: me };
 
       } else {
-        // ── Text / article / question / achievement / document ───────────────
-        // These types use the generic createPost path.
+        // document
         const raw = await homePostService.createPost({
           type: postData.type,
           caption: caption.trim(),
@@ -2453,41 +2562,19 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
           description: postData.description,
           files: postData.files,
           file: selectedFile,
+          skillIds,
         });
 
-        console.log('[Document Upload] Backend response:', raw);
-
-        // 1) Declare created FIRST
-        const created =
-          raw?.post ?? raw?.data?.post ?? raw?.data ?? raw ?? {};
-
-        // 2) Then documentUrl
+        const created = raw?.post ?? raw?.data?.post ?? raw?.data ?? raw ?? {};
         const documentUrl =
-          created.documentUrl ??
-          created.documentURL ??
-          created.fileUrl ??
-          created.fileURL ??
-          created.mediaUrl ??
-          created.media?.[0]?.mediaUrl ??
-          created.document?.url ??
-          created.document?.documentUrl ??
-          created.file?.url ??
-          created.file?.path ??
-          created.attachment?.url ??
-          created.url ??
-          '';
-
-        // 3) Then the file name
+          created.documentUrl ?? created.documentURL ?? created.fileUrl ??
+          created.fileURL ?? created.mediaUrl ?? created.media?.[0]?.mediaUrl ??
+          created.document?.url ?? created.document?.documentUrl ??
+          created.file?.url ?? created.file?.path ?? created.attachment?.url ??
+          created.url ?? '';
         const documentName =
-          selectedFile?.name ??
-          created.fileName ??
-          created.document?.name ??
-          created.file?.originalName ??
-          'Download document';
-
-        // 4) Only now log (everything exists)
-        console.log('[Document Upload] Parsed document:', created);
-        console.log('[Document Upload] Download URL:', documentUrl);
+          selectedFile?.name ?? created.fileName ??
+          created.document?.name ?? created.file?.originalName ?? 'Download document';
 
         newPost = {
           id: created._id || created.id || created.postId || `local-${Date.now()}`,
@@ -2498,71 +2585,45 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
           timestamp: created.createdAt
             ? new Date(created.createdAt).toLocaleDateString()
             : 'Just now',
-          creator: {
-            id: user?.id ?? user?.userId ?? user?._id,
-            name: user?.name || user?.username || 'You',
-            username: user?.username || '',
-            field: user?.field || 'Community Member',
-            avatar: user?.avatar || user?.profileImage || '',
-          },
+          creator: me,
           media: {
-            type: selectedType === 'document' ? 'document' : 'text',
-            src: selectedType === 'document' ? documentUrl : '',
-            fileName: selectedType === 'document' ? documentName : '',
+            type: 'document',
+            src: documentUrl,
+            fileName: documentName,
           },
-          liked: false,
-          saved: false,
-          followed: false,
-          appreciated: false,
-          appreciations: 0,
-          helpful: false,
-          helpfulCount: 0,
-          learned: false,
-          learnedCount: 0,
-          comments: 0,
-          likes: 0,
+          liked: false, saved: false, followed: false,
+          appreciated: false, appreciations: 0,
+          helpful: false, helpfulCount: 0,
+          learned: false, learnedCount: 0,
+          comments: 0, likes: 0,
         };
       }
-      // Add the new post to the top of the feed.
+
+      // Make sure the post carries the chosen skills so it shows in the
+      // For You / Learning tabs immediately (matchesSkills uses tags + category)
+      newPost = {
+        ...newPost,
+        tags: newPost.tags?.length ? newPost.tags : selectedSkills,
+        category: newPost.category && newPost.category !== 'Discover'
+          ? newPost.category
+          : selectedSkills[0],
+      };
+
       onPostCreated?.(newPost);
 
-      // Reset the composer only after success.
-      setPostData({
-        type: 'text',
-        content: '',
-        title: '',
-        subtitle: '',
-        description: '',
-        files: [],
-      });
-
+      // ── Reset composer ──
+      setPostData({ type: 'text', content: '', title: '', subtitle: '', description: '', files: [] });
       setCaption('');
       setSelectedType('text');
       setSelectedFile(null);
-
-      previewFiles.forEach(({ url }) => {
-        URL.revokeObjectURL(url);
-      });
-
+      setSelectedSkills([]);
+      previewFiles.forEach(({ url }) => URL.revokeObjectURL(url));
       setPreviewFiles([]);
       if (documentInputRef.current) documentInputRef.current.value = '';
       if (fileInputRef.current) fileInputRef.current.value = '';
-
-      previewFiles.forEach(({ url }) => {
-        URL.revokeObjectURL(url);
-      });
-
-      setPreviewFiles([]);
-
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
     } catch (error) {
       console.error('Create post error:', error);
-
-      setPostError(
-        error.message || 'Something went wrong. Please try again.'
-      );
+      setPostError(error.message || 'Something went wrong. Please try again.');
     } finally {
       setIsPosting(false);
     }
@@ -2651,49 +2712,6 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
               </button>
             </div>
           )}
-
-          {/* {selectedType === 'article' && (
-            <div className="hp-article-form">
-              <input
-                type="text"
-                name="title"
-                value={postData.title}
-                onChange={handleChange}
-                className="hp-article-heading-input"
-                placeholder="Article heading"
-                maxLength={120}
-                aria-label="Article heading"
-              />
-
-              <input
-                type="text"
-                name="subtitle"
-                value={postData.subtitle}
-                onChange={handleChange}
-                className="hp-article-subtitle-input"
-                placeholder="Add a subtitle (optional)"
-                maxLength={200}
-                aria-label="Article subtitle"
-              />
-
-              <textarea
-                name="content"
-                value={postData.content}
-                onChange={handleChange}
-                className="hp-article-body-input"
-                placeholder="Write your article here..."
-                rows={8}
-                aria-label="Article body"
-              />
-
-              <div className="hp-article-form-meta">
-                <span>
-                  {articleWords} {articleWords === 1 ? 'word' : 'words'} · {articleReadMins} min read
-                </span>
-                <span>{postData.title.length}/120</span>
-              </div>
-            </div>
-          )} */}
 
           {/* DOCUMENT */}
           {selectedType === "document" && (
@@ -2888,6 +2906,30 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
       {/* ─────────────────────────────
           Content Types
       ───────────────────────────── */}
+      {/* Choose Skill */}
+      <div className="hp-composer-skill-row">
+        <button
+          type="button"
+          className="hp-choose-skill-btn"
+          onClick={() => setShowSkillPicker(true)}
+        >
+          <Tag size={14} aria-hidden="true" />
+          {selectedSkills.length ? 'Change Skill' : 'Choose Skill'}
+        </button>
+
+        {selectedSkills.map((s) => (
+          <span key={s} className="hp-selected-skill">
+            {s}
+            <button
+              type="button"
+              onClick={() => setSelectedSkills((prev) => prev.filter((x) => x !== s))}
+              aria-label={`Remove ${s}`}
+            >
+              <X size={12} />
+            </button>
+          </span>
+        ))}
+      </div>
       <div className="hp-composer-types">
 
         {COMPOSER_TYPES.map(({ label, type, icon }) => (
@@ -2941,7 +2983,14 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
         </div>
 
       </div>
-
+      {/* Skill picker popup */}
+      {showSkillPicker && (
+        <SkillPickerModal
+          initialSelected={selectedSkills}
+          onClose={() => setShowSkillPicker(false)}
+          onApply={setSelectedSkills}
+        />
+      )}
     </div>
   );
 
