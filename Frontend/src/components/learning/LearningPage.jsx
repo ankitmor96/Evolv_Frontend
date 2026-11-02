@@ -7,6 +7,7 @@ import {
 import { authService } from '../../services/authService.js';
 import { profileService } from '../../services/profileService.js';
 import { getProfile } from '../../services/getProfile.js';
+import { learnedService } from '../../services/learnedService.js';
 import './LearningPage.css';
 
 const go = (hash) => {
@@ -108,6 +109,7 @@ export default function LearningPage() {
   const [curiosities, setCuriosities] = useState([]);
   const [posts, setPosts] = useState({ totalPosts: 0, imageCount: 0, videoCount: 0, documentCount: 0 });
   const [eng, setEng] = useState({ appreciation: 0, helpful: 0, learned: 0 });
+  const [learnedCount, setLearnedCount] = useState(null);
 
   useEffect(() => {
     if (!user) go('/login');
@@ -117,13 +119,14 @@ export default function LearningPage() {
     let off = false;
     (async () => {
       setLoading(true);
-      const [p, us, cur, idMap, pc, ec] = await Promise.allSettled([
+      const [p, us, cur, idMap, pc, ec,lc] = await Promise.allSettled([
         getProfile.getProfile(),
         profileService.getUserSkills(),
         profileService.getUserCuriosity(),
         profileService.fetchSkillIdToNameMap(),
         profileService.getMyPostCounts(),
         profileService.getMyEngagementCounts(),
+        learnedService.getMyLearnedCount(),
       ]);
       if (off) return;
       const names = idMap.status === 'fulfilled' ? idMap.value : {};
@@ -132,6 +135,7 @@ export default function LearningPage() {
       if (p.status === 'fulfilled') setProfile(p.value);
       if (pc.status === 'fulfilled') setPosts(pc.value);
       if (ec.status === 'fulfilled') setEng(ec.value);
+      if (lc.status === 'fulfilled') setLearnedCount(lc.value);
 
       if (us.status === 'fulfilled') {
         const seen = new Set();
@@ -240,10 +244,11 @@ export default function LearningPage() {
               <div className="lp-stats">
                 <Stat icon={BookOpen} value={posts.totalPosts} label="Posts shared" tone="blue" />
                 <Stat icon={Layers} value={allSkillNames.length} label="Skills selected" tone="green" />
-                <Stat icon={CheckCircle2} value={eng.learned} label="Learned reactions" tone="amber" />
+                <Stat icon={CheckCircle2} value={learnedCount ?? eng.learned} label="Learned reactions" tone="amber" />
                 <Stat icon={ThumbsUp} value={eng.helpful} label="Helpful reactions" tone="pink" />
               </div>
             )}
+
 
             <div className="lp-grid three">
               {show('Skills') && (
