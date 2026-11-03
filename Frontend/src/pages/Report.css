@@ -1,0 +1,120 @@
+@import url("https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap");
+
+.rp-page {
+  --purple: #9d4ee8;
+  --purple-soft: #b06ef0;
+  --lav: #f1e4fd;
+  --ink: #0b0b0b;
+  --white: #fff;
+  font-family: "Inter", system-ui, sans-serif;
+  background: #f4f4f6;
+  padding: 20px;
+  min-height: 100vh;
+  color: var(--ink);
+}
+
+/* Outer purple rounded frame (same as your landing page) */
+.rp-frame {
+  background: var(--purple);
+  border: 4px solid var(--ink);
+  border-radius: 48px;
+  padding: 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* White pill nav */
+.rp-nav {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  background: var(--white);
+  border: 3px solid var(--ink);
+  border-radius: 28px;
+  padding: 14px 24px;
+}
+.rp-logo { font-family: "Anton", sans-serif; font-size: 28px; letter-spacing: 1px; }
+.rp-period { font-weight: 600; opacity: 0.7; }
+.rp-nav-actions { display: flex; gap: 10px; }
+
+.btn {
+  font: 700 15px "Inter", sans-serif;
+  border-radius: 16px; padding: 12px 20px; cursor: pointer;
+  border: 2px solid var(--ink); transition: transform 0.15s;
+}
+.btn:hover { transform: translateY(-2px); }
+.btn:focus-visible { outline: 3px solid var(--purple); outline-offset: 2px; }
+.btn--dark { background: var(--ink); color: var(--white); box-shadow: 0 4px 0 rgba(0,0,0,.25); }
+.btn--ghost { background: var(--white); color: var(--ink); }
+
+/* Hero */
+.rp-hero { text-align: center; color: var(--white); padding: 56px 12px 36px; }
+.rp-kicker { margin: 0 0 8px; opacity: 0.9; }
+.rp-title {
+  font-family: "Anton", sans-serif; font-weight: 400;
+  font-size: clamp(44px, 9vw, 120px); line-height: 0.95;
+  text-transform: uppercase; margin: 0;
+}
+.rp-sub { margin-top: 16px; font-size: 18px; }
+
+/* KPI chips */
+.rp-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+.chip {
+  background: var(--white); border: 3px solid var(--ink); border-radius: 28px;
+  padding: 18px 22px; display: flex; flex-direction: column; gap: 2px;
+  box-shadow: 0 5px 0 rgba(0,0,0,.2);
+}
+.chip-value { font-family: "Anton", sans-serif; font-size: 44px; line-height: 1; }
+.chip-label { font-weight: 600; }
+.chip-delta { color: var(--purple); font-weight: 700; font-size: 14px; }
+
+/* Bento grid */
+.rp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.card {
+  background: var(--white); border: 3px solid var(--ink); border-radius: 32px; padding: 24px;
+}
+.card h3 { margin: 0 0 12px; font-size: 20px; }
+.card--wide { grid-column: span 2; }
+.card--purple {
+  background: linear-gradient(160deg, var(--purple-soft), #6b2fb8); color: var(--white);
+}
+
+/* Rings */
+.rings { display: flex; justify-content: space-between; gap: 8px; }
+.ring-item { display: flex; flex-direction: column; align-items: center; font-weight: 600; flex: 1; }
+.ring { width: 100%; max-width: 110px; }
+.ring-bg { fill: none; stroke: #e7d3fb; stroke-width: 10; }
+.ring-bg--light { stroke: rgba(255,255,255,.25); }
+.ring-fg { fill: none; stroke: var(--purple); stroke-width: 10; stroke-linecap: round; }
+.ring-fg--light { stroke: var(--white); }
+.ring-text { font: 400 26px "Anton", sans-serif; fill: currentColor; }
+
+/* Legend */
+.legend { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; }
+.legend li { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.legend i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.legend b { margin-left: auto; }
+
+/* To do */
+.todo { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.todo li { display: flex; align-items: center; gap: 12px; }
+.todo .box {
+  width: 24px; height: 24px; border-radius: 8px; border: 2px solid var(--ink);
+  display: grid; place-items: center; font-size: 14px; flex: none;
+}
+.todo .done { text-decoration: line-through; opacity: 0.55; }
+.todo .done .box { background: var(--ink); color: var(--white); }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .rp-kpis { grid-template-columns: repeat(2, 1fr); }
+  .rp-grid { grid-template-columns: 1fr; }
+  .card--wide { grid-column: auto; }
+  .rp-nav { flex-wrap: wrap; }
+  .rp-frame { border-radius: 32px; padding: 14px; }
+}
+
+/* Clean PDF output */
+@media print {
+  .rp-nav-actions { display: none; }
+  .rp-page { background: #fff; padding: 0; }
+  .rp-frame, .card, .chip { -webkit-print-color-adjust: exact; print-color-adjust: exact; break-inside: avoid; }
+}

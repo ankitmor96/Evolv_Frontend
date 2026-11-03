@@ -33,6 +33,7 @@ import Analytics from './components/admin/Analytics.jsx';
 import Notifications from './components/admin/Notifications.jsx';
 import AdminSettings from './components/admin/AdminSettings.jsx';
 import { adminService } from './services/adminService.js';
+import Report from "./pages/Report.jsx";
 
 function renderAdminRoute(route) {
   if (route === '/admin/login') {
@@ -225,6 +226,9 @@ export default function App() {
   }
   if (route === '/document') {
     return <DocumentViewerPage />;
+  }
+  if (route === '/report') {
+    return <Report />;
   }
   if (route.startsWith('/profile/')) {
     return <UserProfilePage />;
