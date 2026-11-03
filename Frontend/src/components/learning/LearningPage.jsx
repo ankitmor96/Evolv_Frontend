@@ -246,7 +246,6 @@ export default function LearningPage() {
     { label: 'Curious about', value: curiosities.length },
   ];
 
-  const textCount = Math.max(0, posts.totalPosts - posts.imageCount - posts.videoCount - posts.documentCount);
   const contentTypes = [
     { label: 'Short videos', icon: Video, key: 'VIDEO' },
     { label: 'Text posts', icon: Type, key: 'TEXT' },
@@ -316,59 +315,36 @@ export default function LearningPage() {
         {loading ? <p className="lp-muted" role="status">Loading your learning...</p> : (
           <>
             {tab === 'Overview' && (
-              <Card title={`Content explored (${period === 'month' ? 'this month' : 'all time'})`}>
-                {breakdown.total === 0 ? (
-                  <p className="lp-muted">Explore some posts to see your mix.</p>
-                ) : (
-                  <ul className="lp-types">
-                    {contentTypes.map(({ label, icon: Icon, pct }) => (
-                      <li key={label}>
-                        <Icon size={16} aria-hidden="true" /><span>{label}</span>
-                        <div className="lp-bar"><i style={{ width: `${pct}%` }} /></div>
-                        <b>{pct}%</b>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Card>
-            )}
+              <>
+                <div className="lp-stats">
+                  <Stat icon={BookOpen} value={posts.totalPosts} label="Posts shared" tone="blue" />
+                  <Stat icon={Layers} value={allSkillNames.length} label="Skills selected" tone="green" />
+                  <Stat icon={CheckCircle2} value={learnedCount ?? eng.learned} label="Learned reactions" tone="amber" />
+                  <Stat icon={ThumbsUp} value={eng.helpful} label="Helpful reactions" tone="pink" />
+                </div>
 
-            <div className="lp-grid three">
-              {show('Skills') && (
-                <Card title="Your growth focus" action="Edit" onAction={() => go('/profile')}>
-                  {focus.length === 0 ? <p className="lp-muted">Add skills you're learning to see them here.</p> : (
-                    <ul className="lp-focus">
-                      {focus.map((f) => (
-                        <li key={`${f.name}-${f.type}`}>
-                          <Target size={16} aria-hidden="true" />
-                          <span>{f.name}</span>
-                          <em>{f.type === 'LEARNING' ? 'Learning' : 'Improving'}</em>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </Card>
-              )}
-              {tab === 'Overview' && (
-                <Card title="Skill interest distribution"><Donut parts={distribution} /></Card>
-              )}
-              {tab === 'Overview' && (
-                <Card title="Content types">
-                  <ul className="lp-types">
-                    {contentTypes.map(({ label, icon: Icon, value }) => {
-                      const pct = posts.totalPosts ? Math.round((value / posts.totalPosts) * 100) : 0;
-                      return (
-                        <li key={label}>
-                          <Icon size={16} aria-hidden="true" /><span>{label}</span>
-                          <div className="lp-bar"><i style={{ width: `${pct}%` }} /></div>
-                          <b>{pct}%</b>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </Card>
-              )}
-            </div>
+                <div className="lp-grid two">
+                  <ExploredCard period={period} onPeriod={setPeriod}
+                    data={explored} loading={exploredLoading} error={exploredError} />
+
+                  <Card title={`Content explored (${period === 'month' ? 'this month' : 'all time'})`}>
+                    {breakdown.total === 0 ? (
+                      <p className="lp-muted">Explore some posts to see your mix.</p>
+                    ) : (
+                      <ul className="lp-types">
+                        {contentTypes.map(({ label, icon: Icon, pct }) => (
+                          <li key={label}>
+                            <Icon size={16} aria-hidden="true" /><span>{label}</span>
+                            <div className="lp-bar"><i style={{ width: `${pct}%` }} /></div>
+                            <b>{pct}%</b>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Card>
+                </div>
+              </>
+            )}
 
             <div className="lp-grid two">
               {show('Skills') && (
