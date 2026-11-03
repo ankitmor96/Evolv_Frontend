@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Home, Compass, BookOpen, PlusCircle, Bell, User, Search, Target,
   FileText, Image as ImageIcon, Video, Type, Lightbulb, CheckCircle2,
@@ -153,6 +153,8 @@ export default function LearningPage() {
   const [posts, setPosts] = useState({ totalPosts: 0, imageCount: 0, videoCount: 0, documentCount: 0 });
   const [eng, setEng] = useState({ appreciation: 0, helpful: 0, learned: 0 });
   const [learnedCount, setLearnedCount] = useState(null);
+  const [breakdown, setBreakdown] = useState({ total: 0, byType: {} });
+  const reqId = useRef(0);
 
   // Posts Explored
   const [period, setPeriod] = useState('month');
@@ -165,15 +167,18 @@ export default function LearningPage() {
   }, [user]);
 
   const loadExplored = useCallback(async (p) => {
+    const id = ++reqId.current;
     setExploredLoading(true);
     setExploredError('');
-    try {
-      setExplored(await learningTrackingService.getOverview(p));
-    } catch (e) {
-      setExploredError(e?.message || 'Could not load posts explored.');
-    } finally {
-      setExploredLoading(false);
-    }
+    const [ov, br] = await Promise.allSettled([
+      learningTrackingService.getOverview(p),
+      learningTrackingService.getContentBreakdown(p),
+    ]);
+    if (id !== reqId.current) return;
+    if (ov.status === 'fulfilled') setExplored(ov.value);
+    else setExploredError(ov.reason?.message || 'Could not load posts explored.');
+    if (br.status === 'fulfilled') setBreakdown(br.value);
+    setExploredLoading(false);
   }, []);
 
   // Refetch when period changes
@@ -243,11 +248,11 @@ export default function LearningPage() {
 
   const textCount = Math.max(0, posts.totalPosts - posts.imageCount - posts.videoCount - posts.documentCount);
   const contentTypes = [
-    { label: 'Short videos', icon: Video, value: posts.videoCount },
-    { label: 'Text posts', icon: Type, value: textCount },
-    { label: 'Images', icon: ImageIcon, value: posts.imageCount },
-    { label: 'Documents', icon: FileText, value: posts.documentCount },
-  ];
+    { label: 'Short videos', icon: Video, key: 'VIDEO' },
+    { label: 'Text posts', icon: Type, key: 'TEXT' },
+    { label: 'Images', icon: ImageIcon, key: 'IMAGE' },
+    { label: 'Documents', icon: FileText, key: 'LONG_FORM' },
+  ].map((t) => ({ ...t, pct: Math.round(breakdown.byType[t.key]?.percentage ?? 0) }));
 
   const show = (section) => tab === 'Overview' || tab === section;
 
@@ -311,18 +316,21 @@ export default function LearningPage() {
         {loading ? <p className="lp-muted" role="status">Loading your learning...</p> : (
           <>
             {tab === 'Overview' && (
-              <>
-                <div className="lp-stats">
-                  <Stat icon={BookOpen} value={posts.totalPosts} label="Posts shared" tone="blue" />
-                  <Stat icon={Layers} value={allSkillNames.length} label="Skills selected" tone="green" />
-                  <Stat icon={CheckCircle2} value={learnedCount ?? eng.learned} label="Learned reactions" tone="amber" />
-                  <Stat icon={ThumbsUp} value={eng.helpful} label="Helpful reactions" tone="pink" />
-                </div>
-                <div className="lp-grid one">
-                  <ExploredCard period={period} onPeriod={setPeriod}
-                    data={explored} loading={exploredLoading} error={exploredError} />
-                </div>
-              </>
+              <Card title={`Content explored (${period === 'month' ? 'this month' : 'all time'})`}>
+                {breakdown.total === 0 ? (
+                  <p className="lp-muted">Explore some posts to see your mix.</p>
+                ) : (
+                  <ul className="lp-types">
+                    {contentTypes.map(({ label, icon: Icon, pct }) => (
+                      <li key={label}>
+                        <Icon size={16} aria-hidden="true" /><span>{label}</span>
+                        <div className="lp-bar"><i style={{ width: `${pct}%` }} /></div>
+                        <b>{pct}%</b>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
             )}
 
             <div className="lp-grid three">

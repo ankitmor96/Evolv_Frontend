@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { authService } from '../../services/authService.js';
 import { homePostService } from '../../services/homePostService.js';
+import { useInView, useLearningTracker } from '../hooks/useLearningTracker.js';
 import './DocumentViewerPage.css';
 
 const isDoc = (p) => p?.media?.type === 'document' && p?.media?.src;
@@ -100,10 +101,20 @@ export default function DocumentViewerPage() {
     touchX.current = null;
     if (Math.abs(dx) > 80) go(dx < 0 ? 1 : -1);
   };
+  const post = posts[index];
+  const [frameReady, setFrameReady] = useState(false);
+  const [stageRef, inView] = useInView(0.5);
 
+  useEffect(() => { setFrameReady(false); }, [post?.id]);
+  useLearningTracker({
+    postId: post && /^\d+$/.test(String(post.id)) ? post.id : null,
+    contentType: 'document',          // → LONG_FORM
+    isVisible: inView && Boolean(post),
+    isPlaying: frameReady,            // count time only after the doc has loaded
+  });
   if (!user) return null;
 
-  const post = posts[index];
+  
   const name =
     post?.media?.fileName && post.media.fileName !== 'Document'
       ? post.media.fileName
@@ -139,13 +150,13 @@ export default function DocumentViewerPage() {
         )}
       </header>
 
-      <main className="dv-stage" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      <main className="dv-stage" ref={stageRef} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         {loading ? (
           <p className="dv-msg">Loading…</p>
         ) : !post ? (
           <p className="dv-msg">Document not found.</p>
         ) : previewUrl ? (
-          <iframe key={post.id} className="dv-frame" src={previewUrl} title={name} />
+          <iframe key={post.id} className="dv-frame" src={previewUrl} title={name} onLoad={() => setFrameReady(true)} />
         ) : (
           <div className="dv-nopreview">
             <FileText size={56} />

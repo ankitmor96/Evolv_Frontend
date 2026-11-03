@@ -1,124 +1,143 @@
 import { useEffect, useRef, useState } from 'react';
 import { learningTrackingService, newProgressId } from '../../services/learningTrackingService.js';
 
-const TICK_MS = 500;
-const FLUSH_MS = 3000;
+const FLUSH_EVERY_SECONDS = 3;
 
-/** True while the element is at least `threshold` visible on screen. */
-export function useInView(threshold = 0.6) {
-  const ref = useRef(null);
+/**
+ * Returns [ref, inView]. Works for tall posts too: counts as "in view"
+ * when at least `threshold` of the post OR of the screen height is visible.
+ */
+export function useInView(threshold = 0.5) {
+  const [node, setNode] = useState(null);
   const [inView, setInView] = useState(false);
+
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
+    if (!node) return undefined;
     const io = new IntersectionObserver(
-      ([e]) => setInView(e.isIntersecting && e.intersectionRatio >= threshold),
-      { threshold: [0, threshold, 1] },
+      ([e]) => {
+        const tallEnough = e.intersectionRect.height >= window.innerHeight * threshold;
+        setInView(e.isIntersecting && (e.intersectionRatio >= threshold || tallEnough));
+      },
+      { threshold: [0, 0.25, 0.5, 0.75, 1] }
     );
-    io.observe(el);
+    io.observe(node);
     return () => io.disconnect();
-  }, [threshold]);
-  return [ref, inView];
+  }, [node, threshold]);
+
+  return [setNode, inView];
 }
 
 /**
- * Tracks one post.
- * @param postId
- * @param contentType  'image' | 'text' | 'video' | 'document'
- * @param isVisible    post is on screen (use useInView)
- * @param isPlaying    for video: true only while playing. Images/text: leave true.
- * @param getCompletion  () => 0..100  (video: currentTime/duration; image/text: 100)
+ * Tracks ACTIVE time only.
+ *  - counts a second only if: post visible + isPlaying + browser tab visible
+ *  - sends progress every 3s (each batch has its own progressId, retried safely)
+ *  - ends the session when the post leaves the screen / unmounts / page closes
+ *
+ * @param {object}  p
+ * @param {number|string} p.postId
+ * @param {'image'|'text'|'video'|'document'} p.contentType
+ * @param {boolean} p.isVisible       post is on screen
+ * @param {boolean} [p.isPlaying]     false while a video is paused (default true)
+ * @param {number}  [p.completion]    0-100. Defaults: 100 for image/text, 0 otherwise
  */
 export function useLearningTracker({
   postId,
   contentType,
-  isVisible,
+  isVisible = true,
   isPlaying = true,
-  getCompletion = () => 100,
+  completion = null,
+  getCompletion = null,     
 }) {
   const playingRef = useRef(isPlaying);
-  const completionRef = useRef(getCompletion);
+  const completionRef = useRef(completion);
+  const getCompletionRef = useRef(getCompletion);
   playingRef.current = isPlaying;
-  completionRef.current = getCompletion;
-
-  const [status, setStatus] = useState({ qualified: false, counted: false });
+  completionRef.current = completion;
+  getCompletionRef.current = getCompletion;
 
   useEffect(() => {
-    if (!postId || !isVisible) return undefined;
+    if (!postId || !contentType || !isVisible) return undefined;
 
-    let sessionId = null;
-    let accMs = 0;
-    let last = performance.now();
-    let pending = null; // { progressId, seconds } — kept until it succeeds
-    let queue = Promise.resolve();
-    let finished = false;
+    const s = { id: null, seconds: 0, batch: null, ended: false, notified: false };
+    const defaultPct = ['image', 'text'].includes(String(contentType).toLowerCase()) ? 100 : 0;
 
-    const startPromise = learningTrackingService
+    // Keep the highest completion seen (video resets to 0 when it scrolls away)
+    let best = 0;
+    const pct = () => {
+      const raw = getCompletionRef.current
+        ? getCompletionRef.current()
+        : completionRef.current ?? defaultPct;
+      const n = Number(raw);
+      if (Number.isFinite(n)) best = Math.max(best, n);
+      return best;
+    };
+    const activeNow = () => playingRef.current && document.visibilityState === 'visible';
+    const ready = learningTrackingService
       .start({ postId, contentType })
-      .then((r) => { sessionId = r?.sessionId ?? null; })
-      .catch(() => { sessionId = null; });
+      .then((r) => { s.id = r?.sessionId ?? null; })
+      .catch((e) => console.warn('[learning] start failed:', e.message));
 
-    const eligible = () => document.visibilityState === 'visible' && playingRef.current;
-
-    const tick = () => {
-      const now = performance.now();
-      if (eligible()) accMs += now - last;
-      last = now;
-    };
-
-    const doFlush = async () => {
-      await startPromise;
-      if (!sessionId) return;
-      if (!pending) {
-        const secs = Math.round(accMs / 1000);
-        if (secs < 1) return;
-        accMs -= secs * 1000;
-        pending = { progressId: newProgressId(), seconds: secs };
-      }
-      try {
-        const res = await learningTrackingService.progress({
-          sessionId,
-          progressId: pending.progressId,
-          activeSeconds: pending.seconds,
-          completionPercentage: completionRef.current(),
-          isActive: true,
-        });
-        pending = null;
-        if (res?.qualified) {
-          setStatus({ qualified: true, counted: !!res.explorationCounted });
+    // All requests run one after another so seconds are never sent out of order.
+    let queue = ready;
+    const flush = (keepalive = false) => {
+      queue = queue.then(async () => {
+        if (!s.id) return;
+        if (!s.batch && s.seconds > 0) {
+          s.batch = { id: newProgressId(), seconds: s.seconds };
+          s.seconds = 0;
         }
-      } catch {
-        /* keep `pending` → retried next flush with the SAME progressId */
+        if (!s.batch) return;
+        try {
+          const res = await learningTrackingService.progress({
+            sessionId: s.id,
+            progressId: s.batch.id,
+            activeSeconds: s.batch.seconds,
+            completionPercentage: pct(),
+            isActive: activeNow(),
+            keepalive,
+          });
+          s.batch = null;
+          if (res?.explorationCounted && !s.notified) {
+            s.notified = true;
+            window.dispatchEvent(new Event('learning-updated'));
+          }
+        } catch (e) {
+          // 4xx = bad data, drop it. Network/5xx = keep same batch + progressId and retry.
+          if (e.status >= 400 && e.status < 500) s.batch = null;
+        }
+      });
+      return queue;
+    };
+
+    const timer = setInterval(() => {
+      if (!activeNow()) return;
+      s.seconds += 1;
+      if (s.seconds >= FLUSH_EVERY_SECONDS) flush();
+    }, 1000);
+
+    const finish = async (keepalive = false) => {
+      if (s.ended) return;
+      s.ended = true;
+      clearInterval(timer);
+      await flush(keepalive);
+      await flush(keepalive); // second pass sends seconds counted while the first was in flight
+      if (s.id) {
+        try { await learningTrackingService.end({ sessionId: s.id, keepalive }); } catch { /* ignore */ }
       }
     };
 
-    const flush = () => { queue = queue.then(doFlush); return queue; };
+    const onVisibility = () => { if (document.visibilityState === 'hidden') flush(true); };
+    const onPageHide = () => { finish(true); };
 
-    const timer = setInterval(tick, TICK_MS);
-    const flushTimer = setInterval(() => { tick(); flush(); }, FLUSH_MS);
-
-    const onVis = () => { tick(); if (document.visibilityState === 'hidden') flush(); };
-    document.addEventListener('visibilitychange', onVis);
-
-    const finish = (keepalive = false) => {
-      if (finished) return;
-      finished = true;
-      tick();
-      flush().then(() => {
-        if (sessionId) learningTrackingService.end({ sessionId, keepalive }).catch(() => {});
-      });
-    };
-    const onPageHide = () => finish(true);
+    document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('pagehide', onPageHide);
 
     return () => {
-      clearInterval(timer);
-      clearInterval(flushTimer);
-      document.removeEventListener('visibilitychange', onVis);
+      document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pagehide', onPageHide);
-      finish(false); // post scrolled away / unmounted
+      finish();
     };
   }, [postId, contentType, isVisible]);
-
-  return status;
 }
+
+export default useLearningTracker;

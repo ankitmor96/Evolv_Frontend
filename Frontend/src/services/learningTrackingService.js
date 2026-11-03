@@ -42,15 +42,13 @@ const request = async (path, opts = {}) => {
   return payload;
 };
 
-/**
- * Map your post types to the backend enum.
- * Your response showed "IMAGE". Confirm the other values in Postman / the PDF.
- */
+/** Backend enum (from the PDF): VIDEO, TEXT, IMAGE, LONG_FORM */
 const CONTENT_TYPE_MAP = {
   image: 'IMAGE',
   text: 'TEXT',
-  video: 'SHORT_VIDEO',
+  video: 'VIDEO',
   document: 'LONG_FORM',
+  article: 'LONG_FORM',
 };
 export const toApiContentType = (t = '') =>
   CONTENT_TYPE_MAP[String(t).toLowerCase()] ?? String(t).toUpperCase();
@@ -60,18 +58,21 @@ export const newProgressId = () =>
   `p-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
 export const learningTrackingService = {
-  /** @returns {Promise<{sessionId:string, thresholdSeconds:number, ...}>} */
   start({ postId, contentType }) {
     return request('/api/v1/learning/track/start', {
       method: 'POST',
-      body: JSON.stringify({ postId: Number(postId), contentType: toApiContentType(contentType) }),
+      body: JSON.stringify({
+        postId: Number(postId),
+        contentType: toApiContentType(contentType),
+      }),
     });
   },
 
   /** activeSeconds = seconds in THIS batch. Reuse progressId when retrying. */
-  progress({ sessionId, progressId, activeSeconds, completionPercentage = 0, isActive = true }) {
+  progress({ sessionId, progressId, activeSeconds, completionPercentage = 0, isActive = true, keepalive = false }) {
     return request('/api/v1/learning/track/progress', {
       method: 'POST',
+      keepalive,
       body: JSON.stringify({
         sessionId,
         progressId,
@@ -88,7 +89,6 @@ export const learningTrackingService = {
       body: JSON.stringify({ sessionId }),
       keepalive,
     });
-    // Tell My Learning (if mounted) to refetch
     window.dispatchEvent(new Event('learning-updated'));
     return res;
   },
@@ -104,6 +104,19 @@ export const learningTrackingService = {
       allTime: Number(res?.all_time_posts_explored ?? pe.value ?? 0),
       period: res?.period ?? null,
     };
+  },
+    /** @param {'month'|'all'} period */
+  async getContentBreakdown(period = 'month') {
+    const res = await request(`/api/v1/learning/content-breakdown?period=${period}`, { method: 'GET' });
+    const rows = Array.isArray(res?.content_breakdown) ? res.content_breakdown : [];
+    const byType = {};
+    rows.forEach((r) => {
+      byType[String(r.type).toUpperCase()] = {
+        count: Number(r.count) || 0,
+        percentage: Number(r.percentage) || 0,
+      };
+    });
+    return { total: Number(res?.total_posts_explored ?? 0), byType };
   },
 };
 
