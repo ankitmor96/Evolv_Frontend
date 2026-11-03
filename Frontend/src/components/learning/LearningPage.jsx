@@ -1,13 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Home, Compass, BookOpen, PlusCircle, Bell, User, Search, Target,
   FileText, Image as ImageIcon, Video, Type, Lightbulb, CheckCircle2,
-  Sparkles, ThumbsUp, Layers,
+  Sparkles, ThumbsUp, Layers, Eye, TrendingUp, TrendingDown,
 } from 'lucide-react';
 import { authService } from '../../services/authService.js';
 import { profileService } from '../../services/profileService.js';
 import { getProfile } from '../../services/getProfile.js';
 import { learnedService } from '../../services/learnedService.js';
+import { learningTrackingService } from '../../services/learningTrackingService.js';
 import './LearningPage.css';
 
 const go = (hash) => {
@@ -64,8 +65,7 @@ function Donut({ parts }) {
   const top = [...parts].sort((a, b) => b.value - a.value)[0];
   return (
     <div className="lp-donut-wrap">
-      <svg viewBox="0 0 140 140" className="lp-donut" role="img"
-        aria-label="Skill distribution">
+      <svg viewBox="0 0 140 140" className="lp-donut" role="img" aria-label="Skill distribution">
         <circle cx="70" cy="70" r={R} className="lp-donut-bg" />
         {total > 0 && parts.map((p, i) => {
           const len = (p.value / total) * C;
@@ -98,6 +98,49 @@ function Donut({ parts }) {
   );
 }
 
+function ExploredCard({ period, onPeriod, data, loading, error }) {
+  const change = data?.change;
+  const hasChange = typeof change === 'number';
+  const up = hasChange && change >= 0;
+  return (
+    <Card title="Posts explored" className="lp-explored">
+      <div className="lp-toggle" role="group" aria-label="Period">
+        {[['month', 'This month'], ['all', 'All time']].map(([id, label]) => (
+          <button key={id} type="button" className={period === id ? 'active' : ''}
+            aria-pressed={period === id} onClick={() => onPeriod(id)}>{label}</button>
+        ))}
+      </div>
+
+      {error ? <p className="lp-error" role="alert">{error}</p> : (
+        <div className="lp-explored-body">
+          <span className="lp-stat-icon blue"><Eye size={22} /></span>
+          <div>
+            <strong className="lp-explored-num">{loading && !data ? '…' : data?.value ?? 0}</strong>
+            <span className="lp-muted">
+              {period === 'month' ? 'unique posts this month' : 'unique posts, all time'}
+            </span>
+          </div>
+          {period === 'month' && data && (
+            <div className={`lp-change ${hasChange ? (up ? 'up' : 'down') : ''}`}>
+              {hasChange ? (
+                <>
+                  {up ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+                  {Math.abs(change)}% vs last month
+                </>
+              ) : (
+                <>No data last month</>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      {period === 'month' && data && (
+        <p className="lp-muted lp-explored-foot">All-time: {data.allTime}</p>
+      )}
+    </Card>
+  );
+}
+
 // ── Page ────────────────────────────────────────────────────────────────────
 export default function LearningPage() {
   const user = authService.getCurrentUser();
@@ -105,21 +148,49 @@ export default function LearningPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [profile, setProfile] = useState(null);
-  const [skills, setSkills] = useState([]);       // { name, type }
+  const [skills, setSkills] = useState([]);
   const [curiosities, setCuriosities] = useState([]);
   const [posts, setPosts] = useState({ totalPosts: 0, imageCount: 0, videoCount: 0, documentCount: 0 });
   const [eng, setEng] = useState({ appreciation: 0, helpful: 0, learned: 0 });
   const [learnedCount, setLearnedCount] = useState(null);
 
+  // Posts Explored
+  const [period, setPeriod] = useState('month');
+  const [explored, setExplored] = useState(null);
+  const [exploredLoading, setExploredLoading] = useState(true);
+  const [exploredError, setExploredError] = useState('');
+
   useEffect(() => {
     if (!user) go('/login');
   }, [user]);
+
+  const loadExplored = useCallback(async (p) => {
+    setExploredLoading(true);
+    setExploredError('');
+    try {
+      setExplored(await learningTrackingService.getOverview(p));
+    } catch (e) {
+      setExploredError(e?.message || 'Could not load posts explored.');
+    } finally {
+      setExploredLoading(false);
+    }
+  }, []);
+
+  // Refetch when period changes
+  useEffect(() => { loadExplored(period); }, [period, loadExplored]);
+
+  // Refetch when a tracking session ends elsewhere in the app
+  useEffect(() => {
+    const onUpdated = () => loadExplored(period);
+    window.addEventListener('learning-updated', onUpdated);
+    return () => window.removeEventListener('learning-updated', onUpdated);
+  }, [period, loadExplored]);
 
   useEffect(() => {
     let off = false;
     (async () => {
       setLoading(true);
-      const [p, us, cur, idMap, pc, ec,lc] = await Promise.allSettled([
+      const [p, us, cur, idMap, pc, ec, lc] = await Promise.allSettled([
         getProfile.getProfile(),
         profileService.getUserSkills(),
         profileService.getUserCuriosity(),
@@ -182,7 +253,6 @@ export default function LearningPage() {
 
   return (
     <div className="lp-layout">
-      {/* Sidebar (desktop) */}
       <aside className="lp-sidebar" aria-label="Main navigation">
         <img src="/logo-remove.png" alt="EVOLV" className="lp-logo" />
         <nav>
@@ -198,7 +268,6 @@ export default function LearningPage() {
       </aside>
 
       <main className="lp-main">
-        {/* Top bar */}
         <div className="lp-topbar">
           <button type="button" className="lp-search" onClick={() => go('/search')}>
             <Search size={17} aria-hidden="true" /> Search skills, topics, people...
@@ -224,9 +293,10 @@ export default function LearningPage() {
           <h2>Keep evolving, {displayName}</h2>
           <p>
             You've picked {allSkillNames.length} skill{allSkillNames.length === 1 ? '' : 's'} and
-            {' '}{curiosities.length} topic{curiosities.length === 1 ? '' : 's'} to explore, and
-            shared {posts.totalPosts} post{posts.totalPosts === 1 ? '' : 's'}. Small, meaningful
-            steps toward a better you.
+            {' '}{curiosities.length} topic{curiosities.length === 1 ? '' : 's'} to explore, shared
+            {' '}{posts.totalPosts} post{posts.totalPosts === 1 ? '' : 's'}
+            {explored ? ` and explored ${explored.allTime} post${explored.allTime === 1 ? '' : 's'}` : ''}.
+            {' '}Small, meaningful steps toward a better you.
           </p>
         </section>
 
@@ -241,14 +311,19 @@ export default function LearningPage() {
         {loading ? <p className="lp-muted" role="status">Loading your learning...</p> : (
           <>
             {tab === 'Overview' && (
-              <div className="lp-stats">
-                <Stat icon={BookOpen} value={posts.totalPosts} label="Posts shared" tone="blue" />
-                <Stat icon={Layers} value={allSkillNames.length} label="Skills selected" tone="green" />
-                <Stat icon={CheckCircle2} value={learnedCount ?? eng.learned} label="Learned reactions" tone="amber" />
-                <Stat icon={ThumbsUp} value={eng.helpful} label="Helpful reactions" tone="pink" />
-              </div>
+              <>
+                <div className="lp-stats">
+                  <Stat icon={BookOpen} value={posts.totalPosts} label="Posts shared" tone="blue" />
+                  <Stat icon={Layers} value={allSkillNames.length} label="Skills selected" tone="green" />
+                  <Stat icon={CheckCircle2} value={learnedCount ?? eng.learned} label="Learned reactions" tone="amber" />
+                  <Stat icon={ThumbsUp} value={eng.helpful} label="Helpful reactions" tone="pink" />
+                </div>
+                <div className="lp-grid one">
+                  <ExploredCard period={period} onPeriod={setPeriod}
+                    data={explored} loading={exploredLoading} error={exploredError} />
+                </div>
+              </>
             )}
-
 
             <div className="lp-grid three">
               {show('Skills') && (
@@ -319,7 +394,6 @@ export default function LearningPage() {
         )}
       </main>
 
-      {/* Bottom nav (mobile) */}
       <nav className="lp-bottom-nav" aria-label="Main navigation">
         {NAV.filter((n) => n.id !== 'notifications').map(({ id, label, icon: Icon, to }) => (
           <button key={id} type="button" className={id === 'learning' ? 'active' : ''} onClick={() => go(to)}>

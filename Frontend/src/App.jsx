@@ -19,7 +19,43 @@ import UserProfilePage from './components/userProfile/UserProfilePage.jsx';
 import DocumentViewerPage from './components/document/DocumentViewerPage.jsx';
 import LearningPage from "./components/learning/LearningPage.jsx";
 import { isTokenExpired, getStoredToken, msUntilExpiry, forceLogout } from './services/sessionService.js';
-import './theme-dark.css'; 
+import './theme-dark.css';
+// ── Admin Panel ────────────────────────────────────────────────────────────────
+import AdminLogin from './components/admin/AdminLogin.jsx';
+import AdminProtectedRoute from './components/admin/AdminProtectedRoute.jsx';
+import Dashboard from './components/admin/Dashboard.jsx';
+import UsersManagement from './components/admin/UsersManagement.jsx';
+import PostsManagement from './components/admin/PostsManagement.jsx';
+import ReportsManagement from './components/admin/ReportsManagement.jsx';
+import CommentsManagement from './components/admin/CommentsManagement.jsx';
+import ConnectionsManagement from './components/admin/ConnectionsManagement.jsx';
+import Analytics from './components/admin/Analytics.jsx';
+import Notifications from './components/admin/Notifications.jsx';
+import AdminSettings from './components/admin/AdminSettings.jsx';
+import { adminService } from './services/adminService.js';
+
+function renderAdminRoute(route) {
+  if (route === '/admin/login') {
+    if (adminService.isLoggedIn()) {
+      window.location.hash = '/admin/dashboard';
+      return null;
+    }
+    return <AdminLogin />;
+  }
+  if (route === '/admin/dashboard') return <AdminProtectedRoute><Dashboard /></AdminProtectedRoute>;
+  if (route === '/admin/users') return <AdminProtectedRoute><UsersManagement /></AdminProtectedRoute>;
+  if (route === '/admin/posts') return <PostsManagement />;
+  if (route === '/admin/reports') return <ReportsManagement />;
+  if (route === '/admin/comments') return <AdminProtectedRoute><CommentsManagement /></AdminProtectedRoute>;
+  if (route === '/admin/connections') return <AdminProtectedRoute><ConnectionsManagement /></AdminProtectedRoute>;
+  if (route === '/admin/analytics') return <AdminProtectedRoute><Analytics /></AdminProtectedRoute>;
+  if (route === '/admin/notifications') return <AdminProtectedRoute><Notifications /></AdminProtectedRoute>;
+  if (route === '/admin/settings') return <AdminSettings />;
+  // Unknown admin route → redirect to dashboard
+  window.location.hash = '/admin/dashboard';
+  return null;
+}
+// ──────────────────────────────────────────────────────────────────────────────
 
 function bootstrapOAuthCallback() {
   const { pathname, search } = window.location;
@@ -31,7 +67,7 @@ function bootstrapOAuthCallback() {
         '',
         '/' + search + '#/login',
       );
-      return true; 
+      return true;
     }
   }
   return false;
@@ -49,7 +85,6 @@ const PUBLIC_ROUTES = ['/', '/login', '/signup'];
 export default function App() {
   const [route, setRoute] = useState(getRoute);
   const [allowed, setAllowed] = useState(false);
-
 
   useEffect(() => {
     const sync = () => setRoute(getRoute());
@@ -92,6 +127,10 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
 
+    if (route.startsWith('/admin/')) {
+      setAllowed(true);
+      return;
+    }
     // Public pages and onboarding skip the "must be onboarded" guard
     if (PUBLIC_ROUTES.includes(route) || route === '/onboarding') {
       setAllowed(true);
@@ -105,7 +144,21 @@ export default function App() {
 
     return () => { cancelled = true; };
   }, [route]);
-  useEffect(() => startSessionWatcher(), []);
+  useEffect(() => {
+    // Admin authentication is independent of user authentication
+    if (window.location.hash.startsWith('#/admin/')) {
+      return;
+    }
+
+    return startSessionWatcher();
+  }, []);
+
+  // ── Admin routes — handled independently, before all user route logic ──────
+  if (route.startsWith('/admin/')) {
+    return renderAdminRoute(route);
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
   if (!allowed) return null;
 
   // ── Route guard ──
@@ -155,7 +208,7 @@ export default function App() {
     return <ProfilePage />;
   }
 
-  if (route === '/reels' || route=== '/image') {
+  if (route === '/reels' || route === '/image') {
     return <ReelsPage />;
   }
   if (route === '/notifications') {

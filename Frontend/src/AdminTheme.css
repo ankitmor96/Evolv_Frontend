@@ -1,0 +1,620 @@
+
+/* =========================================================
+   EVOLVS ADMIN — LIGHT THEME (DEFAULT)
+   ========================================================= */
+
+:root {
+  --adm-bg: #f8f9fc;
+  --adm-surface: #ffffff;
+  --adm-surface-2: #f3f0fa;
+  --adm-border: #e8e3ef;
+  --adm-text: #211b2b;
+  --adm-muted: #777083;
+  --adm-purple: #963be0;
+  --adm-purple-soft: #f3e9fc;
+  --adm-shadow: 0 4px 18px rgba(35, 20, 50, 0.05);
+}
+
+/* Shared admin layout */
+.adm-layout,
+.adm-main,
+.adm-content,
+.adm-page,
+.adm-root {
+  background: var(--adm-bg) !important;
+  color: var(--adm-text) !important;
+}
+
+/* Header */
+.adm-hdr-root {
+  background: var(--adm-surface) !important;
+  border-bottom: 1px solid var(--adm-border) !important;
+}
+
+.adm-hdr-title {
+  color: var(--adm-text) !important;
+}
+
+.adm-hdr-hamburger,
+.adm-hdr-search {
+  background: var(--adm-surface-2) !important;
+  color: var(--adm-text) !important;
+  border-color: var(--adm-border) !important;
+}
+
+
+
+/* Admin content text */
+.adm-an-root,
+.adm-cm-root,
+.adm-conn-root {
+  color: var(--adm-text) !important;
+}
+
+.adm-an-section-title,
+.adm-conn-section-title {
+  color: var(--adm-text) !important;
+}
+
+.adm-an-stat-label,
+.adm-cm-table th,
+.adm-conn-table th {
+  color: var(--adm-muted) !important;
+}
+
+.adm-an-stat-value,
+.adm-cm-table td,
+.adm-conn-table td {
+  color: var(--adm-text) !important;
+}
+
+/* Search and input fields */
+.adm-cm-search,
+.adm-cm-search input,
+.adm-login-input {
+  background: var(--adm-surface) !important;
+  color: var(--adm-text) !important;
+  border-color: var(--adm-border) !important;
+}
+
+.adm-cm-search input::placeholder,
+.adm-login-input::placeholder {
+  color: #aaa3b2 !important;
+}
+
+/* Tables */
+.adm-cm-table th,
+.adm-cm-table td,
+.adm-conn-table th,
+.adm-conn-table td,
+.adm-an-table th,
+.adm-an-table td {
+  border-color: var(--adm-border) !important;
+}
+
+.adm-cm-table th,
+.adm-conn-table th,
+.adm-an-table th {
+  background: var(--adm-surface-2) !important;
+}
+
+.adm-cm-table tr:hover td {
+  background: var(--adm-purple-soft) !important;
+}
+
+/* Pagination */
+.adm-cm-page-btn {
+  background: var(--adm-surface) !important;
+  color: var(--adm-text) !important;
+  border: 1px solid var(--adm-border) !important;
+}
+
+.adm-cm-page-btn-active {
+  background: var(--adm-purple) !important;
+  color: #fff !important;
+}
+
+/* Login page */
+.adm-login-root {
+  background: var(--adm-bg) !important;
+}
+
+.adm-login-card {
+  background: var(--adm-surface) !important;
+  border-color: var(--adm-border) !important;
+  box-shadow: 0 12px 40px rgba(35, 20, 50, 0.09) !important;
+}
+
+.adm-login-heading,
+.adm-login-label,
+.adm-login-remember-text {
+  color: var(--adm-text) !important;
+}
+
+.adm-login-subtitle,
+.adm-login-footer {
+  color: var(--adm-muted) !important;
+}
+
+/* =========================================================
+   EVOLVS ADMIN — DARK THEME OVERRIDES
+   Only applies when <html data-theme="dark">
+   ========================================================= */
+
+[data-theme="dark"] {
+  --adm-bg: #0b0614;
+  --adm-surface: #150d26;
+  --adm-surface-2: #211633;
+  --adm-border: rgba(255,255,255,.10);
+  --adm-text: #f5f3ff;
+  --adm-muted: #a69ab8;
+  --adm-purple: #aa45f5;
+  --adm-purple-soft: rgba(170,69,245,.18);
+  --adm-shadow: 0 4px 18px rgba(0,0,0,.2);
+}
+
+/* Shared admin layout */
+[data-theme="dark"] .adm-layout,
+[data-theme="dark"] .adm-main,
+[data-theme="dark"] .adm-content,
+[data-theme="dark"] .adm-page,
+[data-theme="dark"] .adm-root {
+  background: var(--adm-bg) !important;
+  color: var(--adm-text) !important;
+}
+
+/* Header */
+[data-theme="dark"] .adm-hdr-root {
+  background: var(--adm-surface) !important;
+  border-color: var(--adm-border) !important;
+}
+
+[data-theme="dark"] .adm-hdr-title {
+  color: var(--adm-text) !important;
+}
+
+/* Text */
+[data-theme="dark"] .adm-an-root,
+[data-theme="dark"] .adm-cm-root,
+[data-theme="dark"] .adm-conn-root,
+[data-theme="dark"] .adm-an-stat-value,
+[data-theme="dark"] .adm-cm-table td,
+[data-theme="dark"] .adm-conn-table td {
+  color: var(--adm-text) !important;
+}
+
+/* Inputs */
+[data-theme="dark"] .adm-cm-search,
+[data-theme="dark"] .adm-cm-search input,
+[data-theme="dark"] .adm-login-input {
+  background: var(--adm-surface-2) !important;
+  color: var(--adm-text) !important;
+  border-color: var(--adm-border) !important;
+}
+
+/* Tables */
+[data-theme="dark"] .adm-cm-table th,
+[data-theme="dark"] .adm-conn-table th,
+[data-theme="dark"] .adm-an-table th {
+  background: var(--adm-surface-2) !important;
+  color: var(--adm-muted) !important;
+}
+
+/* Login */
+[data-theme="dark"] .adm-login-root {
+  background: var(--adm-bg) !important;
+}
+
+[data-theme="dark"] .adm-login-card {
+  background: var(--adm-surface) !important;
+  border-color: var(--adm-border) !important;
+}
+
+[data-theme="dark"] .adm-login-heading,
+[data-theme="dark"] .adm-login-label,
+[data-theme="dark"] .adm-login-remember-text {
+  color: var(--adm-text) !important;
+}
+
+
+/* =========================================================
+   ADMIN DASHBOARD — LIGHT THEME FIX
+   Scoped only to the admin dashboard
+   ========================================================= */
+
+.adm-layout-root[data-admin-theme="light"] {
+  background: #F7F8FC !important;
+  color: #211B2B !important;
+}
+
+.adm-layout-root[data-admin-theme="light"] .adm-layout-main,
+.adm-layout-root[data-admin-theme="light"] .adm-layout-content {
+  background: #F7F8FC !important;
+  color: #211B2B !important;
+}
+
+/* Sidebar */
+.adm-layout-root[data-admin-theme="light"] .adm-sb-root {
+  background: #FFFFFF !important;
+  border-right: 1px solid #E8E3EF !important;
+}
+
+.adm-layout-root[data-admin-theme="light"] .adm-sb-brand,
+.adm-layout-root[data-admin-theme="light"] .adm-sb-footer {
+  border-color: #E8E3EF !important;
+}
+
+.adm-layout-root[data-admin-theme="light"] .adm-sb-section-label {
+  color: #9991A3 !important;
+}
+
+.adm-layout-root[data-admin-theme="light"] .adm-sb-item,
+.adm-layout-root[data-admin-theme="light"] .adm-sb-icon {
+  color: #625B6D !important;
+}
+
+.adm-layout-root[data-admin-theme="light"] .adm-sb-item-active {
+  background: #F2E7FC !important;
+  color: #963BE0 !important;
+}
+
+.adm-layout-root[data-admin-theme="light"] .adm-sb-item-active .adm-sb-icon {
+  color: #963BE0 !important;
+}
+
+.adm-layout-root[data-admin-theme="light"] .adm-sb-user-card {
+  background: #F7F4FA !important;
+}
+
+.adm-layout-root[data-admin-theme="light"] .adm-sb-user-name {
+  color: #211B2B !important;
+}
+
+/* Dashboard text */
+.adm-layout-root[data-admin-theme="light"] .adm-layout-content h1,
+.adm-layout-root[data-admin-theme="light"] .adm-layout-content h2,
+.adm-layout-root[data-admin-theme="light"] .adm-layout-content h3,
+.adm-layout-root[data-admin-theme="light"] .adm-layout-content h4 {
+  color: #211B2B !important;
+}
+
+/* Dashboard surfaces */
+.adm-layout-root[data-admin-theme="light"] .adm-layout-content [class*="card"],
+.adm-layout-root[data-admin-theme="light"] .adm-layout-content [class*="panel"],
+.adm-layout-root[data-admin-theme="light"] .adm-layout-content [class*="table"] {
+  border-color: #E8E3EF;
+}
+
+/* Inputs */
+.adm-layout-root[data-admin-theme="light"] .adm-layout-content input,
+.adm-layout-root[data-admin-theme="light"] .adm-layout-content select,
+.adm-layout-root[data-admin-theme="light"] .adm-layout-content textarea {
+  background: #FFFFFF;
+  color: #211B2B;
+  border-color: #E8E3EF;
+}
+
+.adm-layout-root[data-admin-theme="light"] .adm-layout-content input::placeholder,
+.adm-layout-root[data-admin-theme="light"] .adm-layout-content textarea::placeholder {
+  color: #9991A3;
+}
+
+/* Fix admin sidebar click handling */
+.adm-layout-root .adm-sb-root {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: auto !important;
+}
+
+.adm-layout-root .adm-sb-nav {
+  position: relative;
+  z-index: 2;
+  pointer-events: auto !important;
+}
+
+.adm-layout-root .adm-sb-item {
+  position: relative;
+  z-index: 3;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+.adm-layout-root .adm-sb-overlay {
+  z-index: 999;
+}
+/* =========================================================
+   ADMIN PAGES — LIGHT THEME (all management pages)
+   ========================================================= */
+
+/* Surfaces: tables, panels, cards, modals */
+[data-admin-theme="light"] [class$="-table-wrap"],
+[data-admin-theme="light"] [class$="-panel"],
+[data-admin-theme="light"] [class$="-modal"],
+[data-admin-theme="light"] .adm-dash-card,
+[data-admin-theme="light"] .adm-dash-section,
+[data-admin-theme="light"] .adm-conn-card,
+[data-admin-theme="light"] .adm-conn-section {
+  background: #FFFFFF;
+  border: 1px solid #E8E3EF;
+  box-shadow: 0 4px 18px rgba(35, 20, 50, 0.05);
+}
+
+/* Modal backdrop above the sidebar */
+[data-admin-theme="light"] [class$="-modal-backdrop"] {
+  background: rgba(33, 27, 43, 0.45);
+  z-index: 1100 !important;
+}
+
+/* Headings and strong text */
+[data-admin-theme="light"] .adm-notif-panel-title,
+[data-admin-theme="light"] .adm-set-panel-title,
+[data-admin-theme="light"] .adm-conn-section-title,
+[data-admin-theme="light"] .adm-dash-section-title,
+[data-admin-theme="light"] .adm-set-profile-name,
+[data-admin-theme="light"] .adm-um-user-name,
+[data-admin-theme="light"] .adm-notif-item-title,
+[data-admin-theme="light"] .adm-set-audit-action,
+[data-admin-theme="light"] [class$="-modal-title"],
+[data-admin-theme="light"] [class$="-modal-val"],
+[data-admin-theme="light"] .adm-um-confirm-msg {
+  color: #211B2B;
+  border-color: #E8E3EF;
+}
+
+/* Muted text and labels */
+[data-admin-theme="light"] .adm-notif-label,
+[data-admin-theme="light"] .adm-set-label,
+[data-admin-theme="light"] [class$="-modal-key"],
+[data-admin-theme="light"] .adm-um-user-username,
+[data-admin-theme="light"] .adm-set-info-key,
+[data-admin-theme="light"] .adm-set-profile-email,
+[data-admin-theme="light"] .adm-notif-item-meta,
+[data-admin-theme="light"] .adm-set-audit-meta,
+[data-admin-theme="light"] .adm-conn-card-label,
+[data-admin-theme="light"] .adm-conn-card-sub,
+[data-admin-theme="light"] .adm-dash-card-label,
+[data-admin-theme="light"] .adm-dash-card-sub,
+[data-admin-theme="light"] [class$="-pagination"],
+[data-admin-theme="light"] [class$="-modal-close"] {
+  color: #777083;
+}
+
+[data-admin-theme="light"] .adm-notif-item-body,
+[data-admin-theme="light"] .adm-set-info-val {
+  color: #51485D;
+}
+
+/* Tables */
+[data-admin-theme="light"] [class$="-table"] th {
+  color: #777083;
+  background: #F8F6FB;
+  border-bottom: 1px solid #E8E3EF;
+}
+
+[data-admin-theme="light"] [class$="-table"] td {
+  color: #51485D;
+  border-bottom: 1px solid #F0ECF4;
+}
+
+[data-admin-theme="light"] [class$="-table"] tr:hover td {
+  background: #F8F3FC;
+}
+
+[data-admin-theme="light"] [class$="-pagination"] {
+  border-top: 1px solid #E8E3EF;
+}
+
+[data-admin-theme="light"] [class$="-modal-row"],
+[data-admin-theme="light"] .adm-set-info-row,
+[data-admin-theme="light"] .adm-set-panel-title {
+  border-color: #EFEAF5;
+}
+
+/* Empty / loading text */
+[data-admin-theme="light"] [class$="-empty"],
+[data-admin-theme="light"] [class$="-loading"] {
+  color: #81788D;
+}
+
+/* Search boxes and selects */
+[data-admin-theme="light"] .adm-pm-search,
+[data-admin-theme="light"] .adm-um-search,
+[data-admin-theme="light"] .adm-cm-search,
+[data-admin-theme="light"] .adm-pm-select,
+[data-admin-theme="light"] .adm-um-select,
+[data-admin-theme="light"] .adm-rm-select {
+  background: #FFFFFF;
+  border: 1px solid #E8E3EF;
+  color: #211B2B;
+}
+
+[data-admin-theme="light"] .adm-pm-search input,
+[data-admin-theme="light"] .adm-um-search input,
+[data-admin-theme="light"] .adm-cm-search input {
+  background: transparent !important;
+  color: #211B2B !important;
+  border: none !important;
+}
+
+[data-admin-theme="light"] .adm-pm-search svg,
+[data-admin-theme="light"] .adm-um-search svg,
+[data-admin-theme="light"] .adm-cm-search svg {
+  color: #9991A3;
+}
+
+/* Form fields */
+[data-admin-theme="light"] .adm-notif-input,
+[data-admin-theme="light"] .adm-notif-select,
+[data-admin-theme="light"] .adm-notif-textarea,
+[data-admin-theme="light"] .adm-set-input,
+[data-admin-theme="light"] .adm-um-confirm-textarea {
+  background: #FFFFFF;
+  border: 1px solid #DDD6E8;
+  color: #211B2B;
+}
+
+[data-admin-theme="light"] .adm-set-toggle-pw {
+  color: #9991A3;
+}
+
+/* Inner list items */
+[data-admin-theme="light"] .adm-notif-item,
+[data-admin-theme="light"] .adm-set-audit-item,
+[data-admin-theme="light"] .adm-conn-raw {
+  background: #F7F4FA;
+  border-color: #E8E3EF;
+  color: #51485D;
+}
+
+/* Status tags */
+[data-admin-theme="light"] .adm-pm-tag-active,
+[data-admin-theme="light"] .adm-um-tag-active,
+[data-admin-theme="light"] .adm-dash-tag-active,
+[data-admin-theme="light"] .adm-rm-tag-resolved {
+  background: #DCFCE7; color: #15803D;
+}
+
+[data-admin-theme="light"] .adm-pm-tag-removed,
+[data-admin-theme="light"] .adm-um-tag-suspended,
+[data-admin-theme="light"] .adm-dash-tag-suspended,
+[data-admin-theme="light"] .adm-dash-tag-removed {
+  background: #FEE2E2; color: #B91C1C;
+}
+
+[data-admin-theme="light"] .adm-pm-tag-pending,
+[data-admin-theme="light"] .adm-rm-tag-pending,
+[data-admin-theme="light"] .adm-dash-tag-pending {
+  background: #FEF3C7; color: #B45309;
+}
+
+[data-admin-theme="light"] .adm-um-tag-inactive,
+[data-admin-theme="light"] .adm-rm-tag-dismissed {
+  background: #F0ECF4; color: #62576F;
+}
+
+/* Action buttons */
+[data-admin-theme="light"] .adm-pm-btn-view,
+[data-admin-theme="light"] .adm-um-btn-view,
+[data-admin-theme="light"] .adm-rm-btn-review {
+  background: #F3E9FC; color: #7E22CE;
+}
+
+[data-admin-theme="light"] .adm-pm-btn-remove,
+[data-admin-theme="light"] .adm-um-btn-delete,
+[data-admin-theme="light"] .adm-cm-btn {
+  background: #FEE2E2; color: #B91C1C;
+}
+
+[data-admin-theme="light"] .adm-pm-btn-restore,
+[data-admin-theme="light"] .adm-um-btn-reactivate,
+[data-admin-theme="light"] .adm-rm-btn-resolve {
+  background: #DCFCE7; color: #15803D;
+}
+
+[data-admin-theme="light"] .adm-um-btn-suspend {
+  background: #FEF3C7; color: #B45309;
+}
+
+[data-admin-theme="light"] .adm-rm-btn-dismiss {
+  background: #F0ECF4; color: #62576F;
+}
+
+/* Pagination buttons */
+[data-admin-theme="light"] [class$="-page-btn"] {
+  background: #FFFFFF;
+  border: 1px solid #E8E3EF;
+  color: #51485D;
+}
+
+[data-admin-theme="light"] [class$="-page-btn-active"] {
+  background: #963BE0;
+  border-color: #963BE0;
+  color: #FFFFFF;
+}
+
+/* Modal buttons use inline colors, so they need !important */
+[data-admin-theme="light"] [class$="-modal-btn"][style*="rgba(255,255,255"] {
+  background: #F0ECF4 !important;
+  color: #62576F !important;
+}
+[data-admin-theme="light"] [class$="-modal-btn"][style*="#4ADE80"] { color: #15803D !important; }
+[data-admin-theme="light"] [class$="-modal-btn"][style*="#F87171"] { color: #B91C1C !important; }
+[data-admin-theme="light"] [class$="-modal-btn"][style*="#FCD34D"] { color: #B45309 !important; }
+
+/* Messages */
+[data-admin-theme="light"] [class$="-error"],
+[data-admin-theme="light"] [class$="-error-toast"] {
+  background: #FEE2E2; border: 1px solid #FECACA; color: #B91C1C;
+}
+
+[data-admin-theme="light"] .adm-notif-success,
+[data-admin-theme="light"] .adm-set-success {
+  background: #DCFCE7; border: 1px solid #BBF7D0; color: #15803D;
+}
+
+/* Dashboard chart text */
+[data-admin-theme="light"] .adm-dash-chart-svg text {
+  fill: #71677E;
+}
+
+/* Header (search, bell, user menu) */
+[data-admin-theme="light"] .adm-hdr-search input {
+  background: transparent !important;
+  color: #211B2B !important;
+  border: none !important;
+}
+
+[data-admin-theme="light"] .adm-hdr-search input::placeholder,
+[data-admin-theme="light"] .adm-pm-search input::placeholder,
+[data-admin-theme="light"] .adm-um-search input::placeholder,
+[data-admin-theme="light"] .adm-cm-search input::placeholder,
+[data-admin-theme="light"] .adm-notif-input::placeholder,
+[data-admin-theme="light"] .adm-notif-textarea::placeholder {
+  color: #9991A3 !important;
+}
+
+[data-admin-theme="light"] .adm-hdr-search svg {
+  color: #9991A3;
+}
+
+[data-admin-theme="light"] .adm-hdr-icon-btn {
+  background: #F3F0FA;
+  color: #625B6D;
+}
+
+[data-admin-theme="light"] .adm-hdr-notif-dot {
+  border-color: #FFFFFF;
+}
+
+[data-admin-theme="light"] .adm-hdr-user-btn {
+  background: #FFFFFF;
+  border-color: #E8E3EF;
+  color: #211B2B;
+}
+
+[data-admin-theme="light"] .adm-hdr-dropdown {
+  background: #FFFFFF;
+  border-color: #E8E3EF;
+  box-shadow: 0 12px 32px rgba(35, 20, 50, 0.12);
+}
+
+[data-admin-theme="light"] .adm-hdr-dropdown-item {
+  color: #51485D;
+}
+
+[data-admin-theme="light"] .adm-hdr-dropdown-item:hover {
+  background: #F5EFFB;
+  color: #963BE0;
+}
+
+[data-admin-theme="light"] .adm-hdr-dropdown-sep {
+  background: #E8E3EF;
+}
+
+/* Analytics page (class names taken from your existing theme file) */
+[data-admin-theme="light"] .adm-an-root {
+  color: #211B2B;
+}
+[data-admin-theme="light"] .adm-an-stat-label {
+  color: #777083;
+}

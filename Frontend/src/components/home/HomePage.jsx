@@ -46,6 +46,7 @@ import socketService from '../../services/socketService.js';
 import { CREATORS, INTEREST_TABS } from '../../data/homeData.js';
 import { useUnreadCounts } from '../../components/hooks/useNotificationCount.jsx';
 import { userSearchService } from '../../services/userSearchService.js';
+import { useInView, useLearningTracker } from '../../components/hooks/useLearningTracker.js';
 import { useConnectionRequestCount } from '../../components/hooks/useConnectionRequestCount.jsx';
 import './HomePage.css';
 
@@ -1068,19 +1069,6 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
     return String(n);
   };
 
-  const handleShare = async () => {
-    const url = `${window.location.origin}/#/post/${post.id}`;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: post.caption, url });
-      } catch {
-        /* dismissed */
-      }
-    } else {
-      await navigator.clipboard.writeText(url).catch(() => { });
-    }
-  };
   const currentUser = authService.getCurrentUser();
 
   const currentUserId =
@@ -1098,8 +1086,25 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
     creatorId != null &&
     String(currentUserId) === String(creatorId);
   const isTextKind = ['text', 'article', 'question', 'achievement'].includes(post.kind);
+
+  // ── Learning tracking (images + text-style posts) ──
+  // Videos are tracked in ReelsPage, documents in the document viewer.
+  const trackType = isTextKind
+    ? (post.kind === 'article' ? 'document' : 'text')
+    : post.media?.type === 'image'
+      ? 'image'
+      : null;
+  const [trackRef, inView] = useInView(0.5);
+  useLearningTracker({
+    // skip untracked kinds and local-only posts (their ids aren't numeric)
+    postId: trackType && /^\d+$/.test(String(post.id)) ? post.id : null,
+    contentType: trackType,
+    isVisible: inView,
+  });
+
+
   return (
-    <article className="hp-post" aria-label={`${post.type === 'reel' ? 'Reel' : 'Post'} by ${post.creator.name}`}>
+    <article ref={trackRef} className="hp-post" aria-label={`${post.type === 'reel' ? 'Reel' : 'Post'} by ${post.creator.name}`}>
       {/* Post header */}
       <div className="hp-post-header">
         <div className="hp-post-creator">

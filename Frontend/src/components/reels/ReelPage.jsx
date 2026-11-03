@@ -6,6 +6,7 @@ import {
 import { authService } from '../../services/authService.js';
 import { homePostService } from '../../services/homePostService.js';
 import CommentPanel from '../shared/CommentPanel.jsx';
+import { useInView, useLearningTracker } from '../hooks/useLearningTracker.js';
 import "../reels/ReelPage.css";
 
 // ── Type helpers ────────────────────────────────────────────────────────────
@@ -38,6 +39,19 @@ function FeedItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
   const [isLandscape, setIsLandscape] = useState(false);
   const [tip, setTip] = useState('');
   const pressTimer = useRef(null);
+  // ── Learning tracking ──
+  const [trackRef, inView] = useInView(0.6);
+  useLearningTracker({
+    postId: /^\d+$/.test(String(post.id)) ? post.id : null,
+    contentType: video ? 'video' : 'image',
+    isVisible: inView,
+    isPlaying: video ? playing : true, // video counts only while playing
+    getCompletion: () => {
+      if (!video) return 100;
+      const v = videoRef.current;
+      return v?.duration ? (v.currentTime / v.duration) * 100 : 0;
+    },
+  });
 
   const startPress = (label) => {
     clearTimeout(pressTimer.current);
@@ -92,7 +106,7 @@ function FeedItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
 
   return (
     <section className="rl-item" ref={itemRef} data-post-id={post.id}>
-      <div className="rl-card">
+      <div className="rl-card" ref={trackRef}>
         <div className="rl-media">
           {isLandscape && backdropSrc && (
             <div className="rl-backdrop" style={{ backgroundImage: `url(${backdropSrc})` }} />
