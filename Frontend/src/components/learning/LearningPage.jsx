@@ -52,13 +52,14 @@ function Card({ title, action, onAction, children, className = '' }) {
   );
 }
 
-function Stat({ icon: Icon, value, label, tone }) {
+function Stat({ icon: Icon, value, label, tone, sub }) {
   return (
     <div className="lp-stat">
       <span className={`lp-stat-icon ${tone}`}><Icon size={22} /></span>
       <div>
         <strong>{value}</strong>
         <span>{label}</span>
+        {sub && <small className="lp-stat-sub">{sub}</small>}
       </div>
     </div>
   );
@@ -214,6 +215,7 @@ export default function LearningPage() {
   const [posts, setPosts] = useState({ totalPosts: 0, imageCount: 0, videoCount: 0, documentCount: 0 });
   const [eng, setEng] = useState({ appreciation: 0, helpful: 0, learned: 0 });
   const [learnedCount, setLearnedCount] = useState(null);
+  const [streak, setStreak] = useState({ currentStreak: 0, lastLearnedDate: null });
   const [showAllSkills, setShowAllSkills] = useState(false);
   const [showAllTopics, setShowAllTopics] = useState(false);
   const reqId = useRef(0);
@@ -234,7 +236,7 @@ export default function LearningPage() {
     const id = ++reqId.current;
     setExploredLoading(true);
     setExploredError('');
-    setBreakdownError('');
+    setBreakdownError('');  
     const [ov, br] = await Promise.allSettled([
       learningTrackingService.getOverview(p),
       learningTrackingService.getContentBreakdown(p),
@@ -266,7 +268,7 @@ export default function LearningPage() {
     let off = false;
     (async () => {
       setLoading(true);
-      const [p, us, cur, idMap, pc, ec, lc] = await Promise.allSettled([
+      const [p, us, cur, idMap, pc, ec, lc,st] = await Promise.allSettled([
         getProfile.getProfile(),
         profileService.getUserSkills(),
         profileService.getUserCuriosity(),
@@ -274,6 +276,7 @@ export default function LearningPage() {
         profileService.getMyPostCounts(),
         profileService.getMyEngagementCounts(),
         learnedService.getMyLearnedCount(),
+        learningTrackingService.getStreak(),
       ]);
       if (off) return;
       const names = idMap.status === 'fulfilled' ? idMap.value : {};
@@ -289,6 +292,7 @@ export default function LearningPage() {
         });
       }
       if (lc.status === 'fulfilled') setLearnedCount(lc.value);
+      if (st.status === 'fulfilled') setStreak(st.value);
 
       if (us.status === 'fulfilled') {
         const seen = new Set();
@@ -389,7 +393,11 @@ export default function LearningPage() {
                 <div className="lp-stats">
                   <Stat icon={BookOpen} value={posts.totalPosts} label="Posts view" tone="blue" />
                   <Stat icon={Layers} value={allSkillNames.length} label="Total Learned" tone="green" />
-                  <Stat icon={CheckCircle2} value={learnedCount ?? eng.learned} label="Learned reactions" tone="amber" />
+                  <Stat icon={CheckCircle2} value={learnedCount ?? eng.learned} label="Learned reactions" tone="amber" sub={
+                    streak.currentStreak > 0
+                      ? `🔥 ${streak.currentStreak}-day streak`
+                      : 'No streak yet'
+                  } />
                   <Stat icon={ThumbsUp} value={eng.helpful} label="Helpful reactions" tone="pink" />
                 </div>
 

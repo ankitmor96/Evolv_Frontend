@@ -105,7 +105,7 @@ export const learningTrackingService = {
       period: res?.period ?? null,
     };
   },
-    /** @param {'month'|'all'} period */
+  /** @param {'month'|'all'} period */
   async getContentBreakdown(period = 'month') {
     const res = await request(`/api/v1/learning/content-breakdown?period=${period}`, { method: 'GET' });
     const rows = Array.isArray(res?.content_breakdown) ? res.content_breakdown : [];
@@ -117,6 +117,14 @@ export const learningTrackingService = {
       };
     });
     return { total: Number(res?.total_posts_explored ?? 0), byType };
+  },
+  /** Consecutive days learned streak */
+  async getStreak() {
+    const res = await request('/api/v1/learning/streak', { method: 'GET' });
+    return {
+      currentStreak: Number(res?.currentStreak ?? 0),
+      lastLearnedDate: res?.lastLearnedDate ?? null,
+    };
   },
 };
 
