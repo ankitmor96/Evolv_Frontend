@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Home, Compass, BookOpen, PlusCircle, Bell, User, Search, Target,
+  Home, Compass, BookOpen, PlusCircle, Bell, User, Search,
   FileText, Image as ImageIcon, Video, Type, Lightbulb, CheckCircle2,
   Sparkles, ThumbsUp, Layers, Eye, TrendingUp, TrendingDown,
 } from 'lucide-react';
@@ -26,6 +26,15 @@ const NAV = [
 ];
 const TABS = ['Overview', 'Skills', 'Topics'];
 const COLORS = ['#5b8cff', '#a855f7', '#f5a524', '#ec6a9a', '#34d399'];
+const CHIP_LIMIT = 8;
+
+// One fixed color per content type (API enum -> label/icon/color)
+const CONTENT_TYPES = [
+  { key: 'VIDEO', label: 'Short videos', icon: Video, color: '#5b8cff' },
+  { key: 'TEXT', label: 'Text posts', icon: Type, color: '#a855f7' },
+  { key: 'IMAGE', label: 'Images', icon: ImageIcon, color: '#ec6a9a' },
+  { key: 'LONG_FORM', label: 'Documents', icon: FileText, color: '#f5a524' },
+];
 
 const rowsOf = (res) => {
   const v = res?.data ?? res;
@@ -58,20 +67,23 @@ function Stat({ icon: Icon, value, label, tone }) {
   );
 }
 
-function Donut({ parts }) {
+/** Donut chart. parts = [{ label, value, color? }] */
+function Donut({ parts, ariaLabel = 'Distribution' }) {
   const total = parts.reduce((s, p) => s + p.value, 0);
   const R = 52, C = 2 * Math.PI * R;
   let offset = 0;
   const top = [...parts].sort((a, b) => b.value - a.value)[0];
+  const colorOf = (p, i) => p.color ?? COLORS[i % COLORS.length];
+
   return (
     <div className="lp-donut-wrap">
-      <svg viewBox="0 0 140 140" className="lp-donut" role="img" aria-label="Skill distribution">
+      <svg viewBox="0 0 140 140" className="lp-donut" role="img" aria-label={ariaLabel}>
         <circle cx="70" cy="70" r={R} className="lp-donut-bg" />
         {total > 0 && parts.map((p, i) => {
           const len = (p.value / total) * C;
           const el = (
             <circle key={p.label} cx="70" cy="70" r={R} fill="none"
-              stroke={COLORS[i % COLORS.length]} strokeWidth="16"
+              stroke={colorOf(p, i)} strokeWidth="16"
               strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-offset}
               transform="rotate(-90 70 70)" />
           );
@@ -88,12 +100,64 @@ function Donut({ parts }) {
       <ul className="lp-legend">
         {parts.map((p, i) => (
           <li key={p.label}>
-            <i style={{ background: COLORS[i % COLORS.length] }} />
+            <i style={{ background: colorOf(p, i) }} />
             <span>{p.label}</span>
             <b>{total ? Math.round((p.value / total) * 100) : 0}%</b>
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/** Content Types card: bars + percentage + count, and a donut */
+function ContentTypesCard({ period, breakdown, loading, error }) {
+  const rows = useMemo(
+    () => CONTENT_TYPES.map((t) => {
+      const d = breakdown.byType[t.key];
+      return { ...t, count: d?.count ?? 0, pct: Math.round(d?.percentage ?? 0) };
+    }),
+    [breakdown],
+  );
+  const title = `Content explored (${period === 'month' ? 'this month' : 'all time'})`;
+
+  return (
+    <Card title={title} className="lp-content-types">
+      {error ? (
+        <p className="lp-error" role="alert">{error}</p>
+      ) : loading && breakdown.total === 0 ? (
+        <p className="lp-muted" role="status">Loading…</p>
+      ) : breakdown.total === 0 ? (
+        <p className="lp-muted">Explore some posts to see your mix.</p>
+      ) : (
+        <>
+          <ul className="lp-types">
+            {rows.map(({ key, label, icon: Icon, color, pct, count }) => (
+              <li key={key}>
+                <Icon size={16} aria-hidden="true" />
+                <span className="lp-type-label">{label} <small className="lp-muted">({count})</small></span>
+                <div className="lp-bar" role="progressbar" aria-label={label}
+                  aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+                  <i style={{ width: `${pct}%`, background: color }} />
+                </div>
+                <b>{pct}%</b>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </Card>
+  );
+}
+function ChipList({ items, icon: Icon, alt = false, expanded }) {
+  const visible = expanded ? items : items.slice(0, CHIP_LIMIT);
+  return (
+    <div className="lp-chips">
+      {visible.map((n) => (
+        <span key={n} className={`lp-chip${alt ? ' alt' : ''}`}>
+          <Icon size={15} aria-hidden="true" />{n}
+        </span>
+      ))}
     </div>
   );
 }
@@ -153,14 +217,17 @@ export default function LearningPage() {
   const [posts, setPosts] = useState({ totalPosts: 0, imageCount: 0, videoCount: 0, documentCount: 0 });
   const [eng, setEng] = useState({ appreciation: 0, helpful: 0, learned: 0 });
   const [learnedCount, setLearnedCount] = useState(null);
-  const [breakdown, setBreakdown] = useState({ total: 0, byType: {} });
+  const [showAllSkills, setShowAllSkills] = useState(false);
+  const [showAllTopics, setShowAllTopics] = useState(false);
   const reqId = useRef(0);
 
-  // Posts Explored
+  // Posts Explored + Content breakdown (percentage API)
   const [period, setPeriod] = useState('month');
   const [explored, setExplored] = useState(null);
   const [exploredLoading, setExploredLoading] = useState(true);
   const [exploredError, setExploredError] = useState('');
+  const [breakdown, setBreakdown] = useState({ total: 0, byType: {} });
+  const [breakdownError, setBreakdownError] = useState('');
 
   useEffect(() => {
     if (!user) go('/login');
@@ -170,14 +237,21 @@ export default function LearningPage() {
     const id = ++reqId.current;
     setExploredLoading(true);
     setExploredError('');
+    setBreakdownError('');
     const [ov, br] = await Promise.allSettled([
       learningTrackingService.getOverview(p),
       learningTrackingService.getContentBreakdown(p),
     ]);
-    if (id !== reqId.current) return;
+    if (id !== reqId.current) return; // ignore stale responses
+
     if (ov.status === 'fulfilled') setExplored(ov.value);
     else setExploredError(ov.reason?.message || 'Could not load posts explored.');
+
     if (br.status === 'fulfilled') setBreakdown(br.value);
+    else {
+      setBreakdown({ total: 0, byType: {} });
+      setBreakdownError(br.reason?.message || 'Could not load content breakdown.');
+    }
     setExploredLoading(false);
   }, []);
 
@@ -235,7 +309,6 @@ export default function LearningPage() {
   const displayName = (profile?.fullName ?? profile?.name ?? user?.name ?? 'there').split(' ')[0];
   const avatar = profile?.avatarUrl ?? profile?.avatar ?? user?.avatar;
 
-  const focus = skills.filter((s) => s.type === 'LEARNING' || s.type === 'WANT_TO_IMPROVE');
   const canDo = skills.filter((s) => s.type === 'CAN_DO');
   const allSkillNames = useMemo(() => [...new Set(skills.map((s) => s.name))], [skills]);
 
@@ -245,13 +318,7 @@ export default function LearningPage() {
     { label: 'Improving', value: skills.filter((s) => s.type === 'WANT_TO_IMPROVE').length },
     { label: 'Curious about', value: curiosities.length },
   ];
-
-  const contentTypes = [
-    { label: 'Short videos', icon: Video, key: 'VIDEO' },
-    { label: 'Text posts', icon: Type, key: 'TEXT' },
-    { label: 'Images', icon: ImageIcon, key: 'IMAGE' },
-    { label: 'Documents', icon: FileText, key: 'LONG_FORM' },
-  ].map((t) => ({ ...t, pct: Math.round(breakdown.byType[t.key]?.percentage ?? 0) }));
+  const distTotal = distribution.reduce((s, d) => s + d.value, 0);
 
   const show = (section) => tab === 'Overview' || tab === section;
 
@@ -317,30 +384,23 @@ export default function LearningPage() {
             {tab === 'Overview' && (
               <>
                 <div className="lp-stats">
-                  <Stat icon={BookOpen} value={posts.totalPosts} label="Posts shared" tone="blue" />
-                  <Stat icon={Layers} value={allSkillNames.length} label="Skills selected" tone="green" />
+                  <Stat icon={BookOpen} value={posts.totalPosts} label="Posts view" tone="blue" />
+                  <Stat icon={Layers} value={allSkillNames.length} label="Total Learned" tone="green" />
                   <Stat icon={CheckCircle2} value={learnedCount ?? eng.learned} label="Learned reactions" tone="amber" />
                   <Stat icon={ThumbsUp} value={eng.helpful} label="Helpful reactions" tone="pink" />
                 </div>
 
-                <div className="lp-grid two">
+                <div className="lp-grid three">
                   <ExploredCard period={period} onPeriod={setPeriod}
                     data={explored} loading={exploredLoading} error={exploredError} />
 
-                  <Card title={`Content explored (${period === 'month' ? 'this month' : 'all time'})`}>
-                    {breakdown.total === 0 ? (
-                      <p className="lp-muted">Explore some posts to see your mix.</p>
-                    ) : (
-                      <ul className="lp-types">
-                        {contentTypes.map(({ label, icon: Icon, pct }) => (
-                          <li key={label}>
-                            <Icon size={16} aria-hidden="true" /><span>{label}</span>
-                            <div className="lp-bar"><i style={{ width: `${pct}%` }} /></div>
-                            <b>{pct}%</b>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                  <ContentTypesCard period={period} breakdown={breakdown}
+                    loading={exploredLoading} error={breakdownError} />
+
+                  <Card title="Skill interest distribution">
+                    {distTotal === 0
+                      ? <p className="lp-muted">Pick skills and topics to see your distribution.</p>
+                      : <Donut parts={distribution} ariaLabel="Skill interest distribution" />}
                   </Card>
                 </div>
               </>
@@ -348,29 +408,30 @@ export default function LearningPage() {
 
             <div className="lp-grid two">
               {show('Skills') && (
-                <Card title="Skills you're exploring" action="See all" onAction={() => go('/discover')}>
-                  {allSkillNames.length === 0 ? <p className="lp-muted">No skills selected yet.</p> : (
-                    <div className="lp-chips">
-                      {allSkillNames.slice(0, 8).map((n) => (
-                        <button key={n} type="button" className="lp-chip" onClick={() => go('/discover')}>
-                          <Sparkles size={15} aria-hidden="true" />{n}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                <Card
+                  title="Skills you're exploring"
+                  action={allSkillNames.length > CHIP_LIMIT
+                    ? (showAllSkills ? 'Show less' : `See all (${allSkillNames.length})`)
+                    : undefined}
+                  onAction={() => setShowAllSkills((v) => !v)}
+                >
+                  {allSkillNames.length === 0
+                    ? <p className="lp-muted">No skills selected yet.</p>
+                    : <ChipList items={allSkillNames} icon={Sparkles} expanded={showAllSkills} />}
                 </Card>
               )}
+
               {show('Topics') && (
-                <Card title="Topics you're curious about" action="See all" onAction={() => go('/discover')}>
-                  {curiosities.length === 0 ? <p className="lp-muted">Pick topics you're curious about in your profile.</p> : (
-                    <div className="lp-chips">
-                      {curiosities.slice(0, 8).map((n) => (
-                        <button key={n} type="button" className="lp-chip alt" onClick={() => go('/discover')}>
-                          <Lightbulb size={15} aria-hidden="true" />{n}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                <Card
+                  title="Topics you're curious about"
+                  action={curiosities.length > CHIP_LIMIT
+                    ? (showAllTopics ? 'Show less' : `See all (${curiosities.length})`)
+                    : undefined}
+                  onAction={() => setShowAllTopics((v) => !v)}
+                >
+                  {curiosities.length === 0
+                    ? <p className="lp-muted">Pick topics you're curious about in your profile.</p>
+                    : <ChipList items={curiosities} icon={Lightbulb} alt expanded={showAllTopics} />}
                 </Card>
               )}
             </div>
@@ -388,3 +449,5 @@ export default function LearningPage() {
     </div>
   );
 }
+
+

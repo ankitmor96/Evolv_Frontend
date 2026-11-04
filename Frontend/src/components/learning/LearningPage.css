@@ -49,11 +49,6 @@
 .lp-hero h2{margin-bottom:10px;font-size:28px;line-height:1.2;overflow-wrap:anywhere}
 .lp-hero p{max-width:480px;font-size:15px;line-height:1.6;color:rgba(255,255,255,.85)}
 
-.lp-tabs{display:flex;gap:6px;margin-bottom:18px;overflow-x:auto;scrollbar-width:none}
-.lp-tabs::-webkit-scrollbar{display:none}
-.lp-tabs button{flex-shrink:0;padding:8px 22px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--text-2);font-size:14px;font-weight:500}
-.lp-tabs button.active{background:var(--accent);border-color:var(--accent);color:#fff}
-
 /* ── Stats ── */
 .lp-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:14px}
 .lp-stat{display:flex;align-items:center;gap:14px;min-width:0;padding:18px;background:var(--panel);border:1px solid var(--line);border-radius:14px}
@@ -99,7 +94,7 @@
 .lp-legend span{flex:1;min-width:0}
 .lp-legend b{font-weight:500;color:var(--muted)}
 
-.lp-chips{display:flex;flex-wrap:wrap;gap:10px}
+.lp-chips { display: flex; flex-wrap: wrap; gap: 10px; }
 .lp-chip{display:flex;align-items:center;gap:8px;max-width:100%;padding:9px 14px;border:1px solid rgba(170,69,245,.3);border-radius:12px;background:var(--accent-soft);color:var(--text-2);font-size:14px;transition:background .2s}
 .lp-chip svg{flex-shrink:0;color:var(--accent)}
 .lp-chip:hover{background:rgba(170,69,245,.2)}
@@ -204,3 +199,37 @@
 .lp-change.down{background:rgba(220,38,38,.12);color:#dc2626}
 .lp-explored-foot{margin-top:12px;font-size:13px}
 @media (max-width:480px){.lp-change{margin-left:0}}
+
+/* Add to the END of LearningPage.css */
+
+/* 3-column row: Posts explored | Content types | Skill distribution */
+.lp-grid.three {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+@media (max-width: 1100px) { .lp-grid.three { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px)  { .lp-grid.three { grid-template-columns: 1fr; } }
+
+/* Content types rows: icon | label | bar | % */
+.lp-types { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 12px; }
+.lp-types li {
+  display: grid;
+  grid-template-columns: 18px minmax(90px, 1.2fr) 2fr 42px;
+  align-items: center;
+  gap: 10px;
+}
+.lp-types b { text-align: right; }
+.lp-bar { height: 8px; border-radius: 999px; background: rgba(120, 120, 140, .18); overflow: hidden; }
+.lp-bar i { display: block; height: 100%; border-radius: 999px; transition: width .5s ease; }
+
+/* Donut */
+.lp-donut-wrap { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.lp-donut { width: 140px; height: 140px; flex: none; }
+.lp-donut-bg { fill: none; stroke: rgba(120, 120, 140, .18); stroke-width: 16; }
+.lp-donut-num { font-size: 20px; font-weight: 700; fill: currentColor; }
+.lp-donut-sub { font-size: 9px; fill: currentColor; opacity: .65; }
+.lp-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; flex: 1; min-width: 140px; }
+.lp-legend li { display: grid; grid-template-columns: 10px 1fr auto; align-items: center; gap: 8px; font-size: 13px; }
+.lp-legend i { width: 10px; height: 10px; border-radius: 50%; display: block; }
