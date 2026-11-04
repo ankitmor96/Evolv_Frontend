@@ -2222,7 +2222,7 @@ const COMPOSER_TYPES = [
 // ─────────────────────────────────────────────────────────────────────────────
 // SKILL PICKER MODAL (used by PostComposer)
 // ─────────────────────────────────────────────────────────────────────────────
-function SkillPickerModal({ initialSelected = [], onClose, onApply }) {
+function SkillPickerModal({ initialSelected = [], validNames = null, onClose, onApply }) {
   const [selected, setSelected] = useState(() => new Set(initialSelected));
   const [expanded, setExpanded] = useState(
     () => new Set(CURIOSITY_DOMAINS.slice(0, 2).map((d) => d.id))
@@ -2284,7 +2284,9 @@ function SkillPickerModal({ initialSelected = [], onClose, onApply }) {
         <div className="hp-skillmodal-body">
           {CURIOSITY_DOMAINS.map((domain) => {
             const isOpen = expanded.has(domain.id);
-            const skills = [...new Set(domain.skills)];
+            const skills = [...new Set(domain.skills)].filter(
+              (s) => !validNames || validNames.has(String(s).trim().toLowerCase())
+            );
             const count = skills.filter((s) => selected.has(s)).length;
 
             return (
@@ -2351,6 +2353,8 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
   const [previewFiles, setPreviewFiles] = useState([]);
   const [selectedSkills, setSelectedSkills] = useState([]);
   const [showSkillPicker, setShowSkillPicker] = useState(false);
+  const [validNames, setValidNames] = useState(null);
+
   const skillIdMapRef = useRef(null);
 
   const [postData, setPostData] = useState({
@@ -2364,6 +2368,14 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
 
   const fileInputRef = useRef(null);
   const documentInputRef = useRef(null);
+
+  const openSkillPicker = async () => {
+    if (!validNames) {
+      const idToName = await profileService.fetchSkillIdToNameMap();
+      setValidNames(new Set(Object.values(idToName).map((n) => String(n).toLowerCase())));
+    }
+    setShowSkillPicker(true);
+  };
   // ─────────────────────────────────────
   // Select post type
   // ─────────────────────────────────────
@@ -2895,7 +2907,7 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
         <button
           type="button"
           className="hp-choose-skill-btn"
-          onClick={() => setShowSkillPicker(true)}
+          onClick={openSkillPicker}
         >
           <Tag size={14} aria-hidden="true" />
           {selectedSkills.length ? 'Change Skill' : 'Choose Skill'}
@@ -2971,6 +2983,7 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
       {showSkillPicker && (
         <SkillPickerModal
           initialSelected={selectedSkills}
+          validNames={validNames}
           onClose={() => setShowSkillPicker(false)}
           onApply={setSelectedSkills}
         />
@@ -3040,10 +3053,11 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
         const authUser = authService.getCurrentUser();
         const currentUserId = authUser?.id ?? authUser?.userId ?? authUser?._id ?? null;
 
-        const [response, profileData, connectionMap] = await Promise.all([
+        const [response, profileData, connectionMap, idToName] = await Promise.all([
           homePostService.getFeedPosts(),
           getProfile.getProfile().catch(() => null),
           connectionService.getConnectionMap(currentUserId),
+          profileService.fetchSkillIdToNameMap().catch(() => ({})),
         ]);
 
         const backendPosts = response?.posts ?? [];
@@ -3077,6 +3091,9 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
 
           const normalised = {
             ...base,
+            tags: base.tags.length
+              ? base.tags
+              : (base.skillIds || []).map((id) => idToName[Number(id)]).filter(Boolean),
             liked: post.liked ?? false,
             saved: post.saved ?? false,
             connectionStatus: conn?.status ?? 'none',
