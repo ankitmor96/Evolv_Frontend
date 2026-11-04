@@ -140,9 +140,6 @@ function scoreCreator(creator, interests) {
 /**
  * Fetch recommended creators for the given interest list.
  *
- * Returns up to `limit` creators, sorted by relevance.
- * If interests is empty, all creators are returned in default order.
- *
  * @param {string[]} interests   - e.g. ['Web Development', 'AI/ML', 'UI/UX']
  * @param {number}   limit       - max results (default: 10)
  * @returns {Promise<Object[]>}  - resolves with scored + sorted creator list
@@ -151,10 +148,7 @@ export async function fetchRecommendedCreators(interests = [], limit = 10) {
   // ── Simulate network latency (remove when using a real API) ──
   await new Promise((resolve) => setTimeout(resolve, 700));
 
-  // TODO(backend): replace block below with:
-  //   const resp = await fetch(`/api/creators/recommended?interests=${interests.join(',')}&limit=${limit}`);
-  //   return resp.json();
-
+ 
   const scored = MOCK_CREATORS.map((c) => ({
     ...c,
     _score: scoreCreator(c, interests),
@@ -174,15 +168,6 @@ export async function fetchRecommendedCreators(interests = [], limit = 10) {
 export async function connectToCreator(creatorId) {
   // ── Simulate network ──
   await new Promise((resolve) => setTimeout(resolve, 400));
-
-  // TODO(backend): replace with:
-  //   const resp = await fetch('/api/connections', {
-  //     method: 'POST',
-  //     headers: { 'Content-Type': 'application/json' },
-  //     body: JSON.stringify({ toCreatorId: creatorId }),
-  //   });
-  //   return resp.json();
-
   console.log(`[creatorService] Connection request sent → ${creatorId}`);
   return { success: true };
 }

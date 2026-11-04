@@ -65,7 +65,7 @@ const request = async (path, opts = {}) => {
 
   if (!token || isTokenExpired(token)) {
     clearAdminSession();
-    window.location.hash = '/admin/login';
+   navigate('/admin/login')
     throw new Error('Admin session expired. Please log in again.');
   }
 
@@ -89,7 +89,7 @@ const request = async (path, opts = {}) => {
 
   if (response.status === 401 || response.status === 403) {
     clearAdminSession();
-    window.location.hash = '/admin/login';
+   navigate('/admin/login')
     throw new Error('Admin access denied.');
   }
 
@@ -186,7 +186,7 @@ export const adminService = {
 
   logout() {
     clearAdminSession();
-    window.location.hash = '/admin/login';
+    navigate('/admin/login')
   },
 
   isAdminToken,

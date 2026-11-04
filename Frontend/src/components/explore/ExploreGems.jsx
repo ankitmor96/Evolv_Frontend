@@ -5,6 +5,8 @@ import './ExploreGems.css';
 import { profileService } from "../../services/profileService";// ─── Draft key — same key the onboarding flow uses ──────────────────────────
 const DRAFT_KEY = 'evolve-onboarding-draft';
 import { authService } from "../../services/authService";
+import { navigate } from '../../utils/navigate.js';
+
 /** Load the saved onboarding profile from localStorage. */
 function loadProfile() {
   try {
@@ -56,8 +58,7 @@ function ProfileAppearanceModal({ onClose }) {
   const [interests, setInterests] = useState([]);          // NEW (replaces deriveInterests)
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState("");
-   const t = localStorage.getItem("evolv_auth_token") || sessionStorage.getItem("evolv_auth_token");
-   const { exp } = JSON.parse(atob(t.split(".")[1]));
+ 
   useEffect(() => {
     let cancelled = false;
 
@@ -136,8 +137,8 @@ function ProfileAppearanceModal({ onClose }) {
     };
   }, []);
 
-const authUser = authService.getCurrentUser();
-const displayName = profile?.name || authUser?.name || profile?.username || "Your Name";
+  const authUser = authService.getCurrentUser();
+  const displayName = profile?.name || authUser?.name || profile?.username || "Your Name";
 
   return (
     <div className="eg-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="pa-title">
@@ -278,12 +279,11 @@ function EmptyState() {
       <h3 className="eg-empty-title">No gems found yet.</h3>
       <p className="eg-empty-sub">Try adding more interests to discover more people.</p>
       <a
-        href="/#/onboarding"
+        href="/onboarding"
         className="eg-btn-primary eg-empty-cta"
         onClick={(e) => {
           e.preventDefault();
-          window.location.hash = '/onboarding';
-          window.dispatchEvent(new Event('navigated'));
+          navigate('/onboarding');
         }}
       >
         Update Interests →
@@ -292,8 +292,6 @@ function EmptyState() {
   );
 }
 
-// ─── How many cards are visible per breakpoint ────────────────────────────────
-// These must stay in sync with the CSS --eg-cards-per-view custom property.
 const CARDS_DESKTOP = 5;
 const CARDS_TABLET = 3;  // ≤ 900px
 const CARDS_MOBILE = 1;  // ≤ 540px
@@ -406,9 +404,7 @@ export default function ExploreGems() {
   const [showAppearanceModal, setShowAppearanceModal] = useState(false);
 
   const handleSkip = useCallback(() => {
-    // Navigate to Home using your existing hash-based routing.
-    window.location.hash = '/home';
-    window.dispatchEvent(new Event('navigated'));
+    navigate('/home');
   }, []);
 
   // Fetch creators on mount

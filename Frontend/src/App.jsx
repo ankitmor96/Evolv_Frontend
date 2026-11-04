@@ -34,13 +34,11 @@ import Notifications from './components/admin/Notifications.jsx';
 import AdminSettings from './components/admin/AdminSettings.jsx';
 import { adminService } from './services/adminService.js';
 import Report from "./pages/Report.jsx";
+import { Redirect } from './utils/navigate.js';
 
 function renderAdminRoute(route) {
   if (route === '/admin/login') {
-    if (adminService.isLoggedIn()) {
-      window.location.hash = '/admin/dashboard';
-      return null;
-    }
+    if (adminService.isLoggedIn()) return <Redirect to="/admin/dashboard" />;
     return <AdminLogin />;
   }
   if (route === '/admin/dashboard') return <AdminProtectedRoute><Dashboard /></AdminProtectedRoute>;
@@ -52,33 +50,12 @@ function renderAdminRoute(route) {
   if (route === '/admin/analytics') return <AdminProtectedRoute><Analytics /></AdminProtectedRoute>;
   if (route === '/admin/notifications') return <AdminProtectedRoute><Notifications /></AdminProtectedRoute>;
   if (route === '/admin/settings') return <AdminSettings />;
-  // Unknown admin route → redirect to dashboard
-  window.location.hash = '/admin/dashboard';
-  return null;
-}
-// ──────────────────────────────────────────────────────────────────────────────
-
-function bootstrapOAuthCallback() {
-  const { pathname, search } = window.location;
-  if (pathname === '/login') {
-    const params = new URLSearchParams(search);
-    if (params.has('token') || params.has('authError')) {
-      window.history.replaceState(
-        {},
-        '',
-        '/' + search + '#/login',
-      );
-      return true;
-    }
-  }
-  return false;
+  return <Redirect to="/admin/dashboard" />;
 }
 
-// Run once before the first React render so the initial route is correct.
-bootstrapOAuthCallback();
 
 function getRoute() {
-  return window.location.hash.replace(/^#/, '') || '/';
+  return window.location.pathname.replace(/\/+$/, '') || '/';
 }
 // Routes that do NOT require login
 const PUBLIC_ROUTES = ['/', '/login', '/signup'];
@@ -89,12 +66,10 @@ export default function App() {
 
   useEffect(() => {
     const sync = () => setRoute(getRoute());
-    window.addEventListener('hashchange', sync);
     window.addEventListener('popstate', sync);
     window.addEventListener('navigated', sync);
     window.addEventListener('session-expired', sync);
     return () => {
-      window.removeEventListener('hashchange', sync);
       window.removeEventListener('popstate', sync);
       window.removeEventListener('navigated', sync);
       window.removeEventListener('session-expired', sync);
@@ -146,11 +121,7 @@ export default function App() {
     return () => { cancelled = true; };
   }, [route]);
   useEffect(() => {
-    // Admin authentication is independent of user authentication
-    if (window.location.hash.startsWith('#/admin/')) {
-      return;
-    }
-
+    if (window.location.pathname.startsWith('/admin/')) return;
     return startSessionWatcher();
   }, []);
 
@@ -163,18 +134,16 @@ export default function App() {
   if (!allowed) return null;
 
   // ── Route guard ──
+  // Route guard
   const isPublic = PUBLIC_ROUTES.includes(route);
   if (!isPublic && isTokenExpired()) {
-    // Not logged in or expired: never render protected pages
-    if (getStoredToken()) forceLogout(); // clears stale token
-    else if (window.location.hash !== '#/login') window.location.hash = '/login';
-    return <LoginPage />;
+    if (getStoredToken()) { forceLogout(); return null; }
+    return <Redirect to="/login" />;
   }
 
-  // Logged-in user visiting /login or /signup goes to home
+  // Logged-in user visiting /login or /signup
   if ((route === '/login' || route === '/signup') && !isTokenExpired()) {
-    window.location.hash = '/home';
-    return null;
+    return <Redirect to="/home" />;
   }
 
   // Hash-based routing

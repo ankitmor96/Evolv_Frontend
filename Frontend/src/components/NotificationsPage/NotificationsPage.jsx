@@ -7,12 +7,7 @@ import { authService } from '../../services/authService.js';
 import { getStoredToken } from '../../services/sessionService.js';
 import { notificationService } from '../../services/notificationService.js';
 import { isMessageNotification } from '../../components/hooks/useNotificationCount.jsx';
-
-// ── Helpers ───────────────────────────────────────────────────────────────
-const goTo = (hash) => {
-  window.location.hash = hash;
-  window.dispatchEvent(new Event('navigated'));
-};
+import { navigate as goTo } from '../../utils/navigate.js';
 
 /** Finds the person object on a connection record. side: 'received' | 'sent' */
 const getPerson = (rec, side) => {

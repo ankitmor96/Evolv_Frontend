@@ -52,7 +52,7 @@ import {
   Sun,
   Moon,
   Monitor,
-  
+
 } from 'lucide-react';
 
 import { getProfile } from "../../services/getProfile.js";
@@ -66,32 +66,15 @@ import { CURIOSITY_DOMAINS } from '../onboarding/onboardingData.js';
 import { sumReactionTotals } from '../../services/reactionTotals.js';
 import useTheme from '../hooks/useTheme.js';
 import './ProfilePage.css';
+import { navigate } from '../../utils/navigate.js';
 
-// ─── Navigation helper ───────────────────────────────────────────────────────
-function navigate(path) {
-  window.location.hash = path;
-  window.dispatchEvent(new Event('navigated'));
-}
-function openReel(postId) {
-  sessionStorage.setItem('evolv-reel-start', String(postId));
-  sessionStorage.setItem('evolv-reel-back', window.location.hash.replace(/^#/, '') || '/home');
-  window.location.hash = '/reels';
-  window.dispatchEvent(new Event('navigated'));
-}
 
-function openImage(postId) {
-  sessionStorage.setItem('evolv-image-start', String(postId));
-  sessionStorage.setItem('evolv-image-back', window.location.hash.replace(/^#/, '') || '/home');
-  window.location.hash = '/image';
-  window.dispatchEvent(new Event('navigated'));
-}
 function openMyPost(postId, tab) {
   const filterMap = { images: 'image', reels: 'video', all: 'all', articles: 'all' };
   sessionStorage.setItem('evolv-myposts-start', String(postId));
   sessionStorage.setItem('evolv-myposts-filter', filterMap[tab] || 'all');
   sessionStorage.setItem('evolv-myposts-back', '/profile');
-  window.location.hash = '/my-posts';
-  window.dispatchEvent(new Event('navigated'));
+  navigate('/my-posts');
 }
 // ─── Sidebar nav items ───────────────────────────────────────────────────────
 const MAIN_NAV = [
@@ -774,9 +757,8 @@ function ContentSection({ posts, authUserId, onDiscuss, onDelete }) {
     if (type === 'document' && post.media?.src) {
       sessionStorage.setItem('evolv-doc-start', String(post.id));
       sessionStorage.setItem('evolv-doc-back', '/profile');
-      window.location.hash = '/document';
       sessionStorage.setItem('evolv-doc-owner', String(authUserId));
-      window.dispatchEvent(new Event('navigated'));
+      navigate('/document');
       return;
     }
 
@@ -911,7 +893,7 @@ function ProfileHero({ profile, user, identities, showToast, onOpenSettings, pos
     primaryIdentity?.identityType?.name || primaryIdentity?.name || '';
 
   const handleShare = async () => {
-    const url = `${window.location.origin}/#/profile`;
+    const url = `${window.location.origin}/profile`;
     try {
       if (navigator.share) {
         await navigator.share({ title: `${displayName} on EVOLV`, url });

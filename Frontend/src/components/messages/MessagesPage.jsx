@@ -9,13 +9,10 @@ import { authService } from '../../services/authService.js';
 import { messageService } from '../../services/messageService.js';
 import { notificationService } from '../../services/notificationService.js';
 import { isMessageNotification } from '../../components/hooks/useNotificationCount.jsx';
+import { navigate } from '../../utils/navigate.js';
 import './MessagesPage.css';
 
-// ─── Navigation helper ────────────────────────────────────────────────────────
-function navigate(hash) {
-  window.location.hash = hash;
-  window.dispatchEvent(new Event('navigated'));
-}
+
 
 // ─── Avatar with image fallback ────────────────────────────────────────────────
 function ConvAvatar({ src, name, size = 46, online = false }) {
@@ -48,8 +45,7 @@ const NAV_ITEMS = [
 function NavRail({ user }) {
   const handleLogout = async () => {
     await authService.logout();
-    window.history.pushState({}, '', '/login');
-    window.dispatchEvent(new Event('navigated'));
+    navigate('/login');
   };
 
   const initials = (user?.name || 'U').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -671,8 +667,7 @@ export default function MessagesPage() {
               onClick={async () => {
                 setMobileMenuOpen(false);
                 await authService.logout();
-                window.history.pushState({}, '', '/login');
-                window.dispatchEvent(new Event('navigated'));
+                navigate('/login');
               }}
             >
               <LogOut size={20} />

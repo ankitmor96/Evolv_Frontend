@@ -9,12 +9,9 @@ import { profileService } from '../../services/profileService.js';
 import { getProfile } from '../../services/getProfile.js';
 import { learnedService } from '../../services/learnedService.js';
 import { learningTrackingService } from '../../services/learningTrackingService.js';
+import { navigate as go } from '../../utils/navigate.js';
 import './LearningPage.css';
 
-const go = (hash) => {
-  window.location.hash = hash;
-  window.dispatchEvent(new Event('navigated'));
-};
 
 const NAV = [
   { id: 'home', label: 'Home', icon: Home, to: '/home' },
@@ -284,7 +281,13 @@ export default function LearningPage() {
 
       if (p.status === 'fulfilled') setProfile(p.value);
       if (pc.status === 'fulfilled') setPosts(pc.value);
-      if (ec.status === 'fulfilled') setEng(ec.value);
+      if (ec.status === 'fulfilled') {
+        setEng({
+          appreciation: ec.value?.appreciation ?? 0,
+          helpful: ec.value?.helpful ?? 0,
+          learned: ec.value?.learned ?? 0,
+        });
+      }
       if (lc.status === 'fulfilled') setLearnedCount(lc.value);
 
       if (us.status === 'fulfilled') {
@@ -357,7 +360,7 @@ export default function LearningPage() {
             <p>A reflection of your curiosity, growth and learning journey.</p>
           </div>
           <p className="lp-quote">“A little progress each day adds up to big changes.”</p>
-          <button type="button" className="lp-primary" onClick={() => go('/profile')}>Set a new goal</button>
+          {/* <button type="button" className="lp-primary" onClick={() => go('/profile')}>Set a new goal</button> */}
         </header>
 
         <section className="lp-hero">
@@ -423,7 +426,7 @@ export default function LearningPage() {
 
               {show('Topics') && (
                 <Card
-                  title="Topics you're curious about"
+                  title="Curiosity & Learning Topic"
                   action={curiosities.length > CHIP_LIMIT
                     ? (showAllTopics ? 'Show less' : `See all (${curiosities.length})`)
                     : undefined}

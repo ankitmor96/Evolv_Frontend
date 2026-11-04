@@ -1,8 +1,8 @@
 
 import { useState, useEffect } from "react";
 import { authService } from "../../services/authService.js";
-import { profileService } from "../../services/profileService.js";
 import evolvLogo from "/logo-remove.png";
+import { navigate } from '../../utils/navigate.js';
 
 import "./LoginPage.css";
 
@@ -149,13 +149,11 @@ const GOOGLE_ERRORS = {
   google_not_registered: "No account found for this Google email. Please sign up first.", // NEW
 };
 const LoginPage = () => {
-  // /#/login and /#/signup are the hash-based auth routes.
   const isAuthPath = () =>
-    window.location.hash === '#/login' || window.location.hash === '#/signup';
+    ['/login', '/signup'].includes(window.location.pathname);
 
-  // Navigation / Modal Tabs & Method States
   const [activeTab, setActiveTab] = useState(() =>
-    window.location.hash === '#/signup' ? 'signup' : 'login'
+    window.location.pathname === '/signup' ? 'signup' : 'login'
   );
   const [isAuthRoute, setIsAuthRoute] = useState(isAuthPath);
   const [authMethod, setAuthMethod] = useState("email");
@@ -217,10 +215,7 @@ const LoginPage = () => {
       setGoogleUser(user);
     } catch (error) {
       console.error("Google login failed:", error);
-
-      window.location.replace(
-        `${window.location.origin}/#/signup`
-      );
+      navigate('/signup', { replace: true });
     }
   }, [
     googleRedirect?.token,
@@ -235,12 +230,11 @@ const LoginPage = () => {
     if (!err) return;
 
     if (err === "google_not_registered") {
-      window.history.replaceState(null, "", window.location.pathname);
       setActiveTab("signup");
       setIsAuthRoute(true);
-      window.location.hash = "/signup";
+      navigate('/signup', { replace: true });
     } else {
-      window.history.replaceState(null, "", window.location.pathname + window.location.hash);
+      window.history.replaceState(null, "", window.location.pathname);
     }
   }, [googleRedirect?.authError]);
 
@@ -290,7 +284,7 @@ const LoginPage = () => {
 
         console.log("[LoginPage] Google redirect to:", route);
 
-        window.location.replace(`${window.location.origin}/#${route}`);
+        navigate(route, { replace: true });
       } catch (error) {
         if (cancelled) return;
         console.error("Google profile check failed:", error);
@@ -311,9 +305,7 @@ const LoginPage = () => {
 
       console.log("[LoginPage] Redirecting to:", route);
 
-      window.location.replace(
-        `${window.location.origin}/#${route}`
-      );
+      navigate(route, { replace: true });
     } catch (error) {
       console.error("Failed to check profile:", error);
       setErrorMessage("Unable to check your profile. Please try again.");
@@ -331,17 +323,16 @@ const LoginPage = () => {
     return () => clearInterval(timer);
   }, [countdown]);
 
-  // Route syncing (/#/login and /#/signup) – listens to both popstate and hashchange
   useEffect(() => {
     const onRouteChange = () => {
-      setActiveTab(window.location.hash === '#/signup' ? 'signup' : 'login');
+      setActiveTab(window.location.pathname === '/signup' ? 'signup' : 'login');
       setIsAuthRoute(isAuthPath());
     };
-    window.addEventListener('hashchange', onRouteChange);
     window.addEventListener('popstate', onRouteChange);
+    window.addEventListener('navigated', onRouteChange);
     return () => {
-      window.removeEventListener('hashchange', onRouteChange);
       window.removeEventListener('popstate', onRouteChange);
+      window.removeEventListener('navigated', onRouteChange);
     };
   }, []);
 
@@ -365,11 +356,8 @@ const LoginPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const navigate = (path) => {
-    const targetHash = '#' + path;
-    if (window.location.hash !== targetHash) {
-      window.location.hash = path;
-    }
+  const goAuth = (path) => {
+    navigate(path);
     setActiveTab(path === '/signup' ? 'signup' : 'login');
     setIsAuthRoute(true);
   };
@@ -474,7 +462,7 @@ const LoginPage = () => {
   const switchTab = (tab) => {
     // Main page keeps its original in-place tab switch; /login + /signup use routes
     if (isAuthRoute) {
-      navigate(tab === "signup" ? "/signup" : "/login");
+      goAuth(tab === "signup" ? "/signup" : "/login");
     } else {
       setActiveTab(tab);
     }
@@ -501,11 +489,10 @@ const LoginPage = () => {
     try {
       if (activeTab === "signup") {
         const result = await authService.signup(fullName, email, password);
-        // Register returns no access token – show success then redirect to /#/login
+        // Register returns no access token – show success then redirect to login
         setSuccessMessage(result.message || 'Account created successfully! Please log in.');
         setTimeout(() => {
-          window.location.hash = '/login';
-          setActiveTab('login');
+          goAuth('/login');
         }, 1500);
       } else {
         const result = await authService.loginWithEmail(email, password, rememberMe);
@@ -601,7 +588,7 @@ const LoginPage = () => {
     try {
       const res = await authService.forgotPassword(email.trim());
       setSuccessMessage(res.message || "Password reset OTP sent successfully.");
-      setForgotStep("otp"); // show the OTP + new password inputs
+      setForgotStep("otp");
       setCountdown(30);
     } catch (err) {
       setErrorMessage(err.message || "Failed to send password reset OTP.");
@@ -650,8 +637,7 @@ const LoginPage = () => {
     setErrorMessage("");
     setOtpSent(false);
     setOtpCode("");
-    setActiveTab("signup");
-    window.location.hash = "/signup";
+    goAuth('/signup');
   };
 
   const handleLogout = () => {

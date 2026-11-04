@@ -1,10 +1,6 @@
 import React, { useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
-
-const goTo = (hash) => {
-  window.location.hash = hash;
-  window.dispatchEvent(new Event('navigated'));
-};
+import { navigate as goTo } from '../../utils/navigate.js';
 
 // ── Small helpers to keep the content readable ──────────────
 const p = (text) => ({ type: 'p', text });

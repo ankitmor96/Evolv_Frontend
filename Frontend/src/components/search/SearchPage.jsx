@@ -4,12 +4,8 @@ import { authService } from '../../services/authService.js';
 import { homePostService } from '../../services/homePostService.js';
 import { connectionService } from '../../services/connectionService.js';
 import { userSearchService } from '../../services/userSearchService.js';
+import { navigate as go } from '../../utils/navigate.js';
 import './SearchPage.css';
-
-function go(path) {
-  window.location.hash = path;
-  window.dispatchEvent(new Event('navigated'));
-}
 
 function Avatar({ src, name, size = 44 }) {
   const [err, setErr] = useState(false);
@@ -198,7 +194,7 @@ export default function SearchPage() {
           </>
         ) : (
           <div className="sp-grid">
-            {explore.map((p) => (
+            {/* {explore.map((p) => (
               <button key={p.id} type="button" className="sp-tile" onClick={() => openTile(p)}>
                 {p.media.type === 'video' ? (
                   <>
@@ -210,7 +206,7 @@ export default function SearchPage() {
                 )}
               </button>
             ))}
-            {explore.length === 0 && <p className="sp-note">Nothing to explore yet.</p>}
+            {explore.length === 0 && <p className="sp-note">Nothing to explore yet.</p>} */}
           </div>
         )}
       </main>

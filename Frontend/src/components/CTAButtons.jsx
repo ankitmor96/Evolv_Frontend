@@ -1,5 +1,9 @@
 import React from 'react';
 import { ArrowUpRight } from 'lucide-react';
+import { navigate } from '../utils/navigate.js';
+const openVideo = ()=>{
+  // <Video/>
+}
 
 export default function CTAButtons() {
   return (
@@ -8,14 +12,16 @@ export default function CTAButtons() {
         href="/learn-more"
         id="cta-learn-more"
         className="btn btn-primary"
+        onClick={()=>openVideo()}
         aria-label="Learn more about Stormlikes"
       >
         <span>See How Evolve Works</span>
         <ArrowUpRight size={18} aria-hidden="true" />
       </a>
       <a
-         href="/#/signup"
+         href="/signup"
         id="cta-buy-now"
+        onClick={(e) => { e.preventDefault(); navigate('/signup'); }}
         className="btn btn-secondary"
         aria-label="Buy followers, likes or views now"
       >

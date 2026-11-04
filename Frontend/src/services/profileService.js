@@ -40,6 +40,8 @@
  */
 import { getCountryCode, COUNTRIES } from "../components/onboarding/onboardingData.js";
 import { forceLogout } from './sessionService.js';
+import { sumReactionTotals } from './reactionTotals.js'; 
+
 const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? "";
 
 /** Token key matches authService.js exactly. */
@@ -636,15 +638,16 @@ export const profileService = {
       documentCount: Number(data?.documentCount ?? 0),
     };
   },
+  
   // GET /api/posts/my-posts/engagement-counts
   async getMyEngagementCounts() {
-    const res = await request('/api/posts/my-posts/engagement-counts');
-    const d = res?.data ?? res ?? {};
-    return {
-      appreciation: Number(d.appreciateCount ?? d.appreciationCount ?? d.appreciations ?? 0) || 0,
-      helpful: Number(d.helpfulCount ?? 0) || 0,
-      learned: Number(d.learnedCount ?? 0) || 0,
-    };
+    const myPosts = await this.getMyPosts();
+    const ids = myPosts.map((p) => p.id ?? p.postId);
+
+    const results = await Promise.allSettled(ids.map(getPostReactions));
+    const ok = results.filter((r) => r.status === 'fulfilled').map((r) => r.value);
+
+    return sumReactionTotals(ok);
   },
   /**
    * Builds a { "skill name (lower-cased)": backendId }

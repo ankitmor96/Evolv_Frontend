@@ -48,16 +48,12 @@ import { useUnreadCounts } from '../../components/hooks/useNotificationCount.jsx
 import { userSearchService } from '../../services/userSearchService.js';
 import { useInView, useLearningTracker } from '../../components/hooks/useLearningTracker.js';
 import { useConnectionRequestCount } from '../../components/hooks/useConnectionRequestCount.jsx';
+import { navigate } from '../../utils/navigate.js';
 import './HomePage.css';
 
-// ─── Navigation helper (matches App.jsx's custom routing) ───────────────────
-function navigate(path) {
-  window.history.pushState({}, '', path);
-  window.dispatchEvent(new Event('navigated'));
-}
 function openUserProfile(userId) {
   if (userId == null) return;
-  window.location.hash = `/profile/${userId}`;
+  navigate(`/profile/${userId}`);
   window.dispatchEvent(new Event('navigated'));
 }
 
@@ -87,14 +83,14 @@ function Avatar({ src, name, size = 40, className = '' }) {
 // LEFT SIDEBAR
 // ─────────────────────────────────────────────────────────────────────────────
 const MAIN_NAV = [
-  { id: 'home', label: 'Home', icon: Home, href: '#/home' },
-  { id: 'discover', label: 'Discover', icon: Compass, href: '#/discover' },
-  { id: 'mylearning', label: 'My Learning', icon: BookOpen, href: '#/learning' },
-  { id: 'bookmark', label: 'Bookmark', icon: Bookmark, href: '#/saved' },
+  { id: 'home', label: 'Home', icon: Home, href: '/home' },
+  { id: 'discover', label: 'Discover', icon: Compass, href: '/discover' },
+  { id: 'mylearning', label: 'My Learning', icon: BookOpen, href: '/learning' },
+  { id: 'bookmark', label: 'Bookmark', icon: Bookmark, href: '/saved' },
 ];
 
 const COMMUNITY_NAV = [
-  { id: 'messages', label: 'Messages', icon: MessageCircle, href: '#/messages' },
+  { id: 'messages', label: 'Messages', icon: MessageCircle, href: '/messages' },
 ];
 
 const DEV_LEARNING_GOALS = [];
@@ -278,8 +274,8 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
   }, [isSidebarOpen]);
 
   const handleNavClick = (item) => {
-    if (item.href.startsWith('#/')) {
-      window.location.hash = item.href.slice(1);
+    if (item.href.startsWith('/')) {
+      navigate(item.href)
       window.dispatchEvent(new Event('navigated'));
     } else {
       navigate(item.href);
@@ -621,8 +617,7 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
             type="button"
             className="hp-logo-btn"
             aria-label="Go to EVOLV home"
-            onClick={() => { window.location.hash = '/home'; window.dispatchEvent(new Event('navigated')); setIsSidebarOpen(false); }}
-          >
+            onClick={() => { navigate('/home'); setIsSidebarOpen(false); }}          >
             <img src="/logo.png" alt="EVOLV" className="hp-logo-img" />
           </button>
           <button
@@ -714,8 +709,7 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
               <button
                 type="button"
                 className="hp-sidebar-avatar-btn"
-                onClick={() => { window.location.hash = '/profile'; window.dispatchEvent(new Event('navigated')); setIsSidebarOpen(false); }}
-                aria-label="View my profile"
+                onClick={() => { navigate('/profile'); setIsSidebarOpen(false); }} aria-label="View my profile"
                 title="View my profile"
               >
                 <Avatar
@@ -771,10 +765,7 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
           type="button"
           className="hp-icon-btn hp-mobile-search-btn"
           aria-label="Search people"
-          onClick={() => {
-            window.location.hash = '/search';
-            window.dispatchEvent(new Event('navigated'));
-          }}
+          onClick={() => navigate('/search')}
         >
           <Search size={20} aria-hidden="true" />
         </button>
@@ -782,10 +773,7 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
         <button
           className="hp-icon-btn"
           aria-label={`Messages${messageCount ? ` (${messageCount} new)` : ''}`}
-          onClick={() => {
-            window.location.hash = '/messages';
-            window.dispatchEvent(new Event('navigated'));
-          }}
+          onClick={() => navigate('/messages')}
           style={{ marginRight: "10px" }}
         >
           <MessageCircle size={20} aria-hidden="true" />
@@ -799,10 +787,7 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
         <button
           className="hp-icon-btn"
           aria-label={`Notifications${pendingCount ? ` (${pendingCount} new)` : ''}`}
-          onClick={() => {
-            window.location.hash = '/notifications';
-            window.dispatchEvent(new Event('navigated'));
-          }}
+          onClick={() => navigate('/notifications')}
         >
           <Bell size={20} aria-hidden="true" />
           {pendingCount > 0 && (
@@ -828,10 +813,7 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
         <button
           type="button"
           className="hp-mobile-user-btn"
-          onClick={() => {
-            window.location.hash = '/profile';
-            window.dispatchEvent(new Event('navigated'));
-          }}
+          onClick={() => navigate('/profile')}
           aria-label="Open my profile"
           title="View profile"
         >
@@ -893,22 +875,22 @@ function InterestTabs({ active, onChange, tabs = INTEREST_TABS }) {
 
 function openReel(postId) {
   sessionStorage.setItem('evolv-reel-start', String(postId));
-  sessionStorage.setItem('evolv-reel-back', window.location.hash.replace(/^#/, '') || '/home');
-  window.location.hash = '/reels';
+  sessionStorage.setItem('evolv-reel-back', window.location.pathname || '/home');
+  navigate('/reels');
   window.dispatchEvent(new Event('navigated'));
 }
 
 function openImage(postId) {
   sessionStorage.setItem('evolv-image-start', String(postId));
-  sessionStorage.setItem('evolv-image-back', window.location.hash.replace(/^#/, '') || '/home');
-  window.location.hash = '/image';
+  sessionStorage.setItem('evolv-reel-back', window.location.pathname || '/home');
+  navigate('/image');
   window.dispatchEvent(new Event('navigated'));
 }
 
 function openDocument(postId) {
   sessionStorage.setItem('evolv-doc-start', String(postId));
-  sessionStorage.setItem('evolv-doc-back', window.location.hash.replace(/^#/, '') || '/home');
-  window.location.hash = '/document';
+  sessionStorage.setItem('evolv-reel-back', window.location.pathname || '/home');
+  navigate('/document');
   window.dispatchEvent(new Event('navigated'));
 }
 
@@ -2071,8 +2053,7 @@ body {
             <h2 id="growth-heading" className="hp-right-card-title">Your Growth</h2>
             <button
               className="hp-view-all-btn"
-              onClick={() => { window.location.hash = '/profile'; window.dispatchEvent(new Event('navigated')); }}
-            >
+              onClick={() => navigate('/profile')}            >
               View Profile →
             </button>
           </div>
@@ -2163,8 +2144,7 @@ body {
             <button
               className="hp-continue-arrow"
               aria-label="Go to Discover"
-              onClick={() => { window.location.hash = '/explore-gems'; window.dispatchEvent(new Event('navigated')); }}
-            >
+              onClick={() => navigate('/explore-gems')}            >
               <ArrowRight size={14} aria-hidden="true" />
             </button>
           </div>
@@ -2176,8 +2156,7 @@ body {
             <h2 id="people-heading" className="hp-right-card-title">People to Learn From</h2>
             <button
               className="hp-view-all-btn"
-              onClick={() => { window.location.hash = '/explore-gems'; window.dispatchEvent(new Event('navigated')); }}
-            >
+              onClick={() => navigate('/explore-gems')}            >
               See all →
             </button>
           </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { adminService } from '../../services/adminService.js';
+import { navigate } from '../../utils/navigate.js';
 
 const styles = `
   .adm-sb-root {
@@ -357,22 +358,8 @@ export default function AdminSidebar({ currentRoute, onNavigate, isOpen, onClose
 
   const handleNav = (route) => {
     if (!route) return;
-
-    const nextRoute = route.startsWith('/')
-      ? route
-      : `/${route}`;
-
-    // Navigate directly using the hash URL
-    if (window.location.hash !== `#${nextRoute}`) {
-      window.location.hash = nextRoute;
-    }
-
-    // Keep the parent layout's route state synchronized
-    onNavigate?.(nextRoute);
-
-    if (window.innerWidth < 900) {
-      onClose?.();
-    }
+    navigate(route.startsWith('/') ? route : `/${route}`);
+    if (window.innerWidth < 900) onClose?.();
   };
 
   return (
@@ -405,10 +392,11 @@ export default function AdminSidebar({ currentRoute, onNavigate, isOpen, onClose
                 return (
                   <a
                     key={item.route}
-                    href={`#${item.route}`}
+                    href={item.route}
                     className={`adm-sb-item${isActive ? ' adm-sb-item-active' : ''}`}
-                    onClick={() => {
-                      if (window.innerWidth < 900) onClose?.();
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleNav(item.route);
                     }}
                   >
                     {item.icon}

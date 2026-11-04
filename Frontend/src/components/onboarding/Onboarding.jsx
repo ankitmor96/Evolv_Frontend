@@ -19,6 +19,7 @@ import {
 } from './onboardingData';
 import { profileService } from '../../services/profileService';
 import { authService } from '../../services/authService';
+import { navigate } from '../../utils/navigate.js';
 
 const CRITICAL_SECTIONS = ['auth', 'profile', 'avatar', 'identity', 'curiosity'];
 
@@ -181,14 +182,11 @@ export default function Onboarding() {
 
   const handleLogout = () => {
     authService.logout();
-    window.location.hash = '/login';
-    window.dispatchEvent(new Event('navigated'));
     sessionStorage.removeItem('evolv-edit-profile');
+    navigate('/login');
   };
 
-  // Two-phase step transition: leave pose → swap content → enter pose.
-  // Deterministic (no presence bookkeeping), matches the homepage motion spec.
-  const [phase, setPhase] = useState('idle'); // idle | leaving | entering
+  const [phase, setPhase] = useState('idle'); 
   const pendingStepRef = useRef(null);
 
   // Prevents duplicate submissions if the user taps "Enter EVOLV" more than once.
@@ -324,12 +322,11 @@ export default function Onboarding() {
       setSubmitting(false);
     }
 
-    try { 
+    try {
       window.localStorage.removeItem(DRAFT_KEY);
       sessionStorage.removeItem('evolv-edit-profile');
     } catch { /* ignore */ }
-    window.location.hash = isEdit ? '/profile' : '/explore-gems';
-    window.dispatchEvent(new Event('navigated'));
+    navigate(isEdit ? '/profile' : '/explore-gems');
   }, [draft, isEdit]);
 
   useEffect(() => {

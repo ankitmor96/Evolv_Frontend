@@ -5,15 +5,10 @@ import { homePostService } from '../../services/homePostService.js';
 import { connectionService } from '../../services/connectionService.js';
 import { userProfileService } from '../../services/userProfileService.js';
 import './Userprofilepage.css';
+import { navigate as go } from '../../utils/navigate.js';
 
-function go(path) {
-  window.location.hash = path;
-  window.dispatchEvent(new Event('navigated'));
-}
-
-// "#/profile/123"  ->  "123"
-function getUserIdFromHash() {
-  const parts = window.location.hash.replace(/^#/, '').split('/').filter(Boolean);
+function getUserIdFromPath() {
+  const parts = window.location.pathname.split('/').filter(Boolean);
   return parts[0] === 'profile' ? parts[1] : null;
 }
 
@@ -33,7 +28,7 @@ export default function UserProfilePage() {
   const authUser = authService.getCurrentUser();
   const me = authUser?.id ?? authUser?.userId ?? authUser?._id ?? null;
 
-  const [userId, setUserId] = useState(getUserIdFromHash());
+  const [userId, setUserId] = useState(getUserIdFromPath());
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [status, setStatus] = useState('none');
@@ -45,12 +40,12 @@ export default function UserProfilePage() {
 
   // Re-read id if hash changes while this page is mounted
   useEffect(() => {
-    const sync = () => setUserId(getUserIdFromHash());
+    const sync = () => setUserId(getUserIdFromPath());
+    window.addEventListener('popstate', sync);
     window.addEventListener('navigated', sync);
-    window.addEventListener('hashchange', sync);
     return () => {
+      window.removeEventListener('popstate', sync);
       window.removeEventListener('navigated', sync);
-      window.removeEventListener('hashchange', sync);
     };
   }, []);
 

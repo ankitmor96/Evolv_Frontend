@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, LogIn, UserPlus } from 'lucide-react';
 import AnimatedLogo from './AnimatedLogo';
 import { headerVariants, EASE_SMOOTH } from './motionVariants';
+import { navigate } from '../utils/navigate.js';
 
 // Clean SVG Instagram Icon
 const InstagramIcon = ({ size = 18 }) => (
@@ -65,9 +66,7 @@ export default function HeroHeader() {
   const [openDropdown, setOpenDropdown] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navRef = useRef(null);
-  const currentRoute = window.location.hash
-    .split("?")[0]
-    .replace(/\/+$/, "");
+  const currentRoute = window.location.pathname.replace(/\/+$/, "");
 
   const hideAuthButtons = [
     "/onboarding",
@@ -140,22 +139,36 @@ export default function HeroHeader() {
         {/* DESKTOP RIGHT: Login & Sign Up */}
         {!hideAuthButtons && (
           <div className="navbar-grid-right">
-            <a href="/#/login" className="nav-login-link" id="nav-login-btn">
+            <a
+              href="/login"
+              className="nav-login-link"
+              id="nav-login-btn"
+              onClick={(e) => { e.preventDefault(); navigate('/login'); }}
+            >
               <LogIn size={15} aria-hidden="true" />
               <span>Login</span>
             </a>
 
-            <a href="/#/signup" className="nav-signup-action" id="nav-signup-btn">
+            <a
+              href="/signup"
+              className="nav-signup-action"
+              id="nav-signup-btn"
+              onClick={(e) => { e.preventDefault(); navigate('/signup'); }}
+            >
               <UserPlus size={15} aria-hidden="true" />
               <span>Sign Up</span>
             </a>
           </div>
         )}
 
-        {/* MOBILE RIGHT: Compact Login */}
         {!hideAuthButtons && (
           <div className="navbar-mobile-right">
-            <a href="/#/login" className="mobile-login-icon" aria-label="Login">
+            <a
+              href="/login"
+              className="mobile-login-icon"
+              aria-label="Login"
+              onClick={(e) => { e.preventDefault(); navigate('/login'); }}
+            >
               <LogIn size={18} />
             </a>
           </div>

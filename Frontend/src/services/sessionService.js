@@ -1,4 +1,5 @@
 import { authService } from './authService.js';
+import { navigate } from '../utils/navigate.js';
 
 const TOKEN_KEY = 'evolv_auth_token';
 
@@ -13,7 +14,7 @@ export const getRequiredRoute = async () => {
 export const guardProtectedRoute = async () => {
   const route = await getRequiredRoute();
   if (route !== '/home') {
-    window.location.hash = route;
+    navigate(route)
     window.dispatchEvent(new Event('navigated'));
     return false;
   }
@@ -28,7 +29,7 @@ export const guardOnboardingRoute = async () => {
   }
   const done = await authService.isOnboardingComplete().catch(() => false);
   if (done) {
-    window.location.hash = '/home';
+    navigate('/home')
     window.dispatchEvent(new Event('navigated'));
     return false;
   }
@@ -86,7 +87,7 @@ export const forceLogout = (reason = 'expired') => {
   sessionStorage.setItem('evolv-session-msg', reason);
   window.dispatchEvent(new Event('session-expired'));
 
-  window.location.hash = '/login';
+  navigate('/login')
   window.dispatchEvent(new Event('navigated'));
 
   localStorage.removeItem('evolve-onboarding-draft');

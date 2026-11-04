@@ -27,13 +27,13 @@ const REACTION_FIELDS = {
 function goBack() {
     const back = sessionStorage.getItem('evolv-myposts-back') || '/profile';
     sessionStorage.removeItem('evolv-myposts-back');
-    window.location.hash = back;
+    navigate(back);
     window.dispatchEvent(new Event('navigated'));
 }
 function openFullScreen(postId, filter) {
     sessionStorage.setItem('evolv-fs-start', String(postId));
     sessionStorage.setItem('evolv-fs-filter', filter);
-    window.location.hash = '/my-post-view';
+    navigate('/my-post-view');
     window.dispatchEvent(new Event('navigated'));
 }
 

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { authService } from '../../services/authService.js';
 import { homePostService } from '../../services/homePostService.js';
+import { navigate } from '../../utils/navigate.js';
 import CommentPanel from '../shared/CommentPanel.jsx';
 import "../image/ImageViewerPage.css"
 
@@ -14,8 +15,7 @@ const fmt = (n = 0) => (n >= 1000 ? (n / 1000).toFixed(1).replace('.0', '') + 'K
 function goBack() {
   const back = sessionStorage.getItem('evolv-image-back') || '/home';
   sessionStorage.removeItem('evolv-image-back');
-  window.location.hash = back;
-  window.dispatchEvent(new Event('navigated'));
+  navigate(back);
 }
 
 

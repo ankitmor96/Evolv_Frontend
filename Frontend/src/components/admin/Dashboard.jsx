@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import AdminLayout from './AdminLayout.jsx';
 import AdminProtectedRoute from './AdminProtectedRoute.jsx';
 import { adminService } from '../../services/adminService.js';
+import { navigate } from '../../utils/navigate.js';
 
 const styles = `
 /* ===== DASHBOARD LIGHT THEME TEXT FIX ===== */
@@ -454,7 +455,7 @@ export default function Dashboard() {
         <div className="adm-dash-section" style={{ marginBottom: '1.25rem' }}>
           <div className="adm-dash-section-header">
             <span className="adm-dash-section-title">Platform Growth</span>
-            <button className="adm-dash-section-link" onClick={() => { window.location.hash = '/admin/analytics'; }}>View Analytics →</button>
+            <button className="adm-dash-section-link" onClick={() => navigate('/admin/analytics')}>View Analytics →</button>
           </div>
           {analytics === null && chartData === null ? (
             <div className="adm-dash-empty">No analytics data available</div>
@@ -467,7 +468,7 @@ export default function Dashboard() {
         <div className="adm-dash-section">
           <div className="adm-dash-section-header">
             <span className="adm-dash-section-title">Recent Users</span>
-            <button className="adm-dash-section-link" onClick={() => { window.location.hash = '/admin/users'; }}>View All →</button>
+            <button className="adm-dash-section-link" onClick={() => navigate('/admin/users')}>View All →</button>
           </div>
           <table className="adm-dash-table">
             <thead>
@@ -495,7 +496,7 @@ export default function Dashboard() {
         <div className="adm-dash-section" style={{ marginTop: '1.25rem' }}>
           <div className="adm-dash-section-header">
             <span className="adm-dash-section-title">Recent Posts</span>
-            <button className="adm-dash-section-link" onClick={() => { window.location.hash = '/admin/posts'; }}>View All →</button>
+            <button className="adm-dash-section-link" onClick={() => navigate('/admin/posts')}>View All →</button>
           </div>
           <table className="adm-dash-table">
             <thead>
@@ -525,7 +526,7 @@ export default function Dashboard() {
         <div className="adm-dash-section" style={{ marginTop: '1.25rem' }}>
           <div className="adm-dash-section-header">
             <span className="adm-dash-section-title">Recent Reports</span>
-            <button className="adm-dash-section-link" onClick={() => { window.location.hash = '/admin/reports'; }}>View All →</button>
+            <button className="adm-dash-section-link" onClick={() => navigate('/admin/reports')}>View All →</button>
           </div>
           <table className="adm-dash-table">
             <thead>

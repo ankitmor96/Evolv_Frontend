@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { adminService } from '../../services/adminService.js';
-
+import { navigate } from '../../utils/navigate.js';
 
 const styles = `
   .adm-login-root {
@@ -269,11 +269,9 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (adminService.isLoggedIn()) {
-      window.location.hash = '/admin/dashboard';
-    }
-  }, []);
+useEffect(() => {
+  if (adminService.isLoggedIn()) navigate('/admin/dashboard', { replace: true });
+}, []);
 
   const validate = () => {
     if (!email.trim()) return 'Email is required.';
@@ -282,22 +280,6 @@ export default function AdminLogin() {
     if (password.length < 6) return 'Password must be at least 6 characters.';
     return null;
   };
-
-  // const handleSubmit = async (e) => {
-  //   e.preventDefault();
-  //   setError('');
-  //   const err = validate();
-  //   if (err) { setError(err); return; }
-  //   setLoading(true);
-  //   try {
-  //     await adminService.adminLogin(email, password, rememberMe);
-  //     window.location.hash = '/admin/dashboard';
-  //   } catch (ex) {
-  //     setError(ex.message || 'Login failed. Please try again.');
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -331,7 +313,7 @@ export default function AdminLogin() {
         })
       );
 
-      window.location.hash = '/admin/dashboard';
+      navigate('/admin/dashboard', { replace: true });
 
     } catch (ex) {
       setError(ex.message || 'Login failed.');

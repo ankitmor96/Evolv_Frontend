@@ -5,6 +5,7 @@ import {
 import { authService } from '../../services/authService.js';
 import { homePostService } from '../../services/homePostService.js';
 import { useInView, useLearningTracker } from '../hooks/useLearningTracker.js';
+import { navigate } from '../../utils/navigate.js';
 import './DocumentViewerPage.css';
 
 const isDoc = (p) => p?.media?.type === 'document' && p?.media?.src;
@@ -12,8 +13,7 @@ const isDoc = (p) => p?.media?.type === 'document' && p?.media?.src;
 function goBack() {
   const back = sessionStorage.getItem('evolv-doc-back') || '/home';
   sessionStorage.removeItem('evolv-doc-back');
-  window.location.hash = back;
-  window.dispatchEvent(new Event('navigated'));
+  navigate(back);
 }
 
 const getExt = (post) => {

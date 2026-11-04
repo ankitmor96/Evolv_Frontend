@@ -24,8 +24,7 @@ function goBack() {
     '/home';
   sessionStorage.removeItem('evolv-reel-back');
   sessionStorage.removeItem('evolv-image-back');
-  window.location.hash = back;
-  window.dispatchEvent(new Event('navigated'));
+  navigate(back);
 }
 
 // ─── One feed item (video OR image) ─────────────────────────────────────────

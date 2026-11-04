@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { authService } from '../../services/authService.js';
 import { homePostService } from '../../services/homePostService.js';
+import { navigate } from '../../utils/navigate.js';
 import CommentPanel from '../shared/CommentPanel.jsx';
 
 const fmt = (n = 0) => (n >= 1000 ? (n / 1000).toFixed(1).replace('.0', '') + 'K' : String(n));
@@ -44,7 +45,7 @@ export default function MyPostFullScreenPage() {
       sessionStorage.setItem('evolv-myposts-filter', currentFilter || 'all');
     }
     sessionStorage.setItem('evolv-myposts-back', '/profile');
-    window.location.hash = '/my-posts';
+    navigate('/my-posts');
     window.dispatchEvent(new Event('navigated'));
   }, []);
 

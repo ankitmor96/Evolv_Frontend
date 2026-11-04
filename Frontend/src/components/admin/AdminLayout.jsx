@@ -1,43 +1,8 @@
 import { useState, useEffect } from 'react';
 import AdminSidebar from './AdminSidebar.jsx';
 import AdminHeader from './AdminHeader.jsx';
-import "../../AdminTheme.css";  
-
-// const styles = `
-//   .adm-layout-root {
-//     display: flex;
-//     min-height: 100vh;
-//     background: #09030F;
-//     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-//   }
-//   .adm-layout-main {
-//     flex: 1;
-//     min-width: 0;
-//     display: flex;
-//     flex-direction: column;
-//     margin-left: 260px;
-//     transition: margin-left 0.28s cubic-bezier(0.4,0,0.2,1);
-//   }
-//   .adm-layout-main-full {
-//     margin-left: 0;
-//   }
-//   .adm-layout-content {
-//     flex: 1;
-//     padding: 1.5rem;
-//     overflow-x: hidden;
-//   }
-//   @media (max-width: 899px) {
-//     .adm-layout-main {
-//       margin-left: 0 !important;
-//     }
-//   }
-//   @media (max-width: 640px) {
-//     .adm-layout-content {
-//       padding: 1rem;
-//     }
-//   }
-// `;
-
+import { navigate } from '../../utils/navigate.js';
+import "../../AdminTheme.css";
 
 const styles = `
   .adm-layout-root {
@@ -164,30 +129,28 @@ const styles = `
 `;
 
 function getRoute() {
-  return window.location.hash.replace(/^#/, '') || '/admin/dashboard';
+  return window.location.pathname.replace(/\/+$/, '') || '/';
 }
-
 export default function AdminLayout({ children, pageTitle }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentRoute, setCurrentRoute] = useState(getRoute);
 
   useEffect(() => {
     const sync = () => setCurrentRoute(getRoute());
-    window.addEventListener('hashchange', sync);
-    return () => window.removeEventListener('hashchange', sync);
+    window.addEventListener('popstate', sync);
+    window.addEventListener('navigated', sync);
+    return () => {
+      window.removeEventListener('popstate', sync);
+      window.removeEventListener('navigated', sync);
+    };
   }, []);
 
   const handleNavigate = (route) => {
-  if (!route) return;
+    if (!route) return;
+    navigate(route.startsWith('/') ? route : `/${route}`);
 
-  const nextRoute = route.startsWith('/') ? route : `/${route}`;
-
-  if (window.location.hash !== `#${nextRoute}`) {
-    window.location.hash = nextRoute;
-  }
-
-  setCurrentRoute(nextRoute);
-};
+    setCurrentRoute(nextRoute);
+  };
 
   return (
     <>
