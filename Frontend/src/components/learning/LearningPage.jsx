@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Home, Compass, BookOpen, PlusCircle, Bell, User, Search,
   FileText, Image as ImageIcon, Video, Type, Lightbulb, CheckCircle2,
-  Sparkles, ThumbsUp, Layers, Eye, TrendingUp, TrendingDown,
+  Sparkles, ThumbsUp, Layers, Eye, TrendingUp, TrendingDown, Flame,
 } from 'lucide-react';
 import { authService } from '../../services/authService.js';
 import { profileService } from '../../services/profileService.js';
@@ -10,6 +10,8 @@ import { getProfile } from '../../services/getProfile.js';
 import { learnedService } from '../../services/learnedService.js';
 import { learningTrackingService } from '../../services/learningTrackingService.js';
 import { navigate as go } from '../../utils/navigate.js';
+import { homePostService } from '../../services/homePostService.js';
+import { getPostReactions, sumReactionTotals } from '../../services/reactionTotals.js';
 import './LearningPage.css';
 
 
@@ -213,11 +215,13 @@ export default function LearningPage() {
   const [skills, setSkills] = useState([]);
   const [curiosities, setCuriosities] = useState([]);
   const [posts, setPosts] = useState({ totalPosts: 0, imageCount: 0, videoCount: 0, documentCount: 0 });
-  const [eng, setEng] = useState({ appreciation: 0, helpful: 0, learned: 0 });
+  const [reactionTotals, setReactionTotals] = useState({ appreciation: 0, helpful: 0, learned: 0 });
   const [learnedCount, setLearnedCount] = useState(null);
   const [streak, setStreak] = useState({ currentStreak: 0, lastLearnedDate: null });
   const [showAllSkills, setShowAllSkills] = useState(false);
   const [showAllTopics, setShowAllTopics] = useState(false);
+  const [skillDist, setSkillDist] = useState({ total: 0, items: [] });
+  const [skillDistError, setSkillDistError] = useState('');
   const reqId = useRef(0);
 
   // Posts Explored + Content breakdown (percentage API)
@@ -236,10 +240,13 @@ export default function LearningPage() {
     const id = ++reqId.current;
     setExploredLoading(true);
     setExploredError('');
-    setBreakdownError('');  
-    const [ov, br] = await Promise.allSettled([
+    setBreakdownError('');
+    setSkillDistError('');
+
+    const [ov, br, sd] = await Promise.allSettled([
       learningTrackingService.getOverview(p),
       learningTrackingService.getContentBreakdown(p),
+      learningTrackingService.getSkillDistribution(p),
     ]);
     if (id !== reqId.current) return; // ignore stale responses
 
@@ -251,6 +258,13 @@ export default function LearningPage() {
       setBreakdown({ total: 0, byType: {} });
       setBreakdownError(br.reason?.message || 'Could not load content breakdown.');
     }
+
+    if (sd.status === 'fulfilled') setSkillDist(sd.value);
+    else {
+      setSkillDist({ total: 0, items: [] });
+      setSkillDistError(sd.reason?.message || 'Could not load skill distribution.');
+    }
+
     setExploredLoading(false);
   }, []);
 
@@ -266,15 +280,42 @@ export default function LearningPage() {
 
   useEffect(() => {
     let off = false;
+
+    (async () => {
+      try {
+        const myId = user?.id ?? user?.userId ?? user?._id;
+        const myPosts = await homePostService.getMyPosts(myId);
+
+        // skip local-only posts that have no numeric backend id
+        const ids = myPosts
+          .map((p) => p.id)
+          .filter((id) => /^\d+$/.test(String(id)));
+
+        const results = await Promise.allSettled(ids.map((id) => getPostReactions(id)));
+        const ok = results
+          .filter((r) => r.status === 'fulfilled')
+          .map((r) => r.value);
+
+        if (!off) setReactionTotals(sumReactionTotals(ok));
+      } catch (err) {
+        console.error('[LearningPage] Could not load reaction totals:', err);
+      }
+    })();
+
+    return () => { off = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    let off = false;
     (async () => {
       setLoading(true);
-      const [p, us, cur, idMap, pc, ec, lc,st] = await Promise.allSettled([
+      const [p, us, cur, idMap, pc, lc, st] = await Promise.allSettled([
         getProfile.getProfile(),
         profileService.getUserSkills(),
         profileService.getUserCuriosity(),
         profileService.fetchSkillIdToNameMap(),
         profileService.getMyPostCounts(),
-        profileService.getMyEngagementCounts(),
         learnedService.getMyLearnedCount(),
         learningTrackingService.getStreak(),
       ]);
@@ -284,13 +325,6 @@ export default function LearningPage() {
 
       if (p.status === 'fulfilled') setProfile(p.value);
       if (pc.status === 'fulfilled') setPosts(pc.value);
-      if (ec.status === 'fulfilled') {
-        setEng({
-          appreciation: ec.value?.appreciation ?? 0,
-          helpful: ec.value?.helpful ?? 0,
-          learned: ec.value?.learned ?? 0,
-        });
-      }
       if (lc.status === 'fulfilled') setLearnedCount(lc.value);
       if (st.status === 'fulfilled') setStreak(st.value);
 
@@ -316,16 +350,19 @@ export default function LearningPage() {
   const displayName = (profile?.fullName ?? profile?.name ?? user?.name ?? 'there').split(' ')[0];
   const avatar = profile?.avatarUrl ?? profile?.avatar ?? user?.avatar;
 
-  const canDo = skills.filter((s) => s.type === 'CAN_DO');
   const allSkillNames = useMemo(() => [...new Set(skills.map((s) => s.name))], [skills]);
 
-  const distribution = [
-    { label: 'I can do', value: canDo.length },
-    { label: 'Learning', value: skills.filter((s) => s.type === 'LEARNING').length },
-    { label: 'Improving', value: skills.filter((s) => s.type === 'WANT_TO_IMPROVE').length },
-    { label: 'Curious about', value: curiosities.length },
-  ];
-  const distTotal = distribution.reduce((s, d) => s + d.value, 0);
+  // Top 5 skills + "Other", from the API
+  const skillParts = useMemo(() => {
+    const sorted = [...skillDist.items]
+      .map((i) => ({ label: i.label, value: i.count > 0 ? i.count : i.percentage }))
+      .filter((i) => i.value > 0)
+      .sort((a, b) => b.value - a.value);
+
+    const top = sorted.slice(0, 5);
+    const otherValue = sorted.slice(5).reduce((s, i) => s + i.value, 0);
+    return otherValue > 0 ? [...top, { label: 'Other', value: otherValue }] : top;
+  }, [skillDist]);
 
   const show = (section) => tab === 'Overview' || tab === section;
 
@@ -391,14 +428,21 @@ export default function LearningPage() {
             {tab === 'Overview' && (
               <>
                 <div className="lp-stats">
-                  <Stat icon={BookOpen} value={posts.totalPosts} label="Posts view" tone="blue" />
+                  <Stat icon={BookOpen} value={posts.totalPosts} label="Total explore post" tone="blue" />
                   <Stat icon={Layers} value={allSkillNames.length} label="Total Learned" tone="green" />
-                  <Stat icon={CheckCircle2} value={learnedCount ?? eng.learned} label="Learned reactions" tone="amber" sub={
-                    streak.currentStreak > 0
-                      ? `🔥 ${streak.currentStreak}-day streak`
-                      : 'No streak yet'
-                  } />
-                  <Stat icon={ThumbsUp} value={eng.helpful} label="Helpful reactions" tone="pink" />
+                  <Stat
+                    icon={Flame}
+                    value={streak.currentStreak}
+                    label={streak.currentStreak === 1 ? 'Day streak' : 'Day streak'}
+                    tone="amber"
+                    sub={streak.currentStreak > 0 ? '🔥 Keep it going!' : 'No streak yet'}
+                  />
+                  <Stat
+                    icon={ThumbsUp}
+                    value={reactionTotals.helpful}
+                    label="Helpful reactions"
+                    tone="pink"
+                  />
                 </div>
 
                 <div className="lp-grid three">
@@ -408,10 +452,16 @@ export default function LearningPage() {
                   <ContentTypesCard period={period} breakdown={breakdown}
                     loading={exploredLoading} error={breakdownError} />
 
-                  <Card title="Skill interest distribution">
-                    {distTotal === 0
-                      ? <p className="lp-muted">Pick skills and topics to see your distribution.</p>
-                      : <Donut parts={distribution} ariaLabel="Skill interest distribution" />}
+                  <Card title={`Skill interest (${period === 'month' ? 'this month' : 'all time'})`}>
+                    {skillDistError ? (
+                      <p className="lp-error" role="alert">{skillDistError}</p>
+                    ) : exploredLoading && skillParts.length === 0 ? (
+                      <p className="lp-muted" role="status">Loading…</p>
+                    ) : skillParts.length === 0 ? (
+                      <p className="lp-muted">Explore some posts to see which skills interest you.</p>
+                    ) : (
+                      <Donut parts={skillParts} ariaLabel="Skill interest distribution" />
+                    )}
                   </Card>
                 </div>
               </>

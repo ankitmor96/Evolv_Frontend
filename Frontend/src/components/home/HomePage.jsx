@@ -37,7 +37,7 @@ import {
 import { CURIOSITY_DOMAINS } from '../onboarding/onboardingData.js';
 
 import { authService } from '../../services/authService.js';
-import { homePostService } from '../../services/homePostService.js';
+import { homePostService, postSkillCache } from '../../services/homePostService.js';
 import { connectionService } from '../../services/connectionService.js';
 import { fetchHomeTabs, mapTabsToLabels } from '../../services/homeTabService.js';
 import { profileService } from '../../services/profileService.js';
@@ -2604,7 +2604,7 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
           ? newPost.category
           : selectedSkills[0],
       };
-
+      postSkillCache.save(newPost.id, selectedSkills);
       onPostCreated?.(newPost);
 
       // ── Reset composer ──
@@ -3034,12 +3034,15 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
 
   const [mySkills, setMySkills] = useState([]);
   const connectionMapRef = useRef(new Map());
+  const skillNamesRef = useRef({});
 
   const handleCommentCountSync = useCallback((postId, count) => {
     setPosts(prev => prev.map(p =>
       String(p.id) !== String(postId) ? p : { ...p, comments: count }
     ));
   }, []);
+
+
 
   // ── Feed Posts from Backend API ──
   useEffect(() => {
@@ -3063,20 +3066,12 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
         const backendPosts = response?.posts ?? [];
         console.log('[Feed API raw response]:', response);
 
-        const pickPosts = (res) => {
-          const value = res?.data ?? res;
-          if (Array.isArray(value)) return value;
-          if (Array.isArray(value?.posts)) return value.posts;
-          if (Array.isArray(value?.data)) return value.data;
-          if (Array.isArray(value?.data?.posts)) return value.data.posts;
-          if (Array.isArray(value?.items)) return value.items;
-          if (Array.isArray(value?.results)) return value.results;
-          return [];
-        };
         console.log('[Feed] posts found:', backendPosts.length);
 
         if (cancelled) return;
         connectionMapRef.current = connectionMap;
+
+        skillNamesRef.current = idToName || {};
 
         if (profileData) {
           const avatar = profileData.avatarUrl ?? profileData.avatar ?? null;
@@ -3093,7 +3088,9 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
             ...base,
             tags: base.tags.length
               ? base.tags
-              : (base.skillIds || []).map((id) => idToName[Number(id)]).filter(Boolean),
+              : (base.skillIds || []).map((id) => idToName[Number(id)]).filter(Boolean).length
+                ? (base.skillIds || []).map((id) => idToName[Number(id)]).filter(Boolean)
+                : postSkillCache.get(base.id),
             liked: post.liked ?? false,
             saved: post.saved ?? false,
             connectionStatus: conn?.status ?? 'none',
@@ -3500,8 +3497,17 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
           const raw = item?.post ?? item;
           const base = homePostService._normalisePost(raw);
           const conn = connectionMapRef.current?.get(String(base.creator?.id ?? raw.userId));
+
+          // Skill names: from the post itself, else look up by ID, else saved cache
+          const names = base.tags.length
+            ? base.tags
+            : (base.skillIds || [])
+              .map((id) => skillNamesRef.current[Number(id)])
+              .filter(Boolean);
+
           return {
             ...base,
+            tags: names.length ? names : postSkillCache.get(base.id),
             connectionStatus: conn?.status ?? 'none',
             connectionId: conn?.connectionId ?? null,
           };
@@ -3637,7 +3643,10 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
           profileAvatar={feedProfileAvatar}
           profileName={feedProfileName}
           onPostCreated={(newPost) => {
-            setPosts((previousPosts) => [newPost, ...previousPosts]);
+            setPosts((previousPosts) => [
+              newPost,
+              ...previousPosts.filter((p) => String(p.id) !== String(newPost.id)),
+            ]);
             setActiveTab('For You');
           }}
         />

@@ -147,24 +147,57 @@ const request = async (path, options = {}) => {
   }
 };
 
-const extractSkillNames = (p) => {
-  const raw = p.skills ?? p.postSkills ?? p.skillTags ?? p.tags ?? [];
-  if (!Array.isArray(raw)) return [];
-  return raw
+const SKILL_FIELDS = (p) => [
+  p.skills, p.postSkills, p.post_skills, p.skillTags, p.tags,
+];
+
+const extractSkillNames = (p) =>
+  SKILL_FIELDS(p)
+    .filter(Array.isArray)
+    .flat()
     .map((s) =>
       typeof s === 'string'
         ? s
-        : s?.name ?? s?.skill?.name ?? s?.skillName ?? null
+        : s?.name ??
+          s?.skillName ??
+          s?.skill?.name ??
+          s?.skill?.skillName ??
+          null
     )
     .filter(Boolean);
-};
 
 const extractSkillIds = (p) => {
-  const raw = p.skillIds ?? p.skills ?? p.postSkills ?? [];
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((s) => (typeof s === 'number' ? s : s?.skillId ?? s?.id ?? null))
-    .filter((id) => id != null);
+  const direct = Array.isArray(p.skillIds) ? p.skillIds : [];
+  const nested = SKILL_FIELDS(p)
+    .filter(Array.isArray)
+    .flat()
+    .map((s) =>
+      typeof s === 'number'
+        ? s
+        : typeof s === 'object'
+          ? s?.skillId ?? s?.skill?.id ?? s?.id ?? null
+          : null
+    );
+
+  return [...new Set([...direct, ...nested].filter((id) => id != null).map(Number))];
+};
+
+const SKILL_CACHE_KEY = 'evolv-post-skills';
+
+export const postSkillCache = {
+  _read() {
+    try { return JSON.parse(localStorage.getItem(SKILL_CACHE_KEY)) || {}; }
+    catch { return {}; }
+  },
+  save(postId, names) {
+    if (postId == null || !names?.length) return;
+    const all = this._read();
+    all[String(postId)] = names;
+    try { localStorage.setItem(SKILL_CACHE_KEY, JSON.stringify(all)); } catch { /* ignore */ }
+  },
+  get(postId) {
+    return this._read()[String(postId)] ?? [];
+  },
 };
 
 export const homePostService = {

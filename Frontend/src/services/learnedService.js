@@ -1,9 +1,5 @@
 /**
  * EVOLV Learned Service
- *
- * Verified endpoint (Postman):
- *   GET /api/posts/my-posts/learned-count
- *   → { success: true, data: { learnedCount: number } }
  */
 import { forceLogout } from './sessionService.js';
 

@@ -3,8 +3,12 @@ import { authService } from './authService.js';
 
 const API_BASE = 'https://evolve-backend-4lux.onrender.com/api';
 
+
 export async function getPostReactions(postId) {
-  const token = authService.getToken?.() ?? localStorage.getItem('token');
+  const token =
+    authService.getToken?.() ??
+    localStorage.getItem('evolv_auth_token') ??
+    sessionStorage.getItem('evolv_auth_token');
   const res = await fetch(`${API_BASE}/posts/${postId}/reactions`, {
     headers: { Authorization: `Bearer ${token}` },
   });
