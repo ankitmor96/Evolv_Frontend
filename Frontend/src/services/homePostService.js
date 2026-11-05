@@ -65,15 +65,16 @@ const getToken = () =>
 
 
 const request = async (path, options = {}) => {
+  const { silentStatuses = [], ...fetchOptions } = options;
   const startedAt = Date.now();
   const token = getToken();
-  const isFormData = options.body instanceof FormData;
+  const isFormData = fetchOptions.body instanceof FormData;
   const controller = new AbortController();
 
   const headers = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(!isFormData ? { "Content-Type": "application/json" } : {}),
-    ...(options.headers ?? {}),
+    ...(fetchOptions.headers ?? {}),
   };
 
   // Let the browser set the multipart boundary.
@@ -99,10 +100,10 @@ const request = async (path, options = {}) => {
     });
 
     const response = await fetch(`${API_BASE_URL}${path}`, {
-      ...options,
+      ...fetchOptions,
       headers,
       signal: controller.signal,
-    });
+      });
     if (response.status === 401 && token) {
       forceLogout();
     }
@@ -129,6 +130,13 @@ const request = async (path, options = {}) => {
 
     return payload;
   } catch (error) {
+    if (!silentStatuses.includes(error.status)) {
+      console.error("[VIDEO DEBUG] Request failed", {
+        message: error.message,
+        name: error.name,
+        elapsedMs: Date.now() - startedAt,
+      });
+    }
     console.error("[VIDEO DEBUG] Request failed", {
       message: error.message,
       name: error.name,
@@ -159,10 +167,10 @@ const extractSkillNames = (p) =>
       typeof s === 'string'
         ? s
         : s?.name ??
-          s?.skillName ??
-          s?.skill?.name ??
-          s?.skill?.skillName ??
-          null
+        s?.skillName ??
+        s?.skill?.name ??
+        s?.skill?.skillName ??
+        null
     )
     .filter(Boolean);
 
@@ -486,8 +494,35 @@ export const homePostService = {
    * @returns {Promise<object>}  Raw server response.
    * @throws {Error} On auth failure, network error, or server error.
    */
-  async removeReaction(postId, reactionType) {
-    return request(`/api/posts/${postId}/reactions/${reactionType}`, { method: 'DELETE' });
+    async removeReaction(postId, reactionType) {
+    try {
+      return await request(`/api/posts/${postId}/reactions/${reactionType}`, {
+        method: 'DELETE',
+        silentStatuses: [404],
+      });
+    } catch (err) {
+      if (err.status === 404) return { success: true, alreadyRemoved: true };
+      throw err;
+    }
+  },
+  
+   /**
+   * DELETE /api/posts/:postId/learned
+   * @param {string|number} postId
+   * @returns {Promise<object>}  Raw server response.
+   * @throws {Error} On auth failure, network error, or server error.
+   */
+
+  async unmarkLearned(postId) {
+    try {
+      return await request(`/api/posts/${postId}/learned`, {
+        method: 'DELETE',
+        silentStatuses: [404],
+      });
+    } catch (err) {
+      if (err.status === 404) return { success: true, alreadyRemoved: true };
+      throw err;
+    }
   },
 
   // ── Learned ───────────────────────────────────────────────────────────────
@@ -501,15 +536,7 @@ export const homePostService = {
     return request(`/api/posts/${postId}/learned`, { method: 'PUT' });
   },
 
-  /**
-   * DELETE /api/posts/:postId/learned
-   * @param {string|number} postId
-   * @returns {Promise<object>}  Raw server response.
-   * @throws {Error} On auth failure, network error, or server error.
-   */
-  async unmarkLearned(postId) {
-    return request(`/api/posts/${postId}/learned`, { method: 'DELETE' });
-  },
+ 
 
   // ── Comments ──────────────────────────────────────────────────────────────
 

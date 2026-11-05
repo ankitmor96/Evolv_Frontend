@@ -49,6 +49,15 @@ import { userSearchService } from '../../services/userSearchService.js';
 import { useInView, useLearningTracker } from '../../components/hooks/useLearningTracker.js';
 import { useConnectionRequestCount } from '../../components/hooks/useConnectionRequestCount.jsx';
 import { navigate } from '../../utils/navigate.js';
+
+import {
+  getPostReactions,
+  getPostLearned,
+  normaliseReactions,
+  setMyReaction,
+  getCachedFlags,
+} from '../../services/reactionTotals.js';
+
 import './HomePage.css';
 
 function openUserProfile(userId) {
@@ -3127,8 +3136,40 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
           return normalised;
         });
 
-        // Display ONLY posts received from the backend.
-        setPosts(mappedPosts);
+        const isNumericId = (id) => /^\d+$/.test(String(id));
+
+        const [reactionResults, learnedResults] = await Promise.all([
+          Promise.allSettled(
+            mappedPosts.map((p) =>
+              isNumericId(p.id) ? getPostReactions(p.id) : Promise.reject(new Error('local post'))
+            )
+          ),
+          Promise.allSettled(
+            mappedPosts.map((p) =>
+              isNumericId(p.id) ? getPostLearned(p.id) : Promise.reject(new Error('local post'))
+            )
+          ),
+        ]);
+
+        if (cancelled) return;
+
+        const withReactions = mappedPosts.map((p, i) => {
+          const cached = getCachedFlags(p.id);
+
+          const reactions =
+            reactionResults[i].status === 'fulfilled'
+              ? normaliseReactions(reactionResults[i].value, p.id)
+              : { appreciated: cached.appreciated, helpful: cached.helpful };
+
+          const learned =
+            learnedResults[i].status === 'fulfilled'
+              ? learnedResults[i].value
+              : { learned: cached.learned };
+
+          return { ...p, ...reactions, ...learned };
+        });
+
+        setPosts(withReactions);
       } catch (error) {
         if (cancelled) return;
 
@@ -3148,8 +3189,6 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
       cancelled = true;
     };
   }, []);
-
-  // ── Home Tabs from GET /api/home/tabs ──────────────────────────────────
 
   // ── Home Tabs from GET /api/home/tabs ────────────────────────
   const [apiTabs, setApiTabs] = useState(null);
@@ -3377,8 +3416,34 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
   const pendingAppreciate = useRef(new Set());
   const pendingHelpful = useRef(new Set());
   const pendingLearned = useRef(new Set());
+    const syncReactions = useCallback(async (postId) => {
+    try {
+      const r = normaliseReactions(await getPostReactions(postId), postId);
+      setPosts((ps) => ps.map((p) =>
+        String(p.id) !== String(postId) ? p : {
+          ...p,
+          appreciated: r.appreciated,
+          appreciations: r.appreciations,
+          helpful: r.helpful,
+          helpfulCount: r.helpfulCount,
+        }
+      ));
+    } catch (e) {
+      console.warn('[syncReactions] failed:', e.message);
+    }
+  }, []);
 
-  // ── Appreciate ───────────────────────────────────────────────────────────
+  const syncLearned = useCallback(async (postId) => {
+    try {
+      const l = await getPostLearned(postId);
+      setPosts((ps) => ps.map((p) =>
+        String(p.id) !== String(postId) ? p : { ...p, ...l }
+      ));
+    } catch (e) {
+      console.warn('[syncLearned] failed:', e.message);
+    }
+  }, []);
+  // Appreciation 
   const handleAppreciate = useCallback(async (postId) => {
     if (pendingAppreciate.current.has(postId)) return;
     pendingAppreciate.current.add(postId);
@@ -3386,6 +3451,7 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
     const snapshot = postsRef.current;
     const current = snapshot.find((p) => String(p.id) === String(postId));
     if (!current) { pendingAppreciate.current.delete(postId); return; }
+
     const was = Boolean(current.appreciated);
     const next = !was;
 
@@ -3397,17 +3463,19 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
       }
     ));
 
-    try {
+        try {
       if (was) await homePostService.removeReaction(postId, 'APPRECIATE');
       else await homePostService.addReaction(postId, 'APPRECIATE');
+      await syncReactions(postId);   // server is the source of truth
     } catch (err) {
-      if (!(was && err.status === 404)) setPosts(snapshot);
+      console.error('[Appreciate] failed:', err.status, err.message);
+      setPosts(snapshot);
     } finally {
       pendingAppreciate.current.delete(postId);
     }
-  }, []);
+  }, [syncReactions]);
 
-  // ── Helpful ────────────────────────────────────────────────────────────────
+  // helpful 
   const handleHelpful = useCallback(async (postId) => {
     if (pendingHelpful.current.has(postId)) return;
     pendingHelpful.current.add(postId);
@@ -3415,6 +3483,7 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
     const snapshot = postsRef.current;
     const current = snapshot.find((p) => String(p.id) === String(postId));
     if (!current) { pendingHelpful.current.delete(postId); return; }
+
     const was = Boolean(current.helpful);
     const next = !was;
 
@@ -3426,15 +3495,17 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
       }
     ));
 
-    try {
+        try {
       if (was) await homePostService.removeReaction(postId, 'HELPFUL');
       else await homePostService.addReaction(postId, 'HELPFUL');
+      await syncReactions(postId);
     } catch (err) {
-      if (!(was && err.status === 404)) setPosts(snapshot);
+      console.error('[Helpful] failed:', err.status, err.message);
+      setPosts(snapshot);
     } finally {
       pendingHelpful.current.delete(postId);
     }
-  }, []);
+  }, [syncReactions]);
 
   // ── Learned ────────────────────────────────────────────────────────────────
   const handleLearned = useCallback(async (postId) => {
@@ -3464,24 +3535,33 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
       )
     );
 
-    try {
-      if (was) {
-        await homePostService.unmarkLearned(postId);
-      } else {
-        await homePostService.markLearned(postId);
-      }
+  //   try {
+  //     if (was) await homePostService.unmarkLearned(postId);
+  //     else await homePostService.markLearned(postId);
+  //     setMyReaction(postId, 'LEARNED', next);
+  //   } catch (err) {
+  //     console.error('[Learned] failed:', err.status, err.message);
+  //     if (was && err.status === 404) {
+  //       console.warn('[HomeFeed] Learned already removed on server');
+  //     } else {
+  //       console.warn('[HomeFeed] Learned failed — rolling back:', err.message);
+  //       setPosts(snapshot);
+  //     }
+  //   } finally {
+  //     pendingLearned.current.delete(postId);
+  //   }
+  // }, []);
+      try {
+      if (was) await homePostService.unmarkLearned(postId);
+      else await homePostService.markLearned(postId);
+      await syncLearned(postId);
     } catch (err) {
-      // Already removed on the server means the UI is already correct
-      if (was && err.status === 404) {
-        console.warn('[HomeFeed] Learned already removed on server');
-      } else {
-        console.warn('[HomeFeed] Learned failed — rolling back:', err.message);
-        setPosts(snapshot);
-      }
+      console.error('[Learned] failed:', err.status, err.message);
+      setPosts(snapshot);
     } finally {
       pendingLearned.current.delete(postId);
     }
-  }, []);
+  }, [syncLearned]);
 
   // ── Socket.IO — posts-batch, post-updates-batch, comment-updates-batch ──
   useEffect(() => {
