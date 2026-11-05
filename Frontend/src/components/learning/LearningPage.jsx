@@ -421,8 +421,18 @@ export default function LearningPage() {
             {tab === 'Overview' && (
               <>
                 <div className="lp-stats">
-                  <Stat icon={BookOpen} value={posts.totalPosts} label="Total explore post" tone="blue" />
-                  <Stat icon={Layers} value={allSkillNames.length} label="Total Learned" tone="green" />
+                  <Stat
+                    icon={BookOpen}
+                    value={explored ? explored.allTime : '…'}
+                    label="Total explored posts"
+                    tone="blue"
+                  />
+                  <Stat
+                    icon={Layers}
+                    value={learnedCount ?? 0}
+                    label="Total Learned"
+                    tone="green"
+                  />                  
                   <Stat
                     icon={Flame}
                     value={streak.currentStreak}
