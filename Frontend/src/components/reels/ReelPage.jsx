@@ -7,6 +7,7 @@ import { authService } from '../../services/authService.js';
 import { homePostService } from '../../services/homePostService.js';
 import CommentPanel from '../shared/CommentPanel.jsx';
 import { useInView, useLearningTracker } from '../hooks/useLearningTracker.js';
+import { navigate } from '../../utils/navigate.js';
 import "../reels/ReelPage.css";
 
 // ── Type helpers ────────────────────────────────────────────────────────────
@@ -108,7 +109,7 @@ function FeedItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
       <div className="rl-card" ref={trackRef}>
         <div className="rl-media">
           {isLandscape && backdropSrc && (
-            <div className="rl-backdrop" style={{ backgroundImage: `url(${backdropSrc})` }} />
+            <div className="rl-backdrop" style={{ backgroundImage: `url(${backdropSrc})` }} onClick={() => go('/home')} aria-label="Back to home" />
           )}
 
           {video ? (
