@@ -415,13 +415,6 @@ export default function LearningPage() {
           </p>
         </section>
 
-        <div className="lp-tabs" role="tablist">
-          {TABS.map((t) => (
-            <button key={t} role="tab" aria-selected={tab === t} type="button"
-              className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>{t}</button>
-          ))}
-        </div>
-
         {error && <p className="lp-error" role="alert">{error}</p>}
         {loading ? <p className="lp-muted" role="status">Loading your learning...</p> : (
           <>
