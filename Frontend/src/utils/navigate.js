@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 export function navigate(path, { replace = false } = {}) {
   const url = path.startsWith('/') ? path : `/${path}`;
   const current = window.location.pathname + window.location.search;
@@ -9,6 +11,6 @@ export function navigate(path, { replace = false } = {}) {
 
 export function Redirect({ to }) {
   // Redirects after render, which avoids setState-during-render warnings
-  React.useEffect(() => { navigate(to, { replace: true }); }, [to]);
+  useEffect(() => { navigate(to, { replace: true }); }, [to]);
   return null;
 }

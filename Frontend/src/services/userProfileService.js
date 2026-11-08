@@ -5,7 +5,7 @@ const getToken = () =>
   localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || null;
 
 const PROFILE_ENDPOINT = (id) => `/api/profile/${id}/complete`;
-const CONNECTIONS_COUNT_ENDPOINT = (id) => `/api/connections`;
+const CONNECTIONS_COUNT_ENDPOINT = null;
 
 async function request(path) {
   const token = getToken();
@@ -40,6 +40,40 @@ const pickNumber = (...vals) => {
   }
   return null;
 };
+
+const PROFILE_DETAILS_ENDPOINT = (id) => `/api/skills/users/${id}/profile-details`;
+
+const itemName = (i) =>
+  typeof i === 'string'
+    ? i
+    : i?.name ?? i?.skill?.name ?? i?.skillName ?? i?.title ?? i?.category?.name ?? null;
+
+const firstArray = (obj, keys) => {
+  for (const k of keys) if (Array.isArray(obj?.[k])) return obj[k];
+  return [];
+};
+
+const toNames = (arr) => [...new Set(arr.map(itemName).filter(Boolean))];
+
+function normaliseDetails(raw) {
+  const root = raw?.data ?? raw ?? {};
+
+  const identities = firstArray(root, ['identities']);
+  const primary = identities.find((i) => i.isPrimary) ?? identities[0];
+
+  const skillRows = firstArray(root, ['skills', 'userSkills']);
+  const byType = (re) =>
+    toNames(skillRows.filter((r) => re.test(String(r.relationshipType ?? ''))));
+
+  return {
+    roles: identities.map((i) => i.identityType?.name).filter(Boolean),
+    primaryRole: primary?.identityType?.name ?? null,
+    learning: byType(/learn/i),
+    expertise: byType(/expert|proficient|know|teach/i),
+    curiosity: toNames(firstArray(root, ['curiosities', 'curiosity', 'curiousAbout'])),
+    skills: toNames(skillRows),
+  };
+}
 
 function normaliseProfile(raw, fallbackId) {
   const root = raw?.data ?? raw ?? {};
@@ -80,6 +114,10 @@ export const userProfileService = {
     const d = raw?.data ?? raw;
     const n = d?.count ?? d?.connectionsCount ?? d?.total;
     return Number.isFinite(Number(n)) ? Number(n) : null;
+  },
+  async getProfileDetails(userId) {
+    const raw = await request(PROFILE_DETAILS_ENDPOINT(userId));
+    return normaliseDetails(raw);
   },
 };
 

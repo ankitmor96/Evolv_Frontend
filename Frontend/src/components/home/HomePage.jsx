@@ -3534,23 +3534,6 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
           }
       )
     );
-
-  //   try {
-  //     if (was) await homePostService.unmarkLearned(postId);
-  //     else await homePostService.markLearned(postId);
-  //     setMyReaction(postId, 'LEARNED', next);
-  //   } catch (err) {
-  //     console.error('[Learned] failed:', err.status, err.message);
-  //     if (was && err.status === 404) {
-  //       console.warn('[HomeFeed] Learned already removed on server');
-  //     } else {
-  //       console.warn('[HomeFeed] Learned failed — rolling back:', err.message);
-  //       setPosts(snapshot);
-  //     }
-  //   } finally {
-  //     pendingLearned.current.delete(postId);
-  //   }
-  // }, []);
       try {
       if (was) await homePostService.unmarkLearned(postId);
       else await homePostService.markLearned(postId);

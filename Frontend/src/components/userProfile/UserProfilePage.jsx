@@ -24,6 +24,18 @@ function Avatar({ src, name, size = 90 }) {
 
 const CONNECT_LABEL = { none: '+ Connect', pending: 'Requested', incoming: 'Accept', connected: 'Connected' };
 
+function SkillGroup({ title, items }) {
+  if (!items?.length) return null;
+  return (
+    <div className="up-skill-group">
+      <h3 className="up-skill-title">{title}</h3>
+      <div className="up-skills-row">
+        {items.map((s) => <span key={s} className="up-skill">{s}</span>)}
+      </div>
+    </div>
+  );
+}
+
 export default function UserProfilePage() {
   const authUser = authService.getCurrentUser();
   const me = authUser?.id ?? authUser?.userId ?? authUser?._id ?? null;
@@ -63,11 +75,12 @@ export default function UserProfilePage() {
 
     (async () => {
       try {
-        const [profRes, feed, map, connCount] = await Promise.all([
+        const [profRes, feed, map, connCount, details] = await Promise.all([
           userProfileService.getUserProfile(userId).catch(() => null),
           homePostService.getFeedPosts().catch(() => ({ posts: [] })),
           connectionService.getConnectionMap(me).catch(() => new Map()),
           userProfileService.getConnectionsCount(userId).catch(() => null),
+          userProfileService.getProfileDetails(userId).catch(() => null),
         ]);
         if (cancelled) return;
 
@@ -93,9 +106,19 @@ export default function UserProfilePage() {
 
         if (!base) throw new Error('User profile not found');
 
+        const allSkills = details
+          ? [...new Set([...details.learning, ...details.expertise, ...details.curiosity, ...details.skills])]
+          : base.skills ?? [];
+
         const prof = {
           ...base,
+          field: details?.primaryRole ?? base.field,
           connectionsCount: connCount ?? base.connectionsCount ?? null,
+          roles: details?.roles ?? [],
+          learning: details?.learning ?? [],
+          expertise: details?.expertise ?? [],
+          curiosity: details?.curiosity ?? [],
+          skills: allSkills,
         };
         const conn = map.get(String(userId));
         setProfile(prof);
@@ -191,7 +214,7 @@ export default function UserProfilePage() {
               <Avatar src={profile.avatar} name={profile.name} size={90} />
               <div className="up-stats">
                 <div><strong>{posts.length}</strong><span>Posts</span></div>
-                <div><strong>{profile.connectionsCount ?? 0}</strong><span>Connections</span></div>
+                <div><strong>{profile.connectionsCount ?? '–'}</strong><span>Connections</span></div>
                 <div><strong>{profile.skills ? profile.skills.length : '0'}</strong><span>Skills</span></div>
               </div>
             </section>
@@ -200,6 +223,11 @@ export default function UserProfilePage() {
             <section className="up-info">
               <h2 className="up-name">{profile.name}</h2>
               <p className="up-field">{profile.field}</p>
+              {profile.roles?.length > 1 && (
+                <div className="up-skills-row">
+                  {profile.roles.map((r) => <span key={r} className="up-skill">{r}</span>)}
+                </div>
+              )}
               {profile.bio && <p className="up-bio">{profile.bio}</p>}
             </section>
 
@@ -218,11 +246,24 @@ export default function UserProfilePage() {
             </section>
 
             {/* Skills */}
-            {profile.skills?.length > 0 && (
-              <section className="up-skills">
-                {profile.skills.map((s) => <span key={s} className="up-skill">{s}</span>)}
-              </section>
-            )}
+            {/* Skills */}
+            {profile.skills?.length > 0 && (() => {
+              const grouped = new Set([
+                ...profile.learning,
+                ...profile.expertise,
+                ...profile.curiosity,
+              ]);
+              const other = profile.skills.filter((s) => !grouped.has(s));
+
+              return (
+                <section className="up-skills">
+                  <SkillGroup title="Currently learning" items={profile.learning} />
+                  <SkillGroup title="Areas of expertise" items={profile.expertise} />
+                  <SkillGroup title="Curious about" items={profile.curiosity} />
+                  <SkillGroup title="Other skills" items={other} />
+                </section>
+              );
+            })()}
 
             {/* Tabs */}
             <nav className="up-tabs" role="tablist">
