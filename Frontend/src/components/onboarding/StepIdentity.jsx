@@ -2,8 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
 import { EASE_SMOOTH } from '../motionVariants';
-import { getUsernameChecks } from './onboardingData';
 import { AGE_RANGES, COUNTRIES, GOAL_MAX, ROLES, ROLE_OTHER, validateUsername } from './onboardingData';
+
+const USERNAME_MIN = 3;
+const USERNAME_MAX = 20;
 
 function InlineError({ show, message }) {
   if (!show || !message) return null;
@@ -157,6 +159,28 @@ export default function StepIdentity({ draft, setDraft, showErrors }) {
   const pickRole = (role) => {
     setDraft((d) => ({ ...d, role, customRole: role === ROLE_OTHER ? d.customRole : '' }));
   };
+
+  // Live checklist for the username field
+  const usernameValue = draft.username || '';
+  const usernameTouched = usernameValue.length > 0;
+
+  const usernameChecks = [
+    {
+      id: 'length',
+      label: `${USERNAME_MIN}–${USERNAME_MAX} characters`,
+      ok: usernameValue.length >= USERNAME_MIN && usernameValue.length <= USERNAME_MAX,
+    },
+    {
+      id: 'chars',
+      label: 'Only letters, numbers and underscores',
+      ok: usernameValue.length > 0 && /^[A-Za-z0-9_]+$/.test(usernameValue),
+    },
+    {
+      id: 'start',
+      label: 'Starts with a letter',
+      ok: /^[A-Za-z]/.test(usernameValue),
+    },
+  ];
 
   return (
     <div className="step-body">

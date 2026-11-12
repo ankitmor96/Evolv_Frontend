@@ -4,6 +4,7 @@ const TOKEN_KEY = "evolv_auth_token";
 const USER_KEY = "evolv_user";
 const DRAFT_KEY = "evolve-onboarding-draft";
 const DRAFT_OWNER_KEY = "evolve-onboarding-draft-owner";
+import { fetchProfileOnce } from "./profileFetch.js";
 
 const clearOnboardingDraft = () => {
   localStorage.removeItem(DRAFT_KEY);
@@ -236,7 +237,7 @@ export const authService = {
  */
   async getOnboardingStatus() {
     const [profileRes, identitiesRes, curiosityRes] = await Promise.all([
-      authGet("/api/profile"),
+      fetchProfileOnce(),
       authGet("/api/user-identities"),
       authGet("/api/skills/curiosity"),
     ]);

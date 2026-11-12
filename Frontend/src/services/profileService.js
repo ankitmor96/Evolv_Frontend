@@ -40,8 +40,8 @@
  */
 import { getCountryCode, COUNTRIES } from "../components/onboarding/onboardingData.js";
 import { forceLogout } from './sessionService.js';
-import { sumReactionTotals } from './reactionTotals.js';
 import { homePostService } from './homePostService.js';
+import { fetchProfileOnce, invalidateProfile } from "./profileFetch.js";
 
 const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? "";
 
@@ -124,14 +124,8 @@ export const profileService = {
  * Returns null if the user has no profile yet (new user).
  */
   async loadDraftFromBackend() {
-    let profile;
-    try {
-      const res = await profileService.getProfile();
-      profile = res?.data ?? res?.profile ?? res;
-    } catch (err) {
-      if (err.status === 404) return null;
-      throw err;
-    }
+    const profile = await fetchProfileOnce();
+    if (!profile) return null;
 
     const unwrap = (r) => (Array.isArray(r) ? r : r?.data ?? r?.items ?? []);
     const val = (r) => (r.status === "fulfilled" ? r.value : null);
@@ -270,36 +264,59 @@ export const profileService = {
    * @param {object} data – profile payload
    * @returns {Promise<any>}
    */
+  // async ensureProfile(data, file) {
+  //   const existing = await fetchProfileOnce();
+
+  //   try {
+  //     const res = await profileService.getProfile();
+  //     existing = res?.data?.profile ?? res?.data ?? res?.profile ?? res ?? {};
+  //   } catch (err) {
+  //     if (err.status !== 404) throw err;
+  //   }
+
+  //   if (existing) {
+  //     const body = { ...data };
+  //     if (existing.username && existing.username === body.username) {
+  //       delete body.username;
+  //     }
+  //     if (Object.keys(body).length === 0) {
+  //       return { created: false, data: existing };
+  //     }
+  //     const updated = await profileService.updateProfile(body);
+  //     return { created: false, data: updated };
+  //   }
+
+  //   if (!(file instanceof File)) {
+  //     throw new Error("Avatar image is required. Please select a profile photo.");
+  //   }
+
+  //   const created = await profileService.createProfile(data, file);
+  //   return { created: true, data: created };
+  // },
   async ensureProfile(data, file) {
-    let existing = null;
+  const existing = await fetchProfileOnce();
 
-    try {
-      const res = await profileService.getProfile();
-      existing = res?.data?.profile ?? res?.data ?? res?.profile ?? res ?? {};
-    } catch (err) {
-      if (err.status !== 404) throw err;
+  if (existing) {
+    const body = { ...data };
+    if (existing.username && existing.username === body.username) {
+      delete body.username;
     }
-
-    if (existing) {
-      const body = { ...data };
-      if (existing.username && existing.username === body.username) {
-        delete body.username;
-      }
-      if (Object.keys(body).length === 0) {
-        return { created: false, data: existing };
-      }
-      const updated = await profileService.updateProfile(body);
-      return { created: false, data: updated };
+    if (Object.keys(body).length === 0) {
+      return { created: false, data: existing };
     }
+    const updated = await profileService.updateProfile(body);
+    invalidateProfile();
+    return { created: false, data: updated };
+  }
 
-    if (!(file instanceof File)) {
-      throw new Error("Avatar image is required. Please select a profile photo.");
-    }
+  if (!(file instanceof File)) {
+    throw new Error("Avatar image is required. Please select a profile photo.");
+  }
 
-    const created = await profileService.createProfile(data, file);
-    return { created: true, data: created };
-  },
-
+  const created = await profileService.createProfile(data, file);
+  invalidateProfile();
+  return { created: true, data: created };
+},
   async deleteAccount() {
     const res = await request("/api/auth/delete-account", { method: "DELETE" });
     if (res?.success === false) {
@@ -348,6 +365,7 @@ export const profileService = {
     }
 
     return payload;
+    invalidateProfile();
   },
 
   /** GET /api/profile/complete */

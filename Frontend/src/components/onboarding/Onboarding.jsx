@@ -168,7 +168,7 @@ function describeSubmitError(errors = []) {
 }
 
 export default function Onboarding() {
-  const [step, setStep] = useState(1); // 1–3; 4 = completion
+  const [step, setStep] = useState(1); 
   const [draft, setDraft] = useState(loadDraft);
   const [showErrors, setShowErrors] = useState(false);
   const [submitError, setSubmitError] = useState('');
