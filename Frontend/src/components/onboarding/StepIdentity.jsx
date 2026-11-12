@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
 import { EASE_SMOOTH } from '../motionVariants';
+import { getUsernameChecks } from './onboardingData';
 import { AGE_RANGES, COUNTRIES, GOAL_MAX, ROLES, ROLE_OTHER, validateUsername } from './onboardingData';
 
 function InlineError({ show, message }) {
@@ -110,9 +111,8 @@ function CountrySelect({ value, onChange, invalid }) {
                 <li key={country}>
                   <button
                     type="button"
-                    className={`country-option ${i === highlight ? 'highlight' : ''} ${
-                      selected ? 'selected' : ''
-                    }`}
+                    className={`country-option ${i === highlight ? 'highlight' : ''} ${selected ? 'selected' : ''
+                      }`}
                     onMouseEnter={() => setHighlight(i)}
                     onClick={() => commit(country)}
                     role="option"
@@ -194,7 +194,7 @@ export default function StepIdentity({ draft, setDraft, showErrors }) {
               <input
                 type="text"
                 className="ob-input"
-                placeholder="Your name"
+                placeholder="e.g. Priya Sharma"
                 value={draft.name}
                 onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
               />
@@ -206,9 +206,14 @@ export default function StepIdentity({ draft, setDraft, showErrors }) {
               <input
                 type="text"
                 className="ob-input"
-                placeholder="@username"
+                placeholder="e.g. priya_sharma21"
                 value={draft.username}
-                onChange={(e) => setDraft((d) => ({ ...d, username: e.target.value.replace(/\s/g, '') }))}
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    username: e.target.value.replace(/[^A-Za-z0-9_]/g, '').slice(0, USERNAME_MAX),
+                  }))
+                }
               />
               <InlineError
                 show={!!showUsernameError}
@@ -219,7 +224,23 @@ export default function StepIdentity({ draft, setDraft, showErrors }) {
                 }
               />
             </label>
-            <p className="ob-hint">Your username is how people will find you.</p>
+            <p className="ob-hint">
+              Your username is how people will find you. Example: <strong>priya_sharma21</strong>
+            </p>
+
+            <ul className="username-rules" aria-live="polite">
+              {usernameChecks.map((c) => (
+                <li
+                  key={c.id}
+                  className={`username-rule ${!usernameTouched ? '' : c.ok ? 'ok' : 'bad'}`}
+                >
+                  <span className="username-rule-icon" aria-hidden="true">
+                    {!usernameTouched ? '•' : c.ok ? '✓' : '✕'}
+                  </span>
+                  {c.label}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
 
@@ -306,7 +327,7 @@ export default function StepIdentity({ draft, setDraft, showErrors }) {
             <span className="ob-hint">Tell us about yourself</span>
             <textarea
               className="ob-input ob-textarea"
-              placeholder="my name is..."
+              placeholder="e.g. Design student who loves UI, photography and learning AI."
               rows={3}
               maxLength={GOAL_MAX}
               value={draft.bio ?? draft.focusGoal ?? ''}

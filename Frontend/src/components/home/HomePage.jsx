@@ -3045,15 +3045,108 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
   const connectionMapRef = useRef(new Map());
   const skillNamesRef = useRef({});
 
+    // ── Feed mode / pagination ──
+  const [feedMode, setFeedMode] = useState(null);
+  const [highlightedSkill, setHighlightedSkill] = useState(null);
+  const [skillDistribution, setSkillDistribution] = useState([]);
+  const [pagination, setPagination] = useState({ hasMore: false, nextCursor: null });
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const feedScrollRef = useRef(null);
+  const sentinelRef = useRef(null);
+  const loadingMoreRef = useRef(false);
+  const feedContextRef = useRef({ currentUserId: null, profileData: null });
+
+
+
   const handleCommentCountSync = useCallback((postId, count) => {
     setPosts(prev => prev.map(p =>
       String(p.id) !== String(postId) ? p : { ...p, comments: count }
     ));
   }, []);
 
+  // ── Turn raw backend posts into UI posts (used for page 1 AND next pages) ──
+  const enrichPosts = useCallback(async (backendPosts) => {
+    const { currentUserId, profileData } = feedContextRef.current;
+    const connectionMap = connectionMapRef.current;
+    const idToName = skillNamesRef.current || {};
+    const authUser = authService.getCurrentUser();
 
+    const mappedPosts = backendPosts.map((post) => {
+      const base = homePostService._normalisePost(post);
+      const conn = connectionMap.get(String(base.creator?.id ?? post.userId));
 
-  // ── Feed Posts from Backend API ──
+      const namesFromIds = (base.skillIds || [])
+        .map((id) => idToName[Number(id)])
+        .filter(Boolean);
+
+      const normalised = {
+        ...base,
+        tags: base.tags.length
+          ? base.tags
+          : namesFromIds.length
+            ? namesFromIds
+            : postSkillCache.get(base.id),
+        liked: post.liked ?? false,
+        saved: post.saved ?? false,
+        connectionStatus: conn?.status ?? 'none',
+        connectionId: conn?.connectionId ?? null,
+      };
+
+      const creatorId = normalised.creator?.id ?? post.userId ?? post.user_id ?? null;
+      const missingName = !normalised.creator?.name;
+      const isCurrentUser =
+        currentUserId != null &&
+        creatorId != null &&
+        String(creatorId) === String(currentUserId);
+
+      if (missingName && isCurrentUser && profileData) {
+        return {
+          ...normalised,
+          creator: {
+            ...normalised.creator,
+            id: currentUserId,
+            name: profileData.fullName ?? profileData.name ?? profileData.username ?? authUser?.name ?? '',
+            username: profileData.username ?? authUser?.email?.split('@')[0] ?? '',
+            avatar: profileData.avatarUrl ?? profileData.avatar ?? '',
+          },
+        };
+      }
+      return normalised;
+    });
+
+    const isNumericId = (id) => /^\d+$/.test(String(id));
+
+    const [reactionResults, learnedResults] = await Promise.all([
+      Promise.allSettled(
+        mappedPosts.map((p) =>
+          isNumericId(p.id) ? getPostReactions(p.id) : Promise.reject(new Error('local post'))
+        )
+      ),
+      Promise.allSettled(
+        mappedPosts.map((p) =>
+          isNumericId(p.id) ? getPostLearned(p.id) : Promise.reject(new Error('local post'))
+        )
+      ),
+    ]);
+
+    return mappedPosts.map((p, i) => {
+      const cached = getCachedFlags(p.id);
+      const reactions =
+        reactionResults[i].status === 'fulfilled'
+          ? normaliseReactions(reactionResults[i].value, p.id)
+          : { appreciated: cached.appreciated, helpful: cached.helpful };
+      const learned =
+        learnedResults[i].status === 'fulfilled'
+          ? learnedResults[i].value
+          : { learned: cached.learned };
+      return { ...p, ...reactions, ...learned };
+    });
+  }, []);
+
+  // ── Page 1 ──
   useEffect(() => {
     let cancelled = false;
 
@@ -3061,26 +3154,23 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
       try {
         setPostsLoading(true);
         setPostsAuthError(null);
+        setLoadMoreError(null);
 
         const authUser = authService.getCurrentUser();
         const currentUserId = authUser?.id ?? authUser?.userId ?? authUser?._id ?? null;
 
-        const [response, profileData, connectionMap, idToName] = await Promise.all([
-          homePostService.getFeedPosts(),
+        const [feedRes, profileData, connectionMap, idToName] = await Promise.all([
+          homePostService.getPersonalizedFeed(null),       // throws on error
           getProfile.getProfile().catch(() => null),
-          connectionService.getConnectionMap(currentUserId),
+          connectionService.getConnectionMap(currentUserId).catch(() => new Map()),
           profileService.fetchSkillIdToNameMap().catch(() => ({})),
         ]);
 
-        const backendPosts = response?.posts ?? [];
-        console.log('[Feed API raw response]:', response);
-
-        console.log('[Feed] posts found:', backendPosts.length);
-
         if (cancelled) return;
-        connectionMapRef.current = connectionMap;
 
+        connectionMapRef.current = connectionMap;
         skillNamesRef.current = idToName || {};
+        feedContextRef.current = { currentUserId, profileData };
 
         if (profileData) {
           const avatar = profileData.avatarUrl ?? profileData.avatar ?? null;
@@ -3089,106 +3179,71 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
           if (name) setFeedProfileName(name);
         }
 
-        const mappedPosts = backendPosts.map((post) => {
-          const base = homePostService._normalisePost(post);
-          const conn = connectionMap.get(String(base.creator?.id ?? post.userId));
-
-          const normalised = {
-            ...base,
-            tags: base.tags.length
-              ? base.tags
-              : (base.skillIds || []).map((id) => idToName[Number(id)]).filter(Boolean).length
-                ? (base.skillIds || []).map((id) => idToName[Number(id)]).filter(Boolean)
-                : postSkillCache.get(base.id),
-            liked: post.liked ?? false,
-            saved: post.saved ?? false,
-            connectionStatus: conn?.status ?? 'none',
-            connectionId: conn?.connectionId ?? null,
-          };
-
-          // Enrich posts authored by the current user whose creator info the
-          // backend omitted (it only returns userId at the top level).
-          const creatorId =
-            normalised.creator?.id ??
-            post.userId ??
-            post.user_id ??
-            null;
-
-          const missingName = !normalised.creator?.name;
-          const isCurrentUser =
-            currentUserId != null &&
-            creatorId != null &&
-            String(creatorId) === String(currentUserId);
-
-          if (missingName && isCurrentUser && profileData) {
-            return {
-              ...normalised,
-              creator: {
-                ...normalised.creator,
-                id: currentUserId,
-                name: profileData.fullName ?? profileData.name ?? profileData.username ?? authUser?.name ?? '',
-                username: profileData.username ?? authUser?.email?.split('@')[0] ?? '',
-                avatar: profileData.avatarUrl ?? profileData.avatar ?? '',
-              },
-            };
-          }
-
-          return normalised;
-        });
-
-        const isNumericId = (id) => /^\d+$/.test(String(id));
-
-        const [reactionResults, learnedResults] = await Promise.all([
-          Promise.allSettled(
-            mappedPosts.map((p) =>
-              isNumericId(p.id) ? getPostReactions(p.id) : Promise.reject(new Error('local post'))
-            )
-          ),
-          Promise.allSettled(
-            mappedPosts.map((p) =>
-              isNumericId(p.id) ? getPostLearned(p.id) : Promise.reject(new Error('local post'))
-            )
-          ),
-        ]);
-
+        const enriched = await enrichPosts(feedRes.posts);
         if (cancelled) return;
 
-        const withReactions = mappedPosts.map((p, i) => {
-          const cached = getCachedFlags(p.id);
-
-          const reactions =
-            reactionResults[i].status === 'fulfilled'
-              ? normaliseReactions(reactionResults[i].value, p.id)
-              : { appreciated: cached.appreciated, helpful: cached.helpful };
-
-          const learned =
-            learnedResults[i].status === 'fulfilled'
-              ? learnedResults[i].value
-              : { learned: cached.learned };
-
-          return { ...p, ...reactions, ...learned };
-        });
-
-        setPosts(withReactions);
+        setPosts(appendUnique([], enriched));
+        setFeedMode(feedRes.feedMode);
+        setHighlightedSkill(feedRes.highlightedSkill);
+        setSkillDistribution(feedRes.skillDistribution);
+        setPagination(feedRes.pagination);
       } catch (error) {
         if (cancelled) return;
-
-        console.error("Failed to load feed:", error);
+        console.error('Failed to load feed:', error);
         setPosts([]);
-        setPostsAuthError("Unable to load posts. Please try again.");
+        setPagination({ hasMore: false, nextCursor: null });
+        setPostsAuthError(error?.message || 'Unable to load posts. Please try again.');
       } finally {
-        if (!cancelled) {
-          setPostsLoading(false);
-        }
+        if (!cancelled) setPostsLoading(false);
       }
     };
 
     loadFeed();
+    return () => { cancelled = true; };
+  }, [enrichPosts, reloadKey]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // ── Next pages (cursor-based) ──
+  const loadMore = useCallback(async () => {
+    if (loadingMoreRef.current) return;
+    if (!pagination.hasMore || !pagination.nextCursor) return;
+
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    setLoadMoreError(null);
+
+    try {
+      const res = await homePostService.getPersonalizedFeed(pagination.nextCursor);
+      const enriched = await enrichPosts(res.posts);
+
+      setPosts((prev) => appendUnique(prev, enriched));
+      setPagination(res.pagination);
+      if (res.feedMode) setFeedMode(res.feedMode);            // may flip INITIAL -> EXPANDED
+      setHighlightedSkill(res.highlightedSkill);
+      if (res.skillDistribution.length) setSkillDistribution(res.skillDistribution);
+    } catch (err) {
+      console.error('Failed to load more posts:', err);
+      setLoadMoreError(err?.message || 'Could not load more posts.');
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [pagination, enrichPosts]);
+
+  // ── Infinite scroll: observe a sentinel at the bottom of the feed ──
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    const root = feedScrollRef.current;
+    if (!sentinel || !root || postsLoading || !pagination.hasMore || loadMoreError) {
+      return undefined;
+    }
+
+    const io = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) loadMore(); },
+      { root, rootMargin: '300px 0px', threshold: 0 }
+    );
+    io.observe(sentinel);
+    return () => io.disconnect();
+  }, [loadMore, pagination.hasMore, postsLoading, loadMoreError, activeTab]);
 
   // ── Home Tabs from GET /api/home/tabs ────────────────────────
   const [apiTabs, setApiTabs] = useState(null);
@@ -3416,7 +3471,7 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
   const pendingAppreciate = useRef(new Set());
   const pendingHelpful = useRef(new Set());
   const pendingLearned = useRef(new Set());
-    const syncReactions = useCallback(async (postId) => {
+  const syncReactions = useCallback(async (postId) => {
     try {
       const r = normaliseReactions(await getPostReactions(postId), postId);
       setPosts((ps) => ps.map((p) =>
@@ -3463,7 +3518,7 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
       }
     ));
 
-        try {
+    try {
       if (was) await homePostService.removeReaction(postId, 'APPRECIATE');
       else await homePostService.addReaction(postId, 'APPRECIATE');
       await syncReactions(postId);   // server is the source of truth
@@ -3495,7 +3550,7 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
       }
     ));
 
-        try {
+    try {
       if (was) await homePostService.removeReaction(postId, 'HELPFUL');
       else await homePostService.addReaction(postId, 'HELPFUL');
       await syncReactions(postId);
@@ -3534,7 +3589,7 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
           }
       )
     );
-      try {
+    try {
       if (was) await homePostService.unmarkLearned(postId);
       else await homePostService.markLearned(postId);
       await syncLearned(postId);
@@ -3669,12 +3724,7 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
 
   let visiblePosts;
   if (activeTab === 'For You') {
-    const score = (p) =>
-      isOwnPost(p, myId) ? 3 :
-        p.connectionStatus === 'connected' ? 2 :
-          matchesSkills(p, mySkills) ? 1 : 0;
-
-    visiblePosts = [...posts].sort((a, b) => score(b) - score(a));
+    visiblePosts = posts;
   } else if (activeTab === 'Learning') {
     visiblePosts = posts.filter((p) => matchesSkills(p, mySkills));
   } else if (activeTab === 'Discover') {
@@ -3700,7 +3750,7 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
       <InterestTabs active={activeTab} onChange={setActiveTab} tabs={FEED_TABS} />
 
       {/* Middle Feed */}
-      <main className="hp-feed" aria-label="Social feed" style={{ overflowX: "hidden", overflowY: "auto", }}>
+      <main className="hp-feed" ref={feedScrollRef} aria-label="Social feed" style={{ overflowX: "hidden", overflowY: "auto", }}>
         <PostComposer
           user={user}
           profileAvatar={feedProfileAvatar}
@@ -3728,21 +3778,31 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
           </p>
         )}
 
-        {/* Feed posts — always rendered when available */}
-        {/* Feed Posts */}
+        {/* Feed mode + skill distribution (only on For You) */}
+        {activeTab === 'For You' && !postsLoading && !postsAuthError && (
+          <FeedModeBanner
+            feedMode={feedMode}
+            highlightedSkill={highlightedSkill}
+            skillDistribution={skillDistribution}
+          />
+        )}
+
         {postsLoading ? (
-          <div className="hp-feed-empty" role="status">
-            Loading posts...
-          </div>
+          <div className="hp-feed-empty" role="status">Loading posts...</div>
         ) : postsAuthError ? (
           <div className="hp-feed-empty" role="alert">
-            {postsAuthError}
+            <p>{postsAuthError}</p>
+            <button type="button" className="hp-composer-post-btn" onClick={() => setReloadKey((k) => k + 1)}>
+              Try again
+            </button>
           </div>
         ) : visiblePosts.length === 0 ? (
           <div className="hp-feed-empty" role="status">
             <span className="hp-feed-empty-icon">💎</span>
             <p>
-              No posts in <strong>{activeTab}</strong> yet.
+              {activeTab === 'For You' && feedMode === 'INITIAL'
+                ? 'No posts match your skills yet. Check back soon or explore Discover.'
+                : <>No posts in <strong>{activeTab}</strong> yet.</>}
             </p>
           </div>
         ) : (
@@ -3760,6 +3820,30 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
             />
           ))
         )}
+
+        {/* Infinite-scroll sentinel + states */}
+        {!postsLoading && !postsAuthError && pagination.hasMore && (
+          <div ref={sentinelRef} style={{ height: 1 }} aria-hidden="true" />
+        )}
+
+        {loadingMore && (
+          <div className="hp-feed-empty" role="status">Loading more posts...</div>
+        )}
+
+        {loadMoreError && (
+          <div className="hp-feed-empty" role="alert">
+            <p>{loadMoreError}</p>
+            <button type="button" className="hp-composer-post-btn" onClick={loadMore}>
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!postsLoading && !postsAuthError && !pagination.hasMore && posts.length > 0 && (
+          <p style={{ textAlign: 'center', fontSize: 12, color: '#8b7aa3', padding: '12px 0 24px' }}>
+            You're all caught up 🎉
+          </p>
+        )}
       </main>
 
       {/* Comment panel — rendered at feed level so it overlays the page */}
@@ -3774,6 +3858,79 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
       )}
     </div>
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FEED MODE BANNER (INITIAL / EXPANDED + skill distribution)
+// ─────────────────────────────────────────────────────────────────────────────
+function FeedModeBanner({ feedMode, highlightedSkill, skillDistribution }) {
+  if (!feedMode) return null;
+
+  const isExpanded = feedMode === 'EXPANDED';
+
+  return (
+    <section className="hp-feedmode" aria-label="Feed personalisation">
+      <style>{`
+        .hp-feedmode { background:#fff; border:1px solid rgba(9,3,15,.1); border-radius:12px; padding:12px 16px; margin-bottom:12px; }
+        .hp-feedmode-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+        .hp-feedmode-badge { font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; background:rgba(170,69,245,.12); color:#aa45f5; }
+        .hp-feedmode-badge.expanded { background:rgba(34,197,94,.14); color:#16a05d; }
+        .hp-feedmode-text { font-size:12px; color:#8b7aa3; margin:0; }
+        .hp-feedmode-list { list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
+        .hp-feedmode-row-top { display:flex; justify-content:space-between; font-size:12px; color:#2d1b4e; font-weight:500; margin-bottom:3px; }
+        .hp-feedmode-row-top.highlight { color:#aa45f5; font-weight:700; }
+        .hp-feedmode-track { height:6px; background:rgba(9,3,15,.08); border-radius:3px; overflow:hidden; }
+        .hp-feedmode-fill { height:100%; background:#aa45f5; border-radius:3px; }
+      `}</style>
+
+      <div className="hp-feedmode-head">
+        <span className={`hp-feedmode-badge ${isExpanded ? 'expanded' : ''}`}>
+          {isExpanded ? 'Personalised feed' : 'Getting started'}
+        </span>
+        <p className="hp-feedmode-text">
+          {isExpanded
+            ? highlightedSkill
+              ? `Your feed is tuned to your learning. Top skill: ${highlightedSkill}`
+              : 'Your feed is tuned to your learning activity.'
+            : 'Showing posts based on the skills you picked. Explore a few posts to personalise your feed.'}
+        </p>
+      </div>
+
+      {isExpanded && skillDistribution.length > 0 && (
+        <ul className="hp-feedmode-list">
+          {skillDistribution.map((s) => {
+            const pct = Math.max(0, Math.min(100, Number(s.percentage) || 0));
+            const per10 = s.postsPer10 ?? s.postQuota ?? 0;
+            const isTop = highlightedSkill && s.skillName === highlightedSkill;
+            return (
+              <li key={s.skillId}>
+                <div className={`hp-feedmode-row-top ${isTop ? 'highlight' : ''}`}>
+                  <span>{s.skillName}</span>
+                  <span>{pct}% · {per10}/10 posts</span>
+                </div>
+                <div className="hp-feedmode-track">
+                  <div className="hp-feedmode-fill" style={{ width: `${pct}%` }} />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+// Append posts without duplicates (also de-dupes inside the incoming page)
+function appendUnique(prev, incoming) {
+  const seen = new Set(prev.map((p) => String(p.id)));
+  const fresh = [];
+  for (const p of incoming) {
+    const key = String(p.id);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    fresh.push(p);
+  }
+  return fresh.length ? [...prev, ...fresh] : prev;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

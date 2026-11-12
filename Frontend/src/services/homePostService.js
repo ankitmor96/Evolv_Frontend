@@ -92,12 +92,6 @@ const request = async (path, options = {}) => {
   }, 120000);
 
   try {
-    console.log("[VIDEO DEBUG] Request started", {
-      url: `${API_BASE_URL}${path}`,
-      method: options.method || "GET",
-      bodyType: isFormData ? "FormData" : "JSON",
-      time: new Date().toISOString(),
-    });
 
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...fetchOptions,
@@ -107,11 +101,6 @@ const request = async (path, options = {}) => {
     if (response.status === 401 && token) {
       forceLogout();
     }
-
-    console.log('[homePostService] Response received', {
-      status: response.status,
-      elapsedMs: Date.now() - startedAt,
-    });
 
     const payload = await response.json().catch(() => ({}));
 
@@ -788,6 +777,45 @@ export const homePostService = {
       }
       return { posts: [], pagination: { limit: 10, hasMore: false, nextCursor: null } };
     }
+  },
+
+    // ── Personalised feed (INITIAL / EXPANDED) ─────────────────────────────────
+  /**
+   * GET /api/posts/feed?cursor=...
+   * Throws on failure so the UI can show an error state.
+   */
+  async getPersonalizedFeed(cursor = null) {
+    const params = new URLSearchParams();
+    if (cursor) params.set("cursor", String(cursor));
+    const qs = params.toString() ? `?${params.toString()}` : "";
+
+    const result = await request(`${FEED_ENDPOINT}${qs}`, { method: "GET" });
+    console.log('[Feed raw response]', result);   
+
+    const posts = Array.isArray(result?.data)
+      ? result.data
+      : Array.isArray(result?.posts)
+        ? result.posts
+        : Array.isArray(result)
+          ? result
+          : [];
+
+    const pg = result?.pagination ?? {};
+
+    return {
+      posts,
+      feedMode: result?.feedMode ?? null,               // "INITIAL" | "EXPANDED"
+      highlightedSkill: result?.highlightedSkill ?? null,
+      skillDistribution: Array.isArray(result?.skillDistribution)
+        ? result.skillDistribution
+        : [],
+      pagination: {
+        limit: pg.limit ?? 10,
+        // never say "has more" without a cursor, otherwise infinite loop
+        hasMore: Boolean(pg.hasMore && pg.nextCursor),
+        nextCursor: pg.nextCursor ?? null,
+      },
+    };
   },
 
   // ── Delete Post ───────────────────────────────────────────────────────────

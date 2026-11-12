@@ -115,24 +115,6 @@ const demoEmpty = (promise) =>
   });
 
 export const adminService = {
-  // isLoggedIn() {
-  //     // Temporary frontend demo authentication
-  // const demoSession = sessionStorage.getItem(
-  //   'evolvs_admin_demo_session'
-  // );
-
-  // if (demoSession) {
-  //   try {
-  //     const admin = JSON.parse(demoSession);
-  //     return admin.role === 'admin' && admin.isDemo === true;
-  //   } catch {
-  //     sessionStorage.removeItem('evolvs_admin_demo_session');
-  //   }
-  // }
-  // // this is for tempory use  (above code)
-  //   const token = getToken();
-  //   return !!token && !isTokenExpired(token) && isAdminToken(token);
-  // },
   isLoggedIn() {
     if (getDemoSession()) return true;
     const token = getToken();
@@ -210,10 +192,6 @@ export const adminService = {
   },
 
   // ── Users ──────────────────────────────────────────────────────────
-  // async getUsers(params = {}) {
-  //   const qs = new URLSearchParams(params).toString();
-  //   return request(`/api/admin/users${qs ? `?${qs}` : ''}`);
-  // },
   async getUsers(params = {}) {
     const qs = new URLSearchParams(params).toString();
     return demoEmpty(request(`/api/admin/users${qs ? `?${qs}` : ''}`));
@@ -235,10 +213,6 @@ export const adminService = {
   },
 
   // ── Posts ──────────────────────────────────────────────────────────
-  // async getPosts(params = {}) {
-  //   const qs = new URLSearchParams(params).toString();
-  //   return request(`/api/admin/posts${qs ? `?${qs}` : ''}`);
-  // },
   async getPosts(params = {}) {
     const qs = new URLSearchParams(params).toString();
     return demoEmpty(request(`/api/admin/posts${qs ? `?${qs}` : ''}`));
@@ -251,12 +225,6 @@ export const adminService = {
   async restorePost(id) {
     return request(`/api/admin/posts/${id}/restore`, { method: 'PATCH' });
   },
-
-  // ── Reports ───────────────────────────────────────────────────────
-  // async getReports(params = {}) {
-  //   const qs = new URLSearchParams(params).toString();
-  //   return request(`/api/admin/reports${qs ? `?${qs}` : ''}`);
-  // },
   async getReports(params = {}) {
     const qs = new URLSearchParams(params).toString();
     return demoEmpty(request(`/api/admin/reports${qs ? `?${qs}` : ''}`));
@@ -280,10 +248,6 @@ export const adminService = {
   },
 
   // ── Comments ──────────────────────────────────────────────────────
-  // async getComments(params = {}) {
-  //   const qs = new URLSearchParams(params).toString();
-  //   return request(`/api/admin/comments${qs ? `?${qs}` : ''}`);
-  // },
   async getComments(params = {}) {
     const qs = new URLSearchParams(params).toString();
     return demoEmpty(request(`/api/admin/comments${qs ? `?${qs}` : ''}`));

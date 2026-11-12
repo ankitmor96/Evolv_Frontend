@@ -255,7 +255,6 @@ export const authService = {
   async isOnboardingComplete() {
     try {
       const status = await authService.getOnboardingStatus();
-      console.table(status); // see which check fails
       return Object.values(status).every(Boolean);
     } catch (err) {
       if (err.status === 401) {

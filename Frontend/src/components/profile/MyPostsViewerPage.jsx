@@ -1,11 +1,18 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
     ArrowLeft, Heart, Sparkles, CheckCircle2, MessageCircle, Trash2,
-    FileText, Download, MoreHorizontal, Volume2, VolumeX, Play,
+    FileText, MoreHorizontal, Volume2, VolumeX, Play,
 } from 'lucide-react';
 import { authService } from '../../services/authService.js';
 import { homePostService } from '../../services/homePostService.js';
 import { getProfile } from '../../services/getProfile.js';
+import { navigate } from '../../utils/navigate.js';
+import {
+    getPostReactions,
+    getPostLearned,
+    normaliseReactions,
+    getCachedFlags,
+} from '../../services/reactionTotals.js';
 import CommentPanel from '../shared/CommentPanel.jsx';
 
 const fmt = (n = 0) => (n >= 1000 ? (n / 1000).toFixed(1).replace('.0', '') + 'K' : String(n));
@@ -22,6 +29,16 @@ const FILTERS = [
 const REACTION_FIELDS = {
     APPRECIATE: { flag: 'appreciated', count: 'appreciations' },
     HELPFUL: { flag: 'helpful', count: 'helpfulCount' },
+};
+
+// Each reaction is independent: only the clicked type changes.
+const applyReaction = (post, type, next) => {
+    const f = REACTION_FIELDS[type];
+    return {
+        ...post,
+        [f.flag]: next,
+        [f.count]: Math.max(0, (post[f.count] ?? 0) + (next ? 1 : -1)),
+    };
 };
 
 function goBack() {
@@ -103,6 +120,7 @@ export default function MyPostsViewerPage() {
     const [deleteError, setDeleteError] = useState('');
 
     const pending = useRef(new Set());
+    const reactionSeq = useRef({});
     const postsRef = useRef([]);
     const scrollRef = useRef(null);
     const startIdRef = useRef(null);
@@ -133,24 +151,34 @@ export default function MyPostsViewerPage() {
                 const mine = await homePostService.getMyPosts(userId).catch(() => []);
                 const list = (mine || []).filter(isMedia);
 
+                const isNumericId = (id) => /^\d+$/.test(String(id));
+
                 const enriched = await Promise.all(
                     list.map(async (p) => {
-                        try {
-                            const r = await homePostService.getReactions(p.id);
-                            const c = r?.counts ?? {};
-                            return {
-                                ...p,
-                                appreciations: typeof c.APPRECIATE === 'number' ? c.APPRECIATE : p.appreciations,
-                                helpfulCount: typeof c.HELPFUL === 'number' ? c.HELPFUL : p.helpfulCount,
-                                appreciated: r?.myReaction === 'APPRECIATE' || p.appreciated,
-                                helpful: r?.myReaction === 'HELPFUL' || p.helpful,
-                            };
-                        } catch {
-                            return p;
-                        }
+                        if (!isNumericId(p.id)) return p;
+
+                        const cached = getCachedFlags(p.id);
+
+                        const [reactionRes, learnedRes] = await Promise.allSettled([
+                            getPostReactions(p.id),   // GET /reactions (appreciate + helpful)
+                            getPostLearned(p.id),     // GET learned (separate API)
+                        ]);
+
+                        const reactions =
+                            reactionRes.status === 'fulfilled'
+                                ? normaliseReactions(reactionRes.value, p.id)
+                                : { appreciated: cached.appreciated, helpful: cached.helpful };
+
+                        const learned =
+                            learnedRes.status === 'fulfilled'
+                                ? learnedRes.value
+                                : { learned: cached.learned };
+
+                        return { ...p, ...reactions, ...learned };
                     })
                 );
                 if (cancelled) return;
+
 
                 const startFilter = sessionStorage.getItem('evolv-myposts-filter') || 'all';
                 startIdRef.current = sessionStorage.getItem('evolv-myposts-start');
@@ -195,47 +223,84 @@ export default function MyPostsViewerPage() {
         return () => window.removeEventListener('keydown', onKey);
     }, [commentPostId, confirmPost, menuPostId]);
 
-    // Appreciate / Helpful (independent of each other)
+    // Re-read learned from its own API
+    const syncLearned = useCallback(async (postId) => {
+        try {
+            const l = await getPostLearned(postId);
+            setPosts((ps) => ps.map((p) =>
+                String(p.id) !== String(postId) ? p : { ...p, ...l }));
+        } catch (e) {
+            console.warn('[syncLearned] failed:', e.message);
+        }
+    }, []);
+
+    // Re-read reactions from the server (source of truth).
+    // If the user clicked again while this GET was in flight, the result is dropped.
+    const syncReactions = useCallback(async (postId, seq) => {
+        try {
+            const r = normaliseReactions(await getPostReactions(postId), postId);
+            if (seq != null && reactionSeq.current[String(postId)] !== seq) return;
+            setPosts((ps) => ps.map((p) =>
+                String(p.id) !== String(postId) ? p : {
+                    ...p,
+                    appreciated: r.appreciated,
+                    appreciations: r.appreciations,
+                    helpful: r.helpful,
+                    helpfulCount: r.helpfulCount,
+                }));
+        } catch (e) {
+            console.warn('[syncReactions] failed:', e.message);
+        }
+    }, []);
+
+    // Appreciate / Helpful are independent: each has its own lock, request and rollback.
     const toggleReaction = useCallback(async (postId, type) => {
-        const key = `reaction:${postId}:${type}`;
+        const key = `reaction:${postId}:${type}`;        // lock per post AND type
         if (pending.current.has(key)) return;
+
+        const before = postsRef.current.find((p) => String(p.id) === String(postId));
+        if (!before) return;
         pending.current.add(key);
 
-        const snapshot = postsRef.current;
-        const current = snapshot.find((p) => String(p.id) === String(postId));
-        if (!current) { pending.current.delete(key); return; }
+        const f = REACTION_FIELDS[type];
+        const was = Boolean(before[f.flag]);
+        const idKey = String(postId);
+        const seq = (reactionSeq.current[idKey] ?? 0) + 1;
+        reactionSeq.current[idKey] = seq;
 
-        const mine = REACTION_FIELDS[type];
-        const was = Boolean(current[mine.flag]);
-        const next = !was;
-
+        // optimistic: only the clicked type changes
         setPosts((ps) => ps.map((p) =>
-            String(p.id) !== String(postId) ? p : {
-                ...p,
-                [mine.flag]: next,
-                [mine.count]: Math.max(0, (p[mine.count] ?? 0) + (next ? 1 : -1)),
-            }));
+            String(p.id) !== idKey ? p : applyReaction(p, type, !was)));
 
         try {
             if (was) await homePostService.removeReaction(postId, type);
             else await homePostService.addReaction(postId, type);
         } catch (err) {
-            if (!(was && err.status === 404)) setPosts(snapshot);
-        } finally {
+            console.error('[Reaction] failed:', type, err.status, err.message);
+            // roll back ONLY this type's flag and count
+            setPosts((ps) => ps.map((p) =>
+                String(p.id) !== idKey ? p : {
+                    ...p,
+                    [f.flag]: before[f.flag],
+                    [f.count]: before[f.count],
+                }));
             pending.current.delete(key);
+            return;
         }
-    }, []);
+
+        pending.current.delete(key);
+        await syncReactions(postId, seq);                // confirm with the server
+    }, [syncReactions]);
 
     const toggleLearned = useCallback(async (postId) => {
         const key = `learned:${postId}`;
         if (pending.current.has(key)) return;
+
+        const before = postsRef.current.find((p) => String(p.id) === String(postId));
+        if (!before) return;
         pending.current.add(key);
 
-        const snapshot = postsRef.current;
-        const current = snapshot.find((p) => String(p.id) === String(postId));
-        if (!current) { pending.current.delete(key); return; }
-
-        const was = Boolean(current.learned);
+        const was = Boolean(before.learned);
         const next = !was;
 
         setPosts((ps) => ps.map((p) =>
@@ -249,17 +314,27 @@ export default function MyPostsViewerPage() {
             if (was) await homePostService.unmarkLearned(postId);
             else await homePostService.markLearned(postId);
         } catch (err) {
-            if (!(was && err.status === 404)) setPosts(snapshot);
-        } finally {
+            console.error('[Learned] failed:', err.status, err.message);
+            setPosts((ps) => ps.map((p) =>
+                String(p.id) !== String(postId) ? p : {
+                    ...p,
+                    learned: before.learned,
+                    learnedCount: before.learnedCount,
+                }));
             pending.current.delete(key);
+            return;
         }
-    }, []);
+
+        pending.current.delete(key);
+        await syncLearned(postId);
+    }, [syncLearned]);
 
     const onCommentCount = useCallback((postId, delta) => {
         setPosts((ps) => ps.map((p) =>
             String(p.id) !== String(postId) ? p
                 : { ...p, comments: Math.max(0, (p.comments ?? 0) + delta) }));
     }, []);
+
 
     // Delete (images, videos and documents)
     const handleDelete = useCallback(async () => {
@@ -388,6 +463,7 @@ export default function MyPostsViewerPage() {
         .mv-act { display:inline-flex; align-items:center; gap:6px; border:none; background:transparent;
           padding:4px 0; cursor:pointer; color:#17102b; font-size:14px; font-weight:600; transition:transform .15s; }
         .mv-act:active { transform:scale(.9); }
+        .mv-act:focus:not(:focus-visible) { outline: none; }
         .mv-act.on-pink { color:#ef476f; }
         .mv-act.on-blue { color:#5b5cf0; }
         .mv-act.on-green { color:#16a05d; }

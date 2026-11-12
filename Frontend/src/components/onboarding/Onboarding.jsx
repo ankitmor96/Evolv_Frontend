@@ -186,7 +186,7 @@ export default function Onboarding() {
     navigate('/login');
   };
 
-  const [phase, setPhase] = useState('idle'); 
+  const [phase, setPhase] = useState('idle');
   const pendingStepRef = useRef(null);
 
   // Prevents duplicate submissions if the user taps "Enter EVOLV" more than once.
@@ -1713,6 +1713,38 @@ export default function Onboarding() {
         @media (prefers-reduced-motion: reduce) {
           .ob-frame * { transition-duration: 0.01ms !important; }
         }
+          /* ─── Username rules checklist ─── */
+.username-rules {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.username-rule {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.74rem;
+  color: #77727F;
+  transition: color 160ms ease;
+}
+.username-rule-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: rgba(9, 3, 15, 0.06);
+}
+.username-rule.ok { color: #16a05d; }
+.username-rule.ok .username-rule-icon { background: rgba(22, 160, 93, 0.15); }
+.username-rule.bad { color: #d1293d; }
+.username-rule.bad .username-rule-icon { background: rgba(209, 41, 61, 0.12); }
       `}</style>
     </main>
   );

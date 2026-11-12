@@ -40,7 +40,8 @@
  */
 import { getCountryCode, COUNTRIES } from "../components/onboarding/onboardingData.js";
 import { forceLogout } from './sessionService.js';
-import { sumReactionTotals } from './reactionTotals.js'; 
+import { sumReactionTotals } from './reactionTotals.js';
+import { homePostService } from './homePostService.js';
 
 const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? "";
 
@@ -638,16 +639,27 @@ export const profileService = {
       documentCount: Number(data?.documentCount ?? 0),
     };
   },
-  
+
   // GET /api/posts/my-posts/engagement-counts
   async getMyEngagementCounts() {
-    const myPosts = await this.getMyPosts();
-    const ids = myPosts.map((p) => p.id ?? p.postId);
+    const posts = await homePostService.getMyPosts();
 
-    const results = await Promise.allSettled(ids.map(getPostReactions));
-    const ok = results.filter((r) => r.status === 'fulfilled').map((r) => r.value);
+    const results = await Promise.allSettled(
+      posts.map((p) => homePostService.getReactions(p.id))
+    );
 
-    return sumReactionTotals(ok);
+    let appreciation = 0;
+    let helpful = 0;
+    let learned = 0;
+
+    results.forEach((r, i) => {
+      const counts = r.status === 'fulfilled' ? (r.value?.counts ?? {}) : {};
+      appreciation += Number(counts.APPRECIATE ?? posts[i].appreciations ?? 0);
+      helpful += Number(counts.HELPFUL ?? posts[i].helpfulCount ?? 0);
+      learned += Number(counts.LEARNED ?? posts[i].learnedCount ?? 0);
+    });
+
+    return { appreciation, helpful, learned };
   },
   /**
    * Builds a { "skill name (lower-cased)": backendId }

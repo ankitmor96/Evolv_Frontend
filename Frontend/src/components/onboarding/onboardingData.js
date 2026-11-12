@@ -798,6 +798,22 @@ export function validateUsername(raw) {
   if (!USERNAME_RE.test(v)) return 'Letters, numbers and _ only';
   return null;
 }
+// Live checklist shown under the username field
+export const getUsernameChecks = (value = '') => {
+  const v = value.trim();
+  return [
+    {
+      id: 'length',
+      label: `${USERNAME_MIN}–${USERNAME_MAX} characters`,
+      ok: v.length >= USERNAME_MIN && v.length <= USERNAME_MAX,
+    },
+    {
+      id: 'chars',
+      label: 'Only letters, numbers and _ (no spaces or symbols like # @ . -)',
+      ok: v.length > 0 && /^[A-Za-z0-9_]+$/.test(v),
+    },
+  ];
+};
 
 /** THE resolved role label — either the chosen chip or the custom "Other" text. */
 export function resolvedRole(draft) {

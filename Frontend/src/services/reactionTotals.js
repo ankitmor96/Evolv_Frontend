@@ -100,15 +100,15 @@ export function normaliseReactions(json = {}, postId) {
     'userReactions' in json || 'reactedByMe' in json;
 
   const my =
-    json.myReaction ?? json.myReactions ?? json.userReaction ??
-    json.userReactions ?? json.reactedByMe ?? null;
+    json.myReactions ?? json.myReaction ?? json.userReactions ??
+    json.userReaction ?? json.reactedByMe ?? null;
 
   const cached = getCachedFlags(postId);
 
   // Server is the source of truth; cache is only a fallback if the field is missing
   const appreciated = hasServerState ? hasReaction(my, 'APPRECIATE') : cached.appreciated;
-  const helpful     = hasServerState ? hasReaction(my, 'HELPFUL')     : cached.helpful;
-  const learned     = hasServerState
+  const helpful = hasServerState ? hasReaction(my, 'HELPFUL') : cached.helpful;
+  const learned = hasServerState
     ? hasReaction(my, 'LEARNED') || Boolean(json.myLearned ?? json.isLearned ?? json.learned)
     : cached.learned;
 
