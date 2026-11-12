@@ -3045,7 +3045,7 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
   const connectionMapRef = useRef(new Map());
   const skillNamesRef = useRef({});
 
-    // ── Feed mode / pagination ──
+  // ── Feed mode / pagination ──
   const [feedMode, setFeedMode] = useState(null);
   const [highlightedSkill, setHighlightedSkill] = useState(null);
   const [skillDistribution, setSkillDistribution] = useState([]);
@@ -3630,7 +3630,14 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
             connectionId: conn?.connectionId ?? null,
           };
         })
-        .filter(p => p.id && !String(p.id).startsWith('local-'));
+        .filter(p => p.id && !String(p.id).startsWith('local-'))
+        // Only show the current user's own new posts live.
+        // Everyone else's posts must come from the backend feed API.
+        .filter((p) => {
+          const me = authService.getCurrentUser();
+          const meId = me?.id ?? me?.userId ?? me?._id ?? null;
+          return meId != null && String(p.creator?.id) === String(meId);
+        });
 
       if (incoming.length === 0) return;
 
@@ -3784,6 +3791,7 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
             feedMode={feedMode}
             highlightedSkill={highlightedSkill}
             skillDistribution={skillDistribution}
+            onRefresh={() => setReloadKey((k) => k + 1)}
           />
         )}
 
@@ -3863,7 +3871,7 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // FEED MODE BANNER (INITIAL / EXPANDED + skill distribution)
 // ─────────────────────────────────────────────────────────────────────────────
-function FeedModeBanner({ feedMode, highlightedSkill, skillDistribution }) {
+function FeedModeBanner({ feedMode, highlightedSkill, skillDistribution, onRefresh }) {
   if (!feedMode) return null;
 
   const isExpanded = feedMode === 'EXPANDED';
@@ -3915,6 +3923,15 @@ function FeedModeBanner({ feedMode, highlightedSkill, skillDistribution }) {
             );
           })}
         </ul>
+      )}
+      {onRefresh && (
+        <button
+          type="button"
+          onClick={onRefresh}
+          style={{ marginTop: 10, background: 'none', border: 'none', color: '#aa45f5', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+        >
+          ↻ Refresh feed
+        </button>
       )}
     </section>
   );
