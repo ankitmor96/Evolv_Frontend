@@ -40,7 +40,21 @@ export const notificationService = {
   },
 
   // PATCH /api/notifications/read-all   (check the exact path in your Postman collection)
-  async markAllRead() {
-    return request('/read-all', { method: 'PATCH' });
+    // Mark all notifications as read.
+  async markAllRead(unreadIds = []) {
+    try {
+      return await request('/read-all', { method: 'PATCH' });
+    } catch (err) {
+      if (err.status !== 404 && err.status !== 405) throw err;
+
+      if (unreadIds.length === 0) return { success: true };
+
+      const results = await Promise.allSettled(
+        unreadIds.map((id) => this.markRead(id))
+      );
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      if (failed === unreadIds.length) throw new Error('Could not mark notifications as read');
+      return { success: true, failed };
+    }
   },
 };

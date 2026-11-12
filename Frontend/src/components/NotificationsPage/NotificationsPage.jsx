@@ -194,11 +194,17 @@ export default function NotificationsPage() {
   };
 
   const markAllRead = async () => {
+    const unreadIds = all.filter((n) => !n.isRead).map((n) => n.id);
+    if (unreadIds.length === 0) return;
+
     const prev = all;
-    setAll((l) => l.map((x) => ({ ...x, isRead: true })));
+    setAll((l) => l.map((x) => ({ ...x, isRead: true }))); 
+
     try {
-      await notificationService.markAllRead();
+      const res = await notificationService.markAllRead(unreadIds);
       window.dispatchEvent(new Event('notifications-changed'));
+      if (res?.failed > 0) showToast(`${res.failed} could not be marked as read`);
+      await load(true); 
     } catch {
       setAll(prev);
       showToast('Could not mark all as read');
