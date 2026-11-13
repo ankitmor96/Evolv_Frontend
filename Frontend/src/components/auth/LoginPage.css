@@ -73,7 +73,7 @@ select {
   height: 56px;
   width: 100%;
 
-  background: #dddce0;
+  background: #fff;
   border: 2px solid #111111;
   border-radius: 14px;
 
@@ -243,7 +243,7 @@ select {
   line-height: 0.95;
   letter-spacing: 0.5px;
 
-  color: #dddce0;
+  color: #fff;
   text-transform: uppercase;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
 }
@@ -253,8 +253,9 @@ select {
   z-index: 2;
 
   margin-top: 4px;
+  margin-bottom: 20px;
 
-  color: #d9c9ee;
+  color: #fff;
   font-size: 13.5px;
   line-height: 1.35;
   max-width: 720px;
@@ -295,7 +296,7 @@ select {
   position: relative;
   z-index: 10;
 
-  width: min(660px, 92vw);
+  width: min(900px, 92vw);
   max-height: calc(100vh - 160px);
 
   margin: 10px auto 0;
@@ -439,7 +440,7 @@ select {
 .login-form-area {
   position: relative;
   background: #ffffff;
-  padding: 24px 24px 20px;
+  padding: 45px 45px 25px;
   color: #141017;
   display: flex;
   flex-direction: column;
@@ -1035,7 +1036,7 @@ select {
   margin-bottom: 6px;
 }
 
-.review-card > p {
+.review-card>p {
   margin-top: 4px;
   color: #d0cad7;
   font-size: 9.5px;
@@ -1120,6 +1121,9 @@ select {
 }
 
 @media (max-width: 760px) {
+  .nav-left .nav-item span:not(.nav-who-icon) {
+    display: none;
+  }
   .login-page-container {
     padding: 0;
     align-items: flex-start;
@@ -1144,7 +1148,12 @@ select {
 
   .logo {
     font-size: 22px;
-    display: none;
+    display: flex;
+  }
+
+  .logo .evolv-logo-image {
+    width: 90px;
+    max-height: 30px;
   }
 
   .hero {
@@ -1166,7 +1175,7 @@ select {
   }
 
   .login-modal {
-    width: min(420px, 92vw);
+    width: min(420px, 100vw);
     grid-template-columns: 1fr;
     margin-top: 14px;
     max-height: none;
@@ -1174,7 +1183,7 @@ select {
 
   .login-art {
     min-height: 180px;
-    height: 180px;
+    height: 200px;
     padding: 16px;
 
     /* tag row ka containing block .login-page ban jata hai,
@@ -1298,6 +1307,10 @@ select {
   .form-heading h2 {
     font-size: 20px;
   }
+  .logo .evolv-logo-image {
+    width: 76px;
+    max-height: 26px;
+  }
 }
 
 @media (max-width: 380px) {
@@ -1413,6 +1426,7 @@ select {
     opacity: 0;
     transform: translateY(8px) scale(0.985);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -1424,6 +1438,7 @@ select {
     opacity: 0;
     transform: translateY(6px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1474,7 +1489,7 @@ select {
 }
 
 /* Lone Email OTP button – keeps its half width but sits centred */
-.auth-route .social-buttons.social-buttons-two > button:only-child {
+.auth-route .social-buttons.social-buttons-two>button:only-child {
   grid-column: 1 / -1;
   width: calc(50% - 4px);
   justify-self: center;

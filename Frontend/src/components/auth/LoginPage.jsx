@@ -16,11 +16,15 @@ const WhoIAmIcon = () => (
 
 // EVOLV Logo Image Component
 const EvolvLogo = () => (
-  <img
-    src={evolvLogo}
-    alt="EVOLV – A Human Growth Network"
-    className="evolv-logo-image"
-  />
+  // <img
+  //   src={evolvLogo}
+  //   alt="EVOLV – A Human Growth Network"
+  //   className="evolv-logo-image"
+  // />
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    {/* <circle cx="12" cy="8" r="4"></circle> */}
+    {/* <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"></path> */}
+  </svg>
 );
 
 const GoogleIcon = () => (
@@ -716,7 +720,7 @@ const LoginPage = () => {
           <div className="podium podium-right"></div>
 
           {/* Floating Background Cards - Skill Discovery Bubbles */}
-          <div className="floating-card card-left">
+          {/* <div className="floating-card card-left">
             <span className="small-avatar-circle">📸</span>
             <div>
               <b>Photography</b>
@@ -740,7 +744,7 @@ const LoginPage = () => {
             <b>✦ +1 SKILL</b>
             <span>✦ +1 CONNECTION</span>
             <span>✦ +1 IDEA</span>
-          </div>
+          </div> */}
 
           {/* Login Modal Card */}
           <section className="login-modal">
@@ -1299,7 +1303,7 @@ const LoginPage = () => {
           </section>
 
           {/* Bottom Discover Card */}
-          <div className="review-card">
+          {/* <div className="review-card">
             <div className="discover-number">01</div>
             <strong className="discover-label">DISCOVER</strong>
             <p>
@@ -1307,10 +1311,10 @@ const LoginPage = () => {
               <br />
               that match your interests.
             </p>
-          </div>
+          </div> */}
 
           {/* Bottom Features Card – Why EVOLV? */}
-          <div className="features-card">
+          {/* <div className="features-card">
             <div className="features-card-title">BUILT DIFFERENT</div>
 
             <div>
@@ -1327,7 +1331,7 @@ const LoginPage = () => {
               <span className="feature-icon">🤝</span>
               <p>Real connections</p>
             </div>
-          </div>
+          </div> */}
         </main>
       </div>
     </div>

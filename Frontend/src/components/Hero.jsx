@@ -20,7 +20,7 @@ export default function Hero() {
 
         {/* Hero content with staged cubic-bezier entrance */}
         <div className="hero-content">
-          <p className='hero-subtitle '> <b style={{fontSize:"25px"}}>🇮🇳</b> India's Own Platform</p>
+          <p className='hero-subtitle '> <img src="./world.png" alt="flag" style={{width:"27px"}} /> India's Own Platform</p>
           {/* 0.30s Heading */}
           <motion.h1
             className="hero-heading"
