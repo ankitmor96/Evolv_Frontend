@@ -270,59 +270,37 @@ export const profileService = {
    * @param {object} data – profile payload
    * @returns {Promise<any>}
    */
-  // async ensureProfile(data, file) {
-  //   const existing = await fetchProfileOnce();
-
-  //   try {
-  //     const res = await profileService.getProfile();
-  //     existing = res?.data?.profile ?? res?.data ?? res?.profile ?? res ?? {};
-  //   } catch (err) {
-  //     if (err.status !== 404) throw err;
-  //   }
-
-  //   if (existing) {
-  //     const body = { ...data };
-  //     if (existing.username && existing.username === body.username) {
-  //       delete body.username;
-  //     }
-  //     if (Object.keys(body).length === 0) {
-  //       return { created: false, data: existing };
-  //     }
-  //     const updated = await profileService.updateProfile(body);
-  //     return { created: false, data: updated };
-  //   }
-
-  //   if (!(file instanceof File)) {
-  //     throw new Error("Avatar image is required. Please select a profile photo.");
-  //   }
-
-  //   const created = await profileService.createProfile(data, file);
-  //   return { created: true, data: created };
-  // },
   async ensureProfile(data, file) {
-    const existing = await fetchProfileOnce();
+  invalidateProfile();                  
+  let existing = await fetchProfileOnce();
 
-    if (existing) {
-      const body = { ...data };
-      if (existing.username && existing.username === body.username) {
-        delete body.username;
-      }
-      if (Object.keys(body).length === 0) {
-        return { created: false, data: existing };
-      }
+  if (existing) {
+    const body = { ...data };
+    if (existing.username && existing.username === body.username) {
+      delete body.username;
+    }
+    if (Object.keys(body).length === 0) {
+      return { created: false, data: existing };
+    }
+    
+    try {
       const updated = await profileService.updateProfile(body);
       invalidateProfile();
       return { created: false, data: updated };
+    } catch (err) {
+      // 404 = the profile doesn't really exist, so create it below
+      if (err.status !== 404) throw err;
+      existing = null;
     }
+  }
 
-    if (!(file instanceof File)) {
-      throw new Error("Avatar image is required. Please select a profile photo.");
-    }
-
-    const created = await profileService.createProfile(data, file);
-    invalidateProfile();
-    return { created: true, data: created };
-  },
+  if (!(file instanceof File)) {
+    throw new Error("Avatar image is required. Please select a profile photo.");
+  }
+  const created = await profileService.createProfile(data, file);
+  invalidateProfile();
+  return { created: true, data: created };
+},
   async deleteAccount() {
     const res = await request("/api/auth/delete-account", { method: "DELETE" });
     if (res?.success === false) {

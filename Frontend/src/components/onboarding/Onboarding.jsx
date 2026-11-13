@@ -20,6 +20,7 @@ import {
 import { profileService } from '../../services/profileService';
 import { authService } from '../../services/authService';
 import { navigate } from '../../utils/navigate.js';
+import { invalidateProfile } from '../../services/profileFetch.js';
 
 const CRITICAL_SECTIONS = ['auth', 'profile', 'avatar', 'identity', 'curiosity'];
 
@@ -105,7 +106,11 @@ function describeSubmitError(errors = []) {
     .join(" ");
 
   const text = details.toLowerCase();
-
+    if (errors.some((item) => item.status === 404) && text.includes("profile")) {
+    return {
+      message: "Your profile does not exist yet. Please try again to create it.",
+    };
+  }
   if (
     errors.some((item) => item.status === 401 || item.status === 403) ||
     text.includes("auth token") ||
@@ -130,7 +135,6 @@ function describeSubmitError(errors = []) {
   if (
     text.includes("avatar") ||
     text.includes("profile photo") ||
-    text.includes("file") ||
     text.includes("multipart")
   ) {
     return {
@@ -180,11 +184,13 @@ export default function Onboarding() {
   const [submitDetail, setSubmitDetail] = useState('');
   const currentUser = authService.getCurrentUser();
 
-  const handleLogout = () => {
-    authService.logout();
-    sessionStorage.removeItem('evolv-edit-profile');
-    navigate('/login');
-  };
+const handleLogout = () => {
+  authService.logout();
+  sessionStorage.removeItem('evolv-edit-profile');
+  try { window.localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+  invalidateProfile();
+  navigate('/login');
+};
 
   const [phase, setPhase] = useState('idle');
   const pendingStepRef = useRef(null);
@@ -329,24 +335,36 @@ export default function Onboarding() {
     navigate(isEdit ? '/profile' : '/explore-gems');
   }, [draft, isEdit]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const saved = await profileService.loadDraftFromBackend();
-        if (cancelled) return;
-        if (saved) {
-          setDraft(saved);
-          setIsEdit(true);
-        }
-      } catch (err) {
-        console.error('[Onboarding] Could not load profile for editing', err);
-      } finally {
-        if (!cancelled) setLoadingEdit(false);
+ useEffect(() => {
+  let cancelled = false;
+  const editing = sessionStorage.getItem('evolv-edit-profile') === '1';
+
+  // New user: this is CREATE mode, don't load anything.
+  if (!editing) {
+    setIsEdit(false);
+    setLoadingEdit(false);
+    return undefined;
+  }
+
+  // Came from "Edit Profile": load the saved profile.
+  (async () => {
+    try {
+      invalidateProfile(); // always read fresh data
+      const saved = await profileService.loadDraftFromBackend();
+      if (cancelled) return;
+      if (saved) {
+        setDraft(saved);
+        setIsEdit(true);
       }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+    } catch (err) {
+      console.error('[Onboarding] Could not load profile for editing', err);
+    } finally {
+      if (!cancelled) setLoadingEdit(false);
+    }
+  })();
+
+  return () => { cancelled = true; };
+}, []);
   if (checking) return <div>Loading…</div>;
 
   return (

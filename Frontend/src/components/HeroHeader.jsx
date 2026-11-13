@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, LogIn, UserPlus } from 'lucide-react';
+import { Menu, X, LogIn, UserPlus ,User} from 'lucide-react';
 import AnimatedLogo from './AnimatedLogo';
 import { headerVariants, EASE_SMOOTH } from './motionVariants';
 import { navigate } from '../utils/navigate.js';
@@ -169,7 +169,7 @@ export default function HeroHeader() {
               aria-label="Login"
               onClick={(e) => { e.preventDefault(); navigate('/login'); }}
             >
-              <LogIn size={18} />
+              <User size={18}/>
             </a>
           </div>
         )}

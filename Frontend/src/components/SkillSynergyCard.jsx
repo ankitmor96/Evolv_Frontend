@@ -156,35 +156,11 @@ export default function SkillSynergyCard({ className = '', style = {}, onCardHov
           position: relative;
           background: #FAF8FF;
           border-radius: 12px;
-          padding: 8px 6px 10px;
-          border: 1px dashed #DDD6FE;
+          padding: 6px 5px 10px;
           display: flex;
           flex-direction: column;
           align-items: center;
           gap: 6px;
-        }
-
-        .synergy-nodes-row {
-          width: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 4px;
-        }
-
-        .micro-node {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          background: #FFFFFF;
-          padding: 2px 5px;
-          border-radius: 6px;
-          border: 1px solid #E9D5FF;
-          transition: transform 180ms ease;
-        }
-
-        .micro-node:hover {
-          transform: translateY(-1px);
         }
 
         .micro-node-dot {
@@ -202,12 +178,6 @@ export default function SkillSynergyCard({ className = '', style = {}, onCardHov
           color: #3B0764;
         }
 
-        .network-bridge-line {
-          flex: 1;
-          height: 1px;
-          background: #DDD6FE;
-          margin: 0 4px;
-        }
 
         /* ─── Central Rotating Star ─── */
         .center-sparkle-anchor {
@@ -244,28 +214,70 @@ export default function SkillSynergyCard({ className = '', style = {}, onCardHov
         }
 
         /* ─── Controls: Connect & Create ─── */
-        .synergy-tabs-row {
-          display: flex;
-          gap: 5px;
-        }
+        /* ─── Design / Audio row ─── */
+.synergy-nodes-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
 
-        .synergy-tab-btn {
-          flex: 1;
-          padding: 4px 6px;
-          font-size: 0.64rem;
-          font-weight: 700;
-          border-radius: 6px;
-          border: 1px solid #DDD6FE;
-          background: #FAF8FF;
-          color: #6B21A8;
-          cursor: pointer;
-          transition: transform 180ms ease, background 180ms ease, color 180ms ease;
-        }
+.network-bridge-line {
+  display: none;
+}
 
-        .synergy-tab-btn:hover {
-          transform: translateY(-1px);
-          background: #EDE9FE;
-        }
+.micro-node {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  height: 26px;
+  padding: 0 4px;
+  background: #FFFFFF;
+  border-radius: 6px;
+  border: 1px solid #E9D5FF;
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease;
+}
+
+.micro-node:hover {
+  background: #EDE9FE;
+  border-color: #C4B5FD;
+}
+
+.micro-node:hover .micro-node-name {
+  color: #581C87;
+}
+
+/* ─── Connect / Create row ─── */
+.synergy-tabs-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+.synergy-tab-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  padding: 0 6px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 6px;
+  border: 1px solid #DDD6FE;
+  background: #FAF8FF;
+  color: #6B21A8;
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.synergy-tab-btn:hover {
+  background: #EDE9FE;
+  border-color: #C4B5FD;
+}
 
         .synergy-tab-btn.active {
           background: #EDE9FE;

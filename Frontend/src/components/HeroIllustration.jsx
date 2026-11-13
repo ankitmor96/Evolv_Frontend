@@ -271,7 +271,7 @@ export default function HeroIllustration() {
         /* Central Card Mounted on Easel */
         .stage-center-card-anchor {
           position: absolute;
-          left: 50%;
+          left: 54%;
           top: 50%;
           z-index: 25;
           pointer-events: auto;
