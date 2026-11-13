@@ -76,7 +76,7 @@ export default function FollowerCounter({ className = '', style = {} }) {
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          background: var(--dark, #09030F);
+          background:#fff;
           border: 2px solid var(--border, #09030F);
           border-radius: 20px;
           padding: 6px 12px;
@@ -101,7 +101,7 @@ export default function FollowerCounter({ className = '', style = {} }) {
           font-family: var(--font-body, 'Inter', sans-serif);
           font-size: 0.78rem;
           font-weight: 700;
-          color: var(--white, #FFFFFF);
+          color: black;
           white-space: nowrap;
         }
       `}</style>

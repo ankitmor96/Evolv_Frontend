@@ -75,18 +75,28 @@ export default function UserProfilePage() {
 
     (async () => {
       try {
-        const [profRes, feed, map, connCount, details] = await Promise.all([
+        const [profRes, rawPosts, map, connCount, details] = await Promise.all([
           userProfileService.getUserProfile(userId).catch(() => null),
-          homePostService.getFeedPosts().catch(() => ({ posts: [] })),
+          userProfileService.getUserPosts(userId).catch(() => []),
           connectionService.getConnectionMap(me).catch(() => new Map()),
           userProfileService.getConnectionsCount(userId).catch(() => null),
           userProfileService.getProfileDetails(userId).catch(() => null),
         ]);
         if (cancelled) return;
 
-        const userPosts = (feed.posts || [])
-          .map((p) => homePostService._normalisePost(p))
-          .filter((p) => String(p.creator?.id) === String(userId));
+        // Posts from /api/posts/profile/:id.
+        const userPosts = rawPosts
+          .map((p) =>
+            homePostService._normalisePost({
+              ...p,
+              userId: p.userId ?? userId,
+              user: p.user ? { ...p.user, id: p.user.id ?? p.userId ?? userId } : { id: userId },
+            })
+          )
+          .map((p) => ({
+            ...p,
+            creator: { ...(p.creator || {}), id: p.creator?.id ?? userId },
+          }));
 
         const c = userPosts[0]?.creator;
         const base =
@@ -214,7 +224,16 @@ export default function UserProfilePage() {
               <Avatar src={profile.avatar} name={profile.name} size={90} />
               <div className="up-stats">
                 <div><strong>{posts.length}</strong><span>Posts</span></div>
-                <div><strong>{profile.connectionsCount ?? '–'}</strong><span>Connections</span></div>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => go(`/connections/${userId}`)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') go(`/connections/${userId}`); }}
+                  aria-label="View connections"
+                >
+                  <strong>{profile.connectionsCount ?? '–'}</strong><span>Connections</span>
+                </div>
                 <div><strong>{profile.skills ? profile.skills.length : '0'}</strong><span>Skills</span></div>
               </div>
             </section>

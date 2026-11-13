@@ -119,5 +119,33 @@ export const userProfileService = {
     const raw = await request(PROFILE_DETAILS_ENDPOINT(userId));
     return normaliseDetails(raw);
   },
+    /** GET /api/posts/profile/:userId  → all public posts of that user */
+  async getUserPosts(userId) {
+    const raw = await request(`/api/posts/profile/${userId}`);
+    const rows = Array.isArray(raw) ? raw : raw?.data ?? raw?.posts ?? [];
+    return Array.isArray(rows) ? rows : [];
+  },
+    /** GET /api/connections/user/:userId → people connected with that user */
+  async getUserConnections(userId) {
+    const raw = await request(`/api/connections/user/${userId}`);
+    const rows = Array.isArray(raw) ? raw : raw?.data ?? [];
+    const people = (Array.isArray(rows) ? rows : [])
+      .map((r) => {
+        const u = r.user ?? r;
+        return {
+          connectionId: r.connectionId ?? r.id ?? null,
+          id: u.id ?? u.userId ?? null,
+          name: u.name ?? u.fullName ?? u.username ?? 'User',
+          username: u.username ?? '',
+          avatar: u.avatarUrl ?? u.avatar ?? '',
+        };
+      })
+      .filter((p) => p.id != null);
+
+    return {
+      total: Number(raw?.totalConnections ?? people.length),
+      people,
+    };
+  },
 };
 

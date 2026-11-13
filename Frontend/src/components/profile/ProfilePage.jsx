@@ -891,7 +891,7 @@ function ProfileHero({ profile, user, identities, showToast, onOpenSettings, pos
   const primaryIdentity = identities.find((i) => i.isPrimary) || identities[0];
   const roleName =
     primaryIdentity?.identityType?.name || primaryIdentity?.name || '';
-
+  const myId = user?.id ?? user?.userId ?? user?._id ?? null;
   const handleShare = async () => {
     const url = `${window.location.origin}/profile`;
     try {
@@ -989,11 +989,16 @@ function ProfileHero({ profile, user, identities, showToast, onOpenSettings, pos
 
         {/* Stats row → "Connections" */}
         <div className="pp-stats-row" role="list" aria-label="Profile statistics">
-          <div className="pp-stat" role="listitem">
+          <div
+            className="pp-stat"
+            role="listitem"
+            style={{ cursor: myId != null ? 'pointer' : 'default' }}
+            onClick={() => myId != null && navigate(`/connections/${myId}`)}
+          >
             <span className="pp-stat-value" aria-live="polite" aria-atomic="true">
-              {postCounts != null ? postCounts.totalPosts : '–'}
+              {connectionsCount !== null ? connectionsCount : '–'}
             </span>
-            <span className="pp-stat-label">Posts</span>
+            <span className="pp-stat-label">Connections</span>
           </div>
           <div className="pp-stat" role="listitem">
             <span className="pp-stat-value" aria-live="polite" aria-atomic="true">
@@ -1689,7 +1694,6 @@ export default function ProfilePage() {
     [engagement, posts]
   );
   const { toast, showToast } = useToast();
-  useEffect(() => { profileService.debugMissingSkills(); }, []);
 
   // ── Auth guard ────────────────────────────────────────────────────────────
   // ── Load profile (GET /api/profile) ──

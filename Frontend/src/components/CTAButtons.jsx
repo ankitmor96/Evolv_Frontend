@@ -11,7 +11,8 @@ export default function CTAButtons() {
       <a
         href="/learn-more"
         id="cta-learn-more"
-        className="btn btn-primary"
+        className="btn"
+        style={{backgroundColor:"#6B21A8",color:"#fff",border:"2px solid #fff"}}
         onClick={()=>openVideo()}
         aria-label="Learn more about Stormlikes"
       >

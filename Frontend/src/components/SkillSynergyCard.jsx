@@ -22,7 +22,7 @@ export default function SkillSynergyCard({ className = '', style = {}, onCardHov
     setIsCardHovered(false);
     if (onCardHover) onCardHover(false);
   };
-
+  
   return (
     <motion.div
       className={`skill-synergy-card ${isCardHovered ? 'hovered' : ''} ${className}`}

@@ -32,6 +32,7 @@ import ConnectionsManagement from './components/admin/ConnectionsManagement.jsx'
 import Analytics from './components/admin/Analytics.jsx';
 import Notifications from './components/admin/Notifications.jsx';
 import AdminSettings from './components/admin/AdminSettings.jsx';
+import ConnectionsPage from './components/connection/ConnectionsPage.jsx';
 import { adminService } from './services/adminService.js';
 import Report from "./pages/Report.jsx";
 import { Redirect } from './utils/navigate.js';
@@ -201,6 +202,9 @@ export default function App() {
   }
   if (route.startsWith('/profile/')) {
     return <UserProfilePage />;
+  }
+  if (route.startsWith('/connections/')) {
+    return <ConnectionsPage />;
   }
   if (route === '/terms') return <LegalPage type="terms" />;
   if (route === '/privacy') return <LegalPage type="privacy" />;

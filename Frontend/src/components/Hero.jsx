@@ -20,7 +20,7 @@ export default function Hero() {
 
         {/* Hero content with staged cubic-bezier entrance */}
         <div className="hero-content">
-          <p className='hero-subtitle'>India's Own Platform</p>
+          <p className='hero-subtitle '> <b style={{fontSize:"25px"}}>🇮🇳</b> India's Own Platform</p>
           {/* 0.30s Heading */}
           <motion.h1
             className="hero-heading"
@@ -106,6 +106,11 @@ export default function Hero() {
         }
 
         .hero-subtitle {
+          display:flex;
+          justify-content:center;
+          align-items:center;
+          gap:3px;
+          font-weight: bold;
           font-family: var(--font-body, 'Inter', sans-serif);
           font-size: clamp(0.9rem, 1.6vw, 1.05rem);
           line-height: 1.65;

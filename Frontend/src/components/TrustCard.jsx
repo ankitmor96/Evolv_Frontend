@@ -73,29 +73,29 @@ export default function TrustCard() {
 
       <style>{`
         .evolv-loop-card {
-          background: #0A0612;
-          border: 2px solid rgba(255, 255, 255, 0.12);
-          border-radius: var(--border-radius-card, 18px);
-          padding: 16px 20px 18px;
-          color: #FFFFFF;
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-          min-width: 0;
-          width: 100%;
-          max-width: 285px;
-          margin-left: auto;
-          margin-top: 15px;
-          box-sizing: border-box;
-          box-shadow: 4px 4px 0 rgba(9, 3, 15, 0.4);
-          transition: border-color 200ms ease, box-shadow 200ms ease;
-          user-select: none;
-        }
+  background: #FFFFFF;
+  border: 2px solid rgba(9, 3, 15, 0.12);
+  border-radius: var(--border-radius-card, 18px);
+  padding: 16px 20px 18px;
+  color: #1A0A2E;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  width: 100%;
+  max-width: 285px;
+  margin-left: auto;
+  margin-top: 15px;
+  box-sizing: border-box;
+  box-shadow: 4px 4px 0 rgba(9, 3, 15, 0.12);
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+  user-select: none;
+}
 
-        .evolv-loop-card:hover {
-          border-color: rgba(169, 67, 245, 0.45);
-          box-shadow: 5px 6px 0 rgba(9, 3, 15, 0.5);
-        }
+.evolv-loop-card:hover {
+  border-color: rgba(169, 67, 245, 0.45);
+  box-shadow: 5px 6px 0 rgba(169, 67, 245, 0.2);
+}
 
         .loop-card-title {
           font-family: var(--font-body, 'Inter', sans-serif);
@@ -229,6 +229,39 @@ export default function TrustCard() {
     padding: 12px;
     gap: 10px;
   }
+}
+  .trust-card.evolv-loop-card {
+  background: #FFFFFF !important;
+  color: #000000 !important;
+}
+
+.trust-card.evolv-loop-card .loop-card-title,
+.trust-card.evolv-loop-card .step-title {
+  color: #000000 !important;
+}
+
+.trust-card.evolv-loop-card .step-desc {
+  color: #222222 !important;
+}
+
+/* keep the purple accents */
+.trust-card.evolv-loop-card .step-number,
+.trust-card.evolv-loop-card .step-divider {
+  color: #A943F5 !important;
+}
+  .review-card.feed-interests-card {
+  background: #FFFFFF !important;
+  color: #000000 !important;
+  border-color: rgba(9, 3, 15, 0.12) !important;
+  box-shadow: 4px 4px 0 rgba(9, 3, 15, 0.12) !important;
+}
+
+.review-card.feed-interests-card h1,
+.review-card.feed-interests-card h2,
+.review-card.feed-interests-card h3,
+.review-card.feed-interests-card p,
+.review-card.feed-interests-card span {
+  color: #000000 !important;
 }
         }
       `}</style>
