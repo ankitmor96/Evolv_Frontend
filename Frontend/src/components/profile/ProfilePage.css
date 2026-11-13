@@ -1786,3 +1786,65 @@
 .pp-theme-desc { font-size: 12px; color: var(--text-soft); }
 .pp-theme-option.selected { border-color: var(--purple); background: var(--surface-2); }
 .pp-theme-check { color: var(--purple); }
+
+/* ── Edit Skills: "save as" bar ── */
+.pp-bucket-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #fff;
+  padding: 10px 0 12px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(9, 3, 15, 0.08);
+}
+.pp-bucket-bar-label {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #77727f;
+}
+.pp-bucket-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.pp-bucket-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 2px solid rgba(9, 3, 15, 0.85);
+  border-radius: 999px;
+  background: #fff;
+  color: #09030f;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+.pp-bucket-btn.active { background: #aa45f5; border-color: #aa45f5; color: #fff; }
+.pp-bucket-count {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(9, 3, 15, 0.08);
+  font-size: 0.7rem;
+  text-align: center;
+}
+.pp-bucket-btn.active .pp-bucket-count { background: rgba(255, 255, 255, 0.28); }
+
+/* chip that is already in another list */
+.pp-modal-skill-chip.in-other { border-style: dashed; background: #faf7ff; }
+.pp-chip-badge {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(170, 69, 245, 0.12);
+  color: #8a2be2;
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+/* profile tag for the new list */
+.pp-skill-tag.want-improve {
+  background: #fff4e5;
+  color: #b45309;
+  border: 1px solid #fcd9a8;
+}

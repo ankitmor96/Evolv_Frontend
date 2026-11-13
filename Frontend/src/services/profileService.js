@@ -38,7 +38,7 @@
  *     DELETE /api/skills/user-skills/:id
  *
  */
-import { getCountryCode, COUNTRIES } from "../components/onboarding/onboardingData.js";
+import { getCountryCode, COUNTRIES, CURIOSITY_DOMAINS } from "../components/onboarding/onboardingData.js";
 import { forceLogout } from './sessionService.js';
 import { homePostService } from './homePostService.js';
 import { fetchProfileOnce, invalidateProfile } from "./profileFetch.js";
@@ -112,9 +112,15 @@ const request = async (path, options = {}) => {
 };
 
 // ─── In-memory skill name → backend ID cache ──────────────────────────────────
-// Built once per session by fetchSkillNameToIdMap().
 let _skillNameToIdCache = null;
 let _skillIdToNameCache = null;
+let _skillMapPromise = null;
+
+// Everything we've ever learned about skills. Never thrown away,
+// so one flaky request can't make a known skill "disappear".
+const _knownNameToId = {};
+const _knownIdToName = {};
+const SKILL_CATEGORY_COUNT = 20;
 
 // ─── Public service object ────────────────────────────────────────────────────
 
@@ -294,29 +300,29 @@ export const profileService = {
   //   return { created: true, data: created };
   // },
   async ensureProfile(data, file) {
-  const existing = await fetchProfileOnce();
+    const existing = await fetchProfileOnce();
 
-  if (existing) {
-    const body = { ...data };
-    if (existing.username && existing.username === body.username) {
-      delete body.username;
+    if (existing) {
+      const body = { ...data };
+      if (existing.username && existing.username === body.username) {
+        delete body.username;
+      }
+      if (Object.keys(body).length === 0) {
+        return { created: false, data: existing };
+      }
+      const updated = await profileService.updateProfile(body);
+      invalidateProfile();
+      return { created: false, data: updated };
     }
-    if (Object.keys(body).length === 0) {
-      return { created: false, data: existing };
+
+    if (!(file instanceof File)) {
+      throw new Error("Avatar image is required. Please select a profile photo.");
     }
-    const updated = await profileService.updateProfile(body);
+
+    const created = await profileService.createProfile(data, file);
     invalidateProfile();
-    return { created: false, data: updated };
-  }
-
-  if (!(file instanceof File)) {
-    throw new Error("Avatar image is required. Please select a profile photo.");
-  }
-
-  const created = await profileService.createProfile(data, file);
-  invalidateProfile();
-  return { created: true, data: created };
-},
+    return { created: true, data: created };
+  },
   async deleteAccount() {
     const res = await request("/api/auth/delete-account", { method: "DELETE" });
     if (res?.success === false) {
@@ -363,9 +369,9 @@ export const profileService = {
       err.payload = payload;
       throw err;
     }
-
-    return payload;
     invalidateProfile();
+    return payload;
+
   },
 
   /** GET /api/profile/complete */
@@ -642,6 +648,123 @@ export const profileService = {
     }
     return { added: toAdd.length, removed: userSkillsToRemove.length + curiosityToRemove.length };
   },
+
+  /**
+ * Save the "Edit Skills" modal.
+ * buckets = {
+ *   CAN_DO: string[], LEARNING: string[],
+ *   WANT_TO_IMPROVE: string[], CURIOSITY: string[]   // skill NAMES
+ * }
+ */
+  async saveSkillBuckets(buckets) {
+    const USER_TYPES = ["CAN_DO", "LEARNING", "WANT_TO_IMPROVE"];
+    const allNames = [
+      ...USER_TYPES.flatMap((t) => buckets[t] ?? []),
+      ...(buckets.CURIOSITY ?? []),
+    ];
+    const norm = (n) => n.toLowerCase().trim();
+
+    let nameToId = await profileService.fetchSkillNameToIdMap();
+    let missing = allNames.filter((n) => nameToId[norm(n)] == null);
+
+    // One retry with a fresh map before giving up
+    if (missing.length > 0) {
+      profileService.invalidateSkillMap();
+      nameToId = await profileService.fetchSkillNameToIdMap();
+      missing = allNames.filter((n) => nameToId[norm(n)] == null);
+    }
+    // Don't block the whole save: skip unknown names, save the rest,
+    // and tell the user about the skipped ones at the end.
+    const missingSet = new Set(missing.map(norm));
+    const skipUnknown = (names = []) => names.filter((n) => !missingSet.has(norm(n)));
+    const skippedNames = [...new Set(missing)];
+
+    const [idToName, usRes, curRes] = await Promise.all([
+      profileService.fetchSkillIdToNameMap(),
+      profileService.getUserSkills(),
+      profileService.getUserCuriosity(),
+    ]);
+
+    const rowsOf = (r) => (Array.isArray(r) ? r : r?.data ?? r?.items ?? []);
+    const toIds = (names = []) =>
+      [...new Set(profileService.mapNamesToIds(skipUnknown(names), nameToId))];
+    const visible = (id) => idToName[Number(id)] != null;
+    const keyOf = (type, id) => `${type}:${Number(id)}`;
+
+    // ── user-skills (can do / learning / want to improve) ──
+    const wantedByType = Object.fromEntries(
+      USER_TYPES.map((t) => [t, toIds(buckets[t])])
+    );
+    const wantedKeys = new Set(
+      USER_TYPES.flatMap((t) => wantedByType[t].map((id) => keyOf(t, id)))
+    );
+
+    const userRows = rowsOf(usRes);
+    const haveKeys = new Set(userRows.map((r) => keyOf(r.relationshipType, r.skillId)));
+    const userRowsToRemove = userRows.filter(
+      (r) =>
+        USER_TYPES.includes(r.relationshipType) &&
+        visible(r.skillId) &&
+        !wantedKeys.has(keyOf(r.relationshipType, r.skillId))
+    );
+
+    // ── curiosity ──
+    const wantedCuriosity = toIds(buckets.CURIOSITY);
+    const curRows = rowsOf(curRes);
+    const curCurrent = new Set(curRows.map((r) => Number(r.skillId)));
+    const curToAdd = wantedCuriosity.filter((id) => !curCurrent.has(id));
+    const curToRemove = curRows.filter(
+      (r) => visible(r.skillId) && !wantedCuriosity.includes(Number(r.skillId))
+    );
+
+    const failures = [];
+    const attempt = async (fn) => {
+      try { await fn(); } catch (e) { failures.push(e); }
+    };
+
+    // 1) Remove first (one by one) so a skill moved between lists never clashes
+    for (const row of userRowsToRemove) {
+      await attempt(() => profileService.deleteUserSkill(row.id));
+    }
+
+    // 2) Add new skills for each list
+    for (const type of USER_TYPES) {
+      const ids = wantedByType[type].filter((id) => !haveKeys.has(keyOf(type, id)));
+      if (ids.length > 0) await attempt(() => profileService.addUserSkill(ids, type));
+    }
+
+    // 3) Curiosity: add, then remove
+    if (curToAdd.length > 0) {
+      await attempt(() => profileService.createUserCuriosity(curToAdd));
+    }
+    for (const row of curToRemove) {
+      await attempt(async () => {
+        try {
+          await profileService.deleteUserCuriosity(row.skillId);
+        } catch (err) {
+          const canTryRowId =
+            err.status === 500 &&
+            row.id != null &&
+            Number(row.id) !== Number(row.skillId) &&
+            !wantedCuriosity.includes(Number(row.id));
+          if (canTryRowId) await profileService.deleteUserCuriosity(row.id);
+          else throw err;
+        }
+      });
+    }
+
+    if (failures.length > 0) {
+      console.error("[profileService] saveSkillBuckets failures:", failures);
+      throw failures[0];
+    }
+    if (skippedNames.length > 0) {
+      throw new Error(
+        `Saved the rest, but these skills aren't on the server yet: ${skippedNames.join(", ")}`
+      );
+    }
+    return { ok: true };
+  },
+
   /**
    * GET /api/posts/my-posts/counts
    * @returns {Promise<{ totalPosts: number, imageCount: number, videoCount: number, documentCount: number }>}
@@ -679,58 +802,95 @@ export const profileService = {
 
     return { appreciation, helpful, learned };
   },
-  /**
-   * Builds a { "skill name (lower-cased)": backendId }
-   * @returns {Promise<Record<string, number>>}
-   */
-  async fetchSkillNameToIdMap() {
-    if (_skillNameToIdCache) return _skillNameToIdCache;
 
-    const results = await Promise.allSettled(
-      Array.from({ length: 20 }, (_, i) =>
-        profileService.getCategorySkills(i + 1)
-      )
-    );
-
-    const map = {};
-    const idMap = {};
-    for (const result of results) {
-      if (result.status !== "fulfilled") continue;
-      const data = result.value;
-      // Backend may return the skill list directly or under a data/skills key
-      const skills = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.data)
-          ? data.data
-          : Array.isArray(data?.skills)
-            ? data.skills
-            : [];
-
-      for (const skill of skills) {
-        if (skill?.name && skill?.id != null) {
-          map[skill.name.toLowerCase().trim()] = Number(skill.id);
-          idMap[Number(skill.id)] = skill.name;
-        }
-      }
-    }
-
-    _skillNameToIdCache = map;
-    _skillIdToNameCache = idMap;
-    console.debug(
-      `[profileService] Skill name→ID map built: ${Object.keys(map).length} entries`
-    );
-    return map;
+  /** Forget the "complete" flag so the next call re-checks the server.
+ *  (Known skills are kept, so nothing already learned is lost.) */
+  invalidateSkillMap() {
+    _skillNameToIdCache = null;
+    _skillIdToNameCache = null;
+    _skillMapPromise = null;
   },
 
-  /**
-   * Builds an inverted { backendId: "Skill Name" } map from category skills.
-   *
-   * @returns {Promise<Record<number, string>>}
-   */
+  async fetchSkillNameToIdMap() {
+    if (_skillNameToIdCache) return _skillNameToIdCache;
+    if (_skillMapPromise) return _skillMapPromise; // de-dupe parallel callers
+
+    _skillMapPromise = (async () => {
+      const ingest = (data) => {
+        const skills = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data?.skills)
+              ? data.skills
+              : [];
+        for (const skill of skills) {
+          if (skill?.name && skill?.id != null) {
+            _knownNameToId[skill.name.toLowerCase().trim()] = Number(skill.id);
+            _knownIdToName[Number(skill.id)] = skill.name;
+          }
+        }
+      };
+
+      let toTry = Array.from({ length: SKILL_CATEGORY_COUNT }, (_, i) => i + 1);
+
+      // Up to 3 rounds: only failed categories are retried
+      for (let attempt = 0; attempt < 3 && toTry.length > 0; attempt++) {
+        if (attempt > 0) {
+          await new Promise((r) => setTimeout(r, 600 * attempt));
+        }
+        const failed = [];
+
+        // Small batches of 5 (not 20 at once) so the server isn't flooded
+        for (let i = 0; i < toTry.length; i += 5) {
+          const chunk = toTry.slice(i, i + 5);
+          const results = await Promise.allSettled(
+            chunk.map((id) => profileService.getCategorySkills(id))
+          );
+          results.forEach((result, idx) => {
+            if (result.status === "fulfilled") {
+              ingest(result.value);
+            } else if (result.reason?.status !== 404) {
+              // 404 = category doesn't exist (fine). Anything else = retry.
+              failed.push(chunk[idx]);
+            }
+          });
+        }
+        toTry = failed;
+      }
+
+      if (toTry.length === 0) {
+        // Complete map: safe to cache
+        _skillNameToIdCache = { ..._knownNameToId };
+        _skillIdToNameCache = { ..._knownIdToName };
+      } else {
+        console.warn(
+          `[profileService] categories still failing after retries: ${toTry.join(", ")}`
+        );
+      }
+      return { ..._knownNameToId };
+    })().finally(() => {
+      _skillMapPromise = null;
+    });
+
+    return _skillMapPromise;
+  },
+
   async fetchSkillIdToNameMap() {
     if (_skillIdToNameCache) return _skillIdToNameCache;
     await profileService.fetchSkillNameToIdMap();
-    return _skillIdToNameCache || {};
+    return _skillIdToNameCache || { ..._knownIdToName };
+  },
+
+    /** DEV ONLY: list skills from onboardingData.js that the server doesn't have. */
+  async debugMissingSkills() {
+    profileService.invalidateSkillMap();
+    const map = await profileService.fetchSkillNameToIdMap();
+    const all = [...new Set(CURIOSITY_DOMAINS.flatMap((d) => d.skills))];
+    const missing = all.filter((n) => map[n.toLowerCase().trim()] == null);
+    console.log(`Server knows ${Object.keys(map).length} skills.`);
+    console.log("Missing from server:", missing);
+    return missing;
   },
 
   /**
@@ -799,6 +959,25 @@ export const profileService = {
     } catch (err) {
       console.error("[profileService] Failed to build skill map:", err);
       errors.push({ section: "skill-map", status: err.status ?? null, message: err.message });
+    }
+        // Report any chosen skill that has no id on the server
+    {
+      const chosen = [
+        ...(draft.curiosities ?? []),
+        ...(draft.skills?.canDo ?? []),
+        ...(draft.skills?.learning ?? []),
+        ...(draft.skills?.wantToImprove ?? []),
+      ];
+      const notOnServer = [
+        ...new Set(chosen.filter((n) => skillMap[n.toLowerCase().trim()] == null)),
+      ];
+      if (notOnServer.length > 0) {
+        errors.push({
+          section: "skills-missing",
+          status: null,
+          message: `These skills aren't on the server yet and were not saved: ${notOnServer.join(", ")}`,
+        });
+      }
     }
 
     // ── 2. Identity types (role label → backend integer ID) ──────────────
@@ -1022,4 +1201,5 @@ export const profileService = {
 
     return { errors };
   },
+  
 };

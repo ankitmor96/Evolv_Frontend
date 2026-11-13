@@ -52,7 +52,7 @@ import {
   Sun,
   Moon,
   Monitor,
-
+  TrendingUp
 } from 'lucide-react';
 
 import { getProfile } from "../../services/getProfile.js";
@@ -268,7 +268,7 @@ function ProfileSidebar({ user, profile, isSidebarOpen, setIsSidebarOpen }) {
 // ─── Right panel ──────────────────────────────────────────────────────────────
 function ProfileRightPanel({
   profile,
-  skills = { canDo: [], learning: [], curiosity: [] },
+  skills = { canDo: [], learning: [], wantToImprove: [], curiosity: [] },
   identities = [],
   postCount = 0,
   totals = { appreciation: 0, helpful: 0, learned: 0 },
@@ -1332,14 +1332,24 @@ function SettingsModal({ onClose }) {
  * Pre-selects the user's existing skills.
  * Saves via POST /api/skills/user-skills with actual backend IDs.
  */
-function EditSkillsModal({ skills, onClose, onSaved }) {
-  const allCurrentSkillNames = new Set([
-    ...skills.canDo,
-    ...skills.learning,
-    ...skills.curiosity,
-  ]);
+const SKILL_BUCKETS = [
+  { id: 'CAN_DO', key: 'canDo', label: 'I can do', badge: 'Can do' },
+  { id: 'LEARNING', key: 'learning', label: "I'm learning", badge: 'Learning' },
+  { id: 'WANT_TO_IMPROVE', key: 'wantToImprove', label: 'I want to get better at', badge: 'Improve' },
+  { id: 'CURIOSITY', key: 'curiosity', label: 'Interest', badge: 'Interest' },
+];
 
-  const [selectedNames, setSelectedNames] = useState(() => new Set(allCurrentSkillNames));
+function EditSkillsModal({ skills, onClose, onSaved }) {
+  // Which list the next tapped skill goes into
+  const [activeBucket, setActiveBucket] = useState('CAN_DO');
+
+  // picked[bucketId] = Set of skill names
+  const [picked, setPicked] = useState(() =>
+    Object.fromEntries(
+      SKILL_BUCKETS.map((b) => [b.id, new Set(skills[b.key] ?? [])])
+    )
+  );
+
   const [expandedDomains, setExpandedDomains] = useState(
     () => new Set(['technology', 'design'])
   );
@@ -1368,34 +1378,51 @@ function EditSkillsModal({ skills, onClose, onSaved }) {
     });
   };
 
+  // Add / remove the skill from the ACTIVE list only
   const toggleSkill = (skillName) => {
-    setSelectedNames((prev) => {
-      const next = new Set(prev);
-      next.has(skillName) ? next.delete(skillName) : next.add(skillName);
-      return next;
+    setError('');
+    setPicked((prev) => {
+      const set = new Set(prev[activeBucket]);
+      set.has(skillName) ? set.delete(skillName) : set.add(skillName);
+      return { ...prev, [activeBucket]: set };
     });
   };
 
+  const isPickedAnywhere = (name) =>
+    SKILL_BUCKETS.some((b) => picked[b.id].has(name));
+
+  const uniqueSelected = new Set(
+    SKILL_BUCKETS.flatMap((b) => [...picked[b.id]])
+  ).size;
+
   const handleSave = async () => {
+    if (picked.CURIOSITY.size === 0) {
+      setError('Keep at least one skill under "Interest".');
+      return;
+    }
+
     setSaving(true);
     setError('');
     setSuccess(false);
 
     try {
-      await profileService.applySkillSelection(selectedNames);
+      await profileService.saveSkillBuckets({
+        CAN_DO: [...picked.CAN_DO],
+        LEARNING: [...picked.LEARNING],
+        WANT_TO_IMPROVE: [...picked.WANT_TO_IMPROVE],
+        CURIOSITY: [...picked.CURIOSITY],
+      });
       setSuccess(true);
       await onSaved();
       setTimeout(() => onClose(), 800);
     } catch (err) {
       console.error('[EditSkillsModal] Save failed:', err);
-      setError("We couldn't save every change. Please try again.");
+      setError(err.message || "We couldn't save every change. Please try again.");
       await onSaved({ silent: true });
     } finally {
       setSaving(false);
     }
   };
-
-  const uniqueSelected = selectedNames.size;
 
   return (
     <div
@@ -1427,12 +1454,30 @@ function EditSkillsModal({ skills, onClose, onSaved }) {
 
         {/* Scrollable body */}
         <div className="pp-modal-body">
+          {/* Choose where the next skills will be saved */}
+          <div className="pp-bucket-bar" role="radiogroup" aria-label="Save selected skills as">
+            <p className="pp-bucket-bar-label">Tap skills to add them to:</p>
+            <div className="pp-bucket-options">
+              {SKILL_BUCKETS.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={activeBucket === b.id}
+                  className={`pp-bucket-btn ${activeBucket === b.id ? 'active' : ''}`}
+                  onClick={() => setActiveBucket(b.id)}
+                >
+                  {b.label}
+                  <span className="pp-bucket-count">{picked[b.id].size}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {CURIOSITY_DOMAINS.map((domain) => {
             const isExpanded = expandedDomains.has(domain.id);
             const uniqueSkills = [...new Set(domain.skills)];
-            const selectedInDomain = uniqueSkills.filter((s) =>
-              selectedNames.has(s)
-            ).length;
+            const selectedInDomain = uniqueSkills.filter(isPickedAnywhere).length;
 
             return (
               <div key={domain.id} className="pp-modal-domain">
@@ -1444,29 +1489,31 @@ function EditSkillsModal({ skills, onClose, onSaved }) {
                 >
                   <span className="pp-modal-domain-label">{domain.label}</span>
                   {selectedInDomain > 0 && (
-                    <span className="pp-modal-domain-count">
-                      {selectedInDomain}
-                    </span>
+                    <span className="pp-modal-domain-count">{selectedInDomain}</span>
                   )}
-                  <span className={`pp-modal-chevron ${isExpanded ? 'open' : ''}`}>
-                    ▾
-                  </span>
+                  <span className={`pp-modal-chevron ${isExpanded ? 'open' : ''}`}>▾</span>
                 </button>
 
                 {isExpanded && (
                   <div className="pp-modal-skills-grid">
                     {uniqueSkills.map((skillName) => {
-                      const isSelected = selectedNames.has(skillName);
+                      const inActive = picked[activeBucket].has(skillName);
+                      const others = SKILL_BUCKETS.filter(
+                        (b) => b.id !== activeBucket && picked[b.id].has(skillName)
+                      );
                       return (
                         <button
                           key={skillName}
                           type="button"
-                          className={`pp-modal-skill-chip ${isSelected ? 'selected' : ''}`}
+                          className={`pp-modal-skill-chip ${inActive ? 'selected' : ''} ${!inActive && others.length ? 'in-other' : ''}`}
                           onClick={() => toggleSkill(skillName)}
-                          aria-pressed={isSelected}
+                          aria-pressed={inActive}
                         >
-                          {isSelected && <Check size={11} aria-hidden="true" />}
+                          {inActive && <Check size={11} aria-hidden="true" />}
                           {skillName}
+                          {others.map((b) => (
+                            <span key={b.id} className="pp-chip-badge">{b.badge}</span>
+                          ))}
                         </button>
                       );
                     })}
@@ -1524,16 +1571,19 @@ function EditSkillsModal({ skills, onClose, onSaved }) {
 
 // ─── Skills Card ──────────────────────────────────────────────────────────────
 function SkillsCard({ skills, onEditSkills }) {
-  const hasAnything =
-    skills.canDo.length > 0 ||
-    skills.learning.length > 0 ||
-    skills.curiosity.length > 0;
+  const groups = [
+    { key: 'canDo', label: 'Skills I Can Do', Icon: CheckCircle, tagClass: 'can-do' },
+    { key: 'learning', label: "Currently Learning", Icon: Sparkles, tagClass: 'learning' },
+    { key: 'wantToImprove', label: 'Want to Get Better At', Icon: TrendingUp, tagClass: 'want-improve' },
+    { key: 'curiosity', label: 'Areas of Interest', Icon: Target, tagClass: 'curiosity' },
+  ];
+
+  const hasAnything = groups.some(({ key }) => (skills[key] ?? []).length > 0);
 
   return (
     <section className="pp-skills-card" aria-label="My skills and interests">
       <div className="pp-card-header">
         <h2 className="pp-card-title">Skills &amp; Interests</h2>
-        {/* Edit button → opens popup, does NOT navigate away */}
         <button
           className="pp-card-edit-btn"
           onClick={onEditSkills}
@@ -1562,67 +1612,23 @@ function SkillsCard({ skills, onEditSkills }) {
           </button>
         </p>
       ) : (
-        <>
-          {skills.canDo.length > 0 && (
-            <div className="pp-skill-group">
+        groups.map(({ key, label, Icon, tagClass }) => {
+          const list = [...new Set(skills[key] ?? [])];
+          if (list.length === 0) return null;
+          return (
+            <div className="pp-skill-group" key={key}>
               <p className="pp-skill-group-label">
-                <CheckCircle
-                  size={11}
-                  style={{ display: 'inline', marginRight: 4 }}
-                  aria-hidden="true"
-                />
-                Skills I Can Do
+                <Icon size={11} style={{ display: 'inline', marginRight: 4 }} aria-hidden="true" />
+                {label}
               </p>
               <div className="pp-skill-tags">
-                {[...new Set(skills.canDo)].map((s) => (
-                  <span key={s} className="pp-skill-tag can-do">
-                    {s}
-                  </span>
+                {list.map((s) => (
+                  <span key={s} className={`pp-skill-tag ${tagClass}`}>{s}</span>
                 ))}
               </div>
             </div>
-          )}
-
-          {skills.learning.length > 0 && (
-            <div className="pp-skill-group">
-              <p className="pp-skill-group-label">
-                <Sparkles
-                  size={11}
-                  style={{ display: 'inline', marginRight: 4 }}
-                  aria-hidden="true"
-                />
-                Currently Learning
-              </p>
-              <div className="pp-skill-tags">
-                {[...new Set(skills.learning)].map((s) => (
-                  <span key={s} className="pp-skill-tag learning">
-                    {s}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {skills.curiosity.length > 0 && (
-            <div className="pp-skill-group">
-              <p className="pp-skill-group-label">
-                <Target
-                  size={11}
-                  style={{ display: 'inline', marginRight: 4 }}
-                  aria-hidden="true"
-                />
-                Areas of Interest
-              </p>
-              <div className="pp-skill-tags">
-                {[...new Set(skills.curiosity)].map((s) => (
-                  <span key={s} className="pp-skill-tag curiosity">
-                    {s}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
+          );
+        })
       )}
     </section>
   );
@@ -1641,7 +1647,7 @@ export default function ProfilePage() {
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(false);
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileData, setProfileData] = useState(null);
-  const [skills, setSkills] = useState({ canDo: [], learning: [], curiosity: [] });
+  const [skills, setSkills] = useState({ canDo: [], learning: [], wantToImprove: [], curiosity: [] });
   const [identities, setIdentities] = useState([]);
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
@@ -1683,6 +1689,7 @@ export default function ProfilePage() {
     [engagement, posts]
   );
   const { toast, showToast } = useToast();
+  useEffect(() => { profileService.debugMissingSkills(); }, []);
 
   // ── Auth guard ────────────────────────────────────────────────────────────
   // ── Load profile (GET /api/profile) ──
@@ -1738,18 +1745,25 @@ export default function ProfilePage() {
 
   // ── Load skills ────────────────────────────────────────────────────────────
   const loadSkills = useCallback(async () => {
-    let cancelled = false;
     try {
-      const [userSkillsRes, curiosityRes, idToNameRes] = await Promise.allSettled([
+      const [userSkillsRes, curiosityRes] = await Promise.allSettled([
         profileService.getUserSkills(),
         profileService.getUserCuriosity(),
-        profileService.fetchSkillIdToNameMap(),
       ]);
 
-      if (cancelled) return;
+      let idToName = await profileService.fetchSkillIdToNameMap();
 
-      const idToName = idToNameRes.status === 'fulfilled' ? (idToNameRes.value || {}) : {};
-
+      // If any saved skillId is unknown, rebuild the map once and retry
+      const savedIds = [userSkillsRes, curiosityRes].flatMap((r) => {
+        if (r.status !== 'fulfilled') return [];
+        const p = r.value;
+        const rows = Array.isArray(p) ? p : p?.data ?? p?.skills ?? [];
+        return rows.map((x) => Number(x.skillId)).filter((n) => !Number.isNaN(n));
+      });
+      if (savedIds.some((id) => !idToName[id])) {
+        profileService.invalidateSkillMap();
+        idToName = await profileService.fetchSkillIdToNameMap();
+      }
       const resolveSkillNames = (record) => {
         if (!record) return [];
 
@@ -1805,6 +1819,7 @@ export default function ProfilePage() {
 
       const canDo = [];
       const learning = [];
+      const wantToImprove = [];
 
       if (userSkillsRes.status === 'fulfilled') {
         const payload = userSkillsRes.value;
@@ -1823,8 +1838,10 @@ export default function ProfilePage() {
           const rel = String(rec.relationshipType || rec.type || '').toUpperCase();
           if (rel === 'CAN_DO' || rel === 'CANDO') {
             canDo.push(...names);
-          } else if (rel === 'LEARNING' || rel === 'WANT_TO_IMPROVE' || rel === 'WANTTOIMPROVE') {
+          } else if (rel === 'LEARNING') {
             learning.push(...names);
+          } else if (rel === 'WANT_TO_IMPROVE' || rel === 'WANTTOIMPROVE') {
+            wantToImprove.push(...names);
           } else {
             canDo.push(...names);
           }
@@ -1851,18 +1868,16 @@ export default function ProfilePage() {
       setSkills({
         canDo: [...new Set(canDo)],
         learning: [...new Set(learning)],
+        wantToImprove: [...new Set(wantToImprove)],
         curiosity: [...new Set(curiosity)],
       });
     } catch (err) {
-      if (cancelled) return;
       console.warn('[ProfilePage] Could not load skills:', err.message);
     }
-    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
-    const cancel = loadSkills();
-    return () => { if (typeof cancel === 'function') cancel(); };
+    loadSkills();
   }, [loadSkills]);
 
   // ── Load identities ────────────────────────────────────────────────────────
@@ -2180,7 +2195,6 @@ export default function ProfilePage() {
               type="button"
               className="pp-mobile-overview-btn"
               onClick={() => setIsRightPanelOpen(true)}
-              aria-label="Open profile overview"
               aria-expanded={isRightPanelOpen}
               title="Quick Overview"
             >
