@@ -16,7 +16,7 @@ export default function CTAButtons() {
         onClick={()=>openVideo()}
         aria-label="Learn more about Stormlikes"
       >
-        <span>See How Evolve Works</span>
+        <span>See How Evolvs Works</span>
         <ArrowUpRight size={18} aria-hidden="true" />
       </a>
       <a
@@ -26,7 +26,7 @@ export default function CTAButtons() {
         className="btn btn-secondary"
         aria-label="Buy followers, likes or views now"
       >
-        <span>Join Evolve</span>
+        <span>Join Evolvs</span>
         <ArrowUpRight size={18} aria-hidden="true" />
       </a>
 

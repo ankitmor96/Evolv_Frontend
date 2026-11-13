@@ -400,8 +400,8 @@ export default function HeroHeader() {
           border-radius: 10px;
           font-size: 0.84rem;
           font-weight: 700;
-          color: var(--white, #FFFFFF);
-          background: var(--dark, #09030F);
+          color: #fff;
+          background: #7C3AED;
           border: 2px solid var(--border, #09030F);
           text-decoration: none;
           box-shadow: 2px 2px 0 rgba(9, 3, 15, 0.2);

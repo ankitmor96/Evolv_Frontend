@@ -322,7 +322,7 @@ const CONTENT = {
 
           sub(`4.4 Discovery and Recommendations`),
           p(`We may use your declared interests, learning goals, selected preferences, and permitted usage signals to recommend relevant people, topics, skills, or content.`),
-          p(`We aim to support meaningful discovery rather than maximize time spent scrolling. Recommendations may change as features and user preferences evolve.`),
+          p(`We aim to support meaningful discovery rather than maximize time spent scrolling. Recommendations may change as features and user preferences evolvs.`),
 
           sub(`4.5 AI-Assisted Content Safety`),
           p(`We may process uploaded content using automated systems or AI models to detect potentially harmful material, identify policy violations, classify content, and support moderation.`),

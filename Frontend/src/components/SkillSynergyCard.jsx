@@ -91,7 +91,7 @@ export default function SkillSynergyCard({ className = '', style = {}, onCardHov
       <button
         type="button"
         className="synergy-action-btn"
-        aria-label="Grow Together on Evolve"
+        aria-label="Grow Together on Evolvs"
       >
         <span>Grow Together</span>
       </button>

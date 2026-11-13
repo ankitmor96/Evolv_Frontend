@@ -62,7 +62,7 @@ export default function ProfilePreview({ draft }) {
   return (
     <div className="pp-card">
       <div className="pp-head">
-        <span className="pp-eyebrow">EVOLVE PROFILE</span>
+        <span className="pp-eyebrow">EVOLVS PROFILE</span>
         <span className="pp-live">
           <span className="pp-live-dot" aria-hidden="true" />
           LIVE

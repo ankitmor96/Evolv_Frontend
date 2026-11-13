@@ -3991,7 +3991,7 @@ export default function HomePage() {
   if (!user) return null; // will redirect
 
   return (
-    <div className="hp-layout" aria-label="EVOLVE home dashboard">
+    <div className="hp-layout" aria-label="Evolvs home dashboard">
       <HomeSidebar
         user={user}
         activeNav="home"

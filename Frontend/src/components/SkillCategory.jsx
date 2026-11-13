@@ -41,7 +41,7 @@ export default function SkillCategory({
         </div>
         <div className="skill-text-content">
           <span className="skill-badge-title">{title}</span>
-          {subtitle && <span className="skill-badge-subtitle">{subtitle}</span>}
+          {/* {subtitle && <span className="skill-badge-subtitle">{subtitle}</span>} */}
         </div>
       </div>
 
