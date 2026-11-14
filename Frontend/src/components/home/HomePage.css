@@ -1686,10 +1686,6 @@
 
 .hp-right-sidebar {
 
-  width: 360px;
-
-  height: 100vh;
-
   background: #FFFFFF;
 
   border-left: 1.5px solid rgba(9, 3, 15, 0.09);
@@ -2427,6 +2423,7 @@
     display: flex !important;
     flex-direction: column;
     position: fixed;
+    gap: 10px;
     top: 0;
     right: 0;
     bottom: 0;
@@ -2590,32 +2587,6 @@
 
   }
 
-
-
-  /* ── Hide right sidebar from normal flow; it becomes a slide-in drawer ── */
-
-  .hp-right-sidebar {
-    display: flex !important;
-    flex-direction: column;
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 1002;
-    width: min(340px, 88vw);
-    max-width: 400px;
-    height: 100dvh;
-    box-sizing: border-box;
-    padding: 16px;
-    overflow-x: hidden;
-    overflow-y: auto;
-    background: #fff;
-    box-shadow: -8px 0 30px rgba(9, 3, 15, 0.12);
-    transform: translateX(105%);
-    visibility: hidden;
-    pointer-events: none;
-    transition: transform 280ms ease, visibility 280ms ease;
-  }
 
   .hp-right-sidebar.open {
     transform: translateX(0);
@@ -3774,6 +3745,7 @@
 .hp-right-sidebar,
 .hp-feed {
   min-height: 0;
+  gap: 5px;
 }
 
 .hp-layout>main,
@@ -3945,29 +3917,6 @@
     pointer-events: auto;
   }
 
-  /* RIGHT LEARNING DASHBOARD DRAWER */
-  .hp-right-sidebar {
-    display: flex !important;
-    flex-direction: column;
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 1002;
-    width: min(360px, 90vw);
-    max-width: 420px;
-    height: 100dvh;
-    box-sizing: border-box;
-    padding: 16px;
-    overflow-x: hidden;
-    overflow-y: auto;
-    background: #fff;
-    box-shadow: -8px 0 30px rgba(9, 3, 15, 0.12);
-    transform: translateX(105%);
-    visibility: hidden;
-    pointer-events: none;
-    transition: transform 280ms ease, visibility 280ms ease;
-  }
 
   .hp-right-sidebar.open {
     transform: translateX(0);
@@ -4337,6 +4286,7 @@
 }
 
 .hp-composer-body {
+  margin-left: 5px;
   flex: 1;
 }
 
@@ -4385,7 +4335,7 @@
 
 .hp-composer-post-btn {
   padding: 7px 20px;
-  background: #1a0a2e;
+  background: #7C3AED;
   color: #fff;
   border: none;
   border-radius: 20px;
@@ -4395,7 +4345,7 @@
 }
 
 .hp-composer-post-btn:hover {
-  background: #aa45f5;
+  background: #6B21A8;
 }
 
 .hp-composer-input {

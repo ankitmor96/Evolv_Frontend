@@ -67,7 +67,7 @@ import { sumReactionTotals } from '../../services/reactionTotals.js';
 import useTheme from '../hooks/useTheme.js';
 import './ProfilePage.css';
 import { navigate } from '../../utils/navigate.js';
-
+import { learnedService } from '../../services/learnedService.js';
 
 function openMyPost(postId, tab) {
   const filterMap = { images: 'image', reels: 'video', all: 'all', articles: 'all' };
@@ -1000,12 +1000,6 @@ function ProfileHero({ profile, user, identities, showToast, onOpenSettings, pos
             </span>
             <span className="pp-stat-label">Connections</span>
           </div>
-          <div className="pp-stat" role="listitem">
-            <span className="pp-stat-value" aria-live="polite" aria-atomic="true">
-              {connectionsCount !== null ? connectionsCount : '–'}
-            </span>
-            <span className="pp-stat-label">Connections</span>
-          </div>
         </div>
       </div>
     </div>
@@ -1673,7 +1667,19 @@ export default function ProfilePage() {
   /** Guard: postIds currently being deleted (prevents duplicate requests). */
   const pendingDelete = useRef(new Set());
   // Recomputed whenever posts change (API load, socket updates, delete)
-  const [engagement, setEngagement] = useState(null); // null = use fallback
+  const [engagement, setEngagement] = useState(null);
+  const [learnedTotal, setLearnedTotal] = useState(null);
+
+  const loadLearnedTotal = useCallback(() => {
+    return learnedService
+      .getMyLearnedCount()
+      .then(setLearnedTotal)
+      .catch((err) => console.warn('[ProfilePage] learned count failed:', err.message));
+  }, []);
+
+  useEffect(() => {
+    if (authUser) loadLearnedTotal();
+  }, [loadLearnedTotal]);
 
   const loadEngagement = useCallback(() => {
     return profileService
@@ -1689,10 +1695,13 @@ export default function ProfilePage() {
     if (authUser) loadEngagement();
   }, [loadEngagement]);
 
-  const reactionTotals = useMemo(
-    () => engagement ?? sumReactionTotals(posts),
-    [engagement, posts]
-  );
+  const reactionTotals = useMemo(() => {
+    const base = engagement ?? sumReactionTotals(posts);
+    return {
+      ...base,
+      learned: learnedTotal ?? base.learned,
+    };
+  }, [engagement, posts, learnedTotal]);
   const { toast, showToast } = useToast();
 
   // ── Auth guard ────────────────────────────────────────────────────────────
@@ -2037,6 +2046,9 @@ export default function ProfilePage() {
 
     // Listen for reaction / learned updates on the user's own posts
     const offUpdates = socketService.onPostUpdatesBatch((batch) => {
+      if (batch.some((u) => u.type === 'learned')) {
+  learnedService.getMyLearnedCount().then(setLearnedTotal).catch(() => {});
+}
       if (!Array.isArray(batch) || batch.length === 0) return;
       setPosts(prev => {
         let changed = false;
@@ -2154,12 +2166,13 @@ export default function ProfilePage() {
 
       // Refresh appreciation / helpful / learned totals (AFTER the delete succeeds)
       loadEngagement();
+      loadLearnedTotal();
 
       showToast('Post deleted.');
     } finally {
       pendingDelete.current.delete(String(postId));
     }
-  }, [posts, authUserId, showToast, loadEngagement]);
+  }, [posts, authUserId, showToast, loadEngagement,loadLearnedTotal]);
 
   const handleCommentCountChange = useCallback((postId, delta) => {
     setPosts(prev => prev.map(p =>

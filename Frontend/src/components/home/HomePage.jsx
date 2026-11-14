@@ -1762,53 +1762,6 @@ body {
     }
   }
 
-  /* ── Right sidebar new section styles ────────────────────────────────────── */
-  .hp-growth-tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid rgba(9,3,15,0.08); }
-  .hp-growth-tab { padding: 6px 12px; border: none; background: none; font-size: 13px; font-weight: 500; color: #8b7aa3; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
-  .hp-growth-tab.active { color: #aa45f5; border-bottom-color: #aa45f5; font-weight: 600; }
-  .hp-progress-item { margin-bottom: 10px; }
-  .hp-progress-label { display: flex; justify-content: space-between; font-size: 12px; color: #2d1b4e; margin-bottom: 4px; font-weight: 500; }
-  .hp-progress-pct { color: #8b7aa3; font-weight: 400; }
-  .hp-progress-track { height: 6px; background: rgba(9,3,15,0.08); border-radius: 3px; overflow: hidden; }
-  .hp-progress-fill { height: 100%; border-radius: 3px; background: #aa45f5; }
-  .hp-progress-fill.green  { background: #22c55e; }
-  .hp-progress-fill.yellow { background: #eab308; }
-  .hp-progress-fill.pink   { background: #ec4899; }
-  .hp-learned-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
-  .hp-learned-item { display: flex; align-items: center; gap: 10px; font-size: 13px; }
-  .hp-learned-check { width: 18px; height: 18px; border-radius: 50%; background: rgba(34,197,94,0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .hp-learned-text { flex: 1; color: #2d1b4e; font-weight: 500; }
-  .hp-learned-when { color: #8b7aa3; font-size: 11px; white-space: nowrap; }
-  .hp-continue-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: rgba(170,69,245,0.06); border-radius: 10px; border: 1px solid rgba(170,69,245,0.15); }
-  .hp-continue-icon { width: 34px; height: 34px; border-radius: 50%; background: rgba(170,69,245,0.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #aa45f5; }
-  .hp-continue-body { flex: 1; min-width: 0; }
-  .hp-continue-title { font-size: 13px; font-weight: 600; color: #2d1b4e; margin: 0 0 2px; }
-  .hp-continue-sub { font-size: 11px; color: #8b7aa3; margin: 0; }
-  .hp-continue-arrow { width: 28px; height: 28px; border-radius: 50%; background: #aa45f5; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
-  .hp-continue-arrow:hover { background: #8a2be2; }
-  .hp-learn-person-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
-  .hp-learn-person-info { flex: 1; min-width: 0; }
-  .hp-learn-person-name { font-size: 13px; font-weight: 600; color: #2d1b4e; display: block; }
-  .hp-learn-person-field { font-size: 11px; color: #8b7aa3; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .hp-learn-person-meta { font-size: 11px; color: #8b7aa3; display: block; }
-  .hp-learn-btn { padding: 5px 14px; border: 1.5px solid #aa45f5; border-radius: 20px; background: #fff; color: #aa45f5; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
-  .hp-learn-btn:hover, .hp-learn-btn.following { background: #aa45f5; color: #fff; }
-  .hp-recommended-body { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
-  .hp-recommended-icon { width: 36px; height: 36px; border-radius: 50%; background: rgba(170,69,245,0.1); display: flex; align-items: center; justify-content: center; color: #aa45f5; flex-shrink: 0; }
-  .hp-recommended-text { font-size: 12px; color: #555; line-height: 1.5; }
-  .hp-recommended-text strong { color: #2d1b4e; }
-  /* ── Post composer styles ───────────────────────────────────────────────────── */
-  .hp-composer { width: 100%; max-width: 100%; box-sizing: border-box; background: #fff; border-radius: 12px; border: 1px solid rgba(9,3,15,0.1); padding: 14px 16px; }
-  .hp-composer-header { display: flex; align-items: flex-start; gap: 12px; }
-  .hp-composer-body { flex: 1; }
-  .hp-composer-prompt { font-size: 14px; font-weight: 600; color: #2d1b4e; margin: 0 0 3px; }
-  .hp-composer-placeholder { font-size: 12px; color: #8b7aa3; margin: 0; }
-  .hp-composer-types { display: flex; flex-wrap: wrap; gap: 6px;}
-  .hp-composer-type-btn { display: flex; align-items: center; gap: 4px; padding: 5px 10px; border: 1px solid rgba(9,3,15,0.12); border-radius: 20px; background: #fff; font-size: 12px; color: #555; cursor: pointer; }
-  .hp-composer-type-btn:hover { border-color: #aa45f5; color: #aa45f5; }
-  .hp-composer-footer { display: flex; justify-content: flex-end; }
-  .hp-composer-post-btn { padding: 7px 20px; background: #1a0a2e; color: #fff; border: none; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; }
-  .hp-composer-post-btn:hover { background: #aa45f5; }
   .hp-composer-input {
   width: 100%;
   border: none;
