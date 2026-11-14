@@ -8,7 +8,7 @@ export default function AnimatedLogo({ className = '' }) {
   return (
     <>
        <a href="/" className="logo">
-        <img src="/logo.png" alt="Logo" />
+        <img src="/logo-remove.png" alt="Logo" />
       </a>
       <style>{`
         .animated-logo-link {
