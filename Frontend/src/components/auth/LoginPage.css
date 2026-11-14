@@ -296,7 +296,7 @@ select {
   position: relative;
   z-index: 10;
 
-  width: min(900px, 92vw);
+  width: min(900px, 87vw);
   max-height: calc(100vh - 160px);
 
   margin: 10px auto 0;
@@ -1175,7 +1175,7 @@ select {
   }
 
   .login-modal {
-    width: min(420px, 100vw);
+    width: min(400px, 92vw);
     grid-template-columns: 1fr;
     margin-top: 14px;
     max-height: none;

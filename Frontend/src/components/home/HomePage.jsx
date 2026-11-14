@@ -32,7 +32,9 @@ import {
   CheckCircle2,
   Menu,
   LayoutDashboard,
-  Tag
+  Tag,
+  Image,
+  FileText
 } from 'lucide-react';
 import { CURIOSITY_DOMAINS } from '../onboarding/onboardingData.js';
 
@@ -1796,8 +1798,8 @@ body {
   .hp-recommended-text { font-size: 12px; color: #555; line-height: 1.5; }
   .hp-recommended-text strong { color: #2d1b4e; }
   /* ── Post composer styles ───────────────────────────────────────────────────── */
-  .hp-composer { width: 100%; max-width: 100%; box-sizing: border-box; background: #fff; border-radius: 12px; border: 1px solid rgba(9,3,15,0.1); padding: 14px 16px; margin-bottom: 12px; }
-  .hp-composer-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .hp-composer { width: 100%; max-width: 100%; box-sizing: border-box; background: #fff; border-radius: 12px; border: 1px solid rgba(9,3,15,0.1); padding: 14px 16px; }
+  .hp-composer-header { display: flex; align-items: flex-start; gap: 12px; }
   .hp-composer-body { flex: 1; }
   .hp-composer-prompt { font-size: 14px; font-weight: 600; color: #2d1b4e; margin: 0 0 3px; }
   .hp-composer-placeholder { font-size: 12px; color: #8b7aa3; margin: 0; }
@@ -2206,10 +2208,10 @@ body {
 // ─────────────────────────────────────────────────────────────────────────────
 const COMPOSER_TYPES = [
   // { label: 'Text', type: 'text', icon: '📝' },
-  { label: 'Short Video', type: 'short_video', icon: '▶️' },
-  { label: 'Photos', type: 'photos', icon: '🖼️' },
+  { label: 'Short Video', type: 'short_video', icon: <Clapperboard size={25} /> },
+  { label: 'Photos', type: 'photos', icon: <Image ize={20} /> },
   // { label: 'Article', type: 'article', icon: '📰' },
-  { label: 'Document', type: 'document', icon: '📄' },
+  { label: 'Document', type: 'document', icon: <FileText /> },
   // { label: 'Question', type: 'question', icon: '❓' },
   // { label: 'Achievement', type: 'achievement', icon: '🏆' },
 ];
@@ -2931,6 +2933,7 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
               : ''
               }`}
             onClick={() => handleTypeSelect(type)}
+            style={{ fontSize: "14px" }}
             aria-label={`Create ${label}`}
           >
             <span aria-hidden="true">
@@ -3742,7 +3745,7 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
       <InterestTabs active={activeTab} onChange={setActiveTab} tabs={FEED_TABS} />
 
       {/* Middle Feed */}
-      <main className="hp-feed" ref={feedScrollRef} aria-label="Social feed" style={{ overflowX: "hidden", overflowY: "auto", }}>
+      <main className="hp-feed" ref={feedScrollRef} aria-label="Social feed" style={{ overflowX: "hidden", overflowY: "auto",gap:"5px" }}>
         <PostComposer
           user={user}
           profileAvatar={feedProfileAvatar}
@@ -3857,69 +3860,84 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
 // FEED MODE BANNER (INITIAL / EXPANDED + skill distribution)
 // ─────────────────────────────────────────────────────────────────────────────
 function FeedModeBanner({ feedMode, highlightedSkill, skillDistribution, onRefresh }) {
-  if (!feedMode) return null;
+//   if (!feedMode) return null;
 
-  const isExpanded = feedMode === 'EXPANDED';
+//   const isExpanded = feedMode === 'EXPANDED';
 
-  return (
-    <section className="hp-feedmode" aria-label="Feed personalisation">
-      <style>{`
-        .hp-feedmode { background:#fff; border:1px solid rgba(9,3,15,.1); border-radius:12px; padding:12px 16px; margin-bottom:12px; }
-        .hp-feedmode-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-        .hp-feedmode-badge { font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; background:rgba(170,69,245,.12); color:#aa45f5; }
-        .hp-feedmode-badge.expanded { background:rgba(34,197,94,.14); color:#16a05d; }
-        .hp-feedmode-text { font-size:12px; color:#8b7aa3; margin:0; }
-        .hp-feedmode-list { list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
-        .hp-feedmode-row-top { display:flex; justify-content:space-between; font-size:12px; color:#2d1b4e; font-weight:500; margin-bottom:3px; }
-        .hp-feedmode-row-top.highlight { color:#aa45f5; font-weight:700; }
-        .hp-feedmode-track { height:6px; background:rgba(9,3,15,.08); border-radius:3px; overflow:hidden; }
-        .hp-feedmode-fill { height:100%; background:#aa45f5; border-radius:3px; }
-      `}</style>
+//   return (
+//     <section className="hp-feedmode" aria-label="Feed personalisation">
+//       <style>{`
+// .hp-feedmode {
+//   background:#fff;
+//   border:1px solid rgba(9,3,15,.1);
+//   border-radius:12px;
+//   padding:12px 16px;
+//   margin-bottom:12px;
+// }
 
-      <div className="hp-feedmode-head">
-        <span className={`hp-feedmode-badge ${isExpanded ? 'expanded' : ''}`}>
-          {isExpanded ? 'Personalised feed' : 'Getting started'}
-        </span>
-        <p className="hp-feedmode-text">
-          {isExpanded
-            ? highlightedSkill
-              ? `Your feed is tuned to your learning. Top skill: ${highlightedSkill}`
-              : 'Your feed is tuned to your learning activity.'
-            : 'Showing posts based on the skills you picked. Explore a few posts to personalise your feed.'}
-        </p>
-      </div>
+// /* Desktop + tablet: full width like the composer */
+// @media (min-width: 768px) {
+//   .hp-feedmode {
+//     width:100%;
+//     max-width:100%;
+//     align-self:stretch;
+//     box-sizing:border-box;
+//   }
+// }        .hp-feedmode-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+//         .hp-feedmode-badge { font-size:11px; font-weight:700; padding:3px 10px; border-radius:20px; background:rgba(170,69,245,.12); color:#aa45f5; }
+//         .hp-feedmode-badge.expanded { background:rgba(34,197,94,.14); color:#16a05d; }
+//         .hp-feedmode-text { font-size:12px; color:#8b7aa3; margin:0; }
+//         .hp-feedmode-list { list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
+//         .hp-feedmode-row-top { display:flex; justify-content:space-between; font-size:12px; color:#2d1b4e; font-weight:500; margin-bottom:3px; }
+//         .hp-feedmode-row-top.highlight { color:#aa45f5; font-weight:700; }
+//         .hp-feedmode-track { height:6px; background:rgba(9,3,15,.08); border-radius:3px; overflow:hidden; }
+//         .hp-feedmode-fill { height:100%; background:#aa45f5; border-radius:3px; }
+//       `}</style>
 
-      {isExpanded && skillDistribution.length > 0 && (
-        <ul className="hp-feedmode-list">
-          {skillDistribution.map((s) => {
-            const pct = Math.max(0, Math.min(100, Number(s.percentage) || 0));
-            const per10 = s.postsPer10 ?? s.postQuota ?? 0;
-            const isTop = highlightedSkill && s.skillName === highlightedSkill;
-            return (
-              <li key={s.skillId}>
-                <div className={`hp-feedmode-row-top ${isTop ? 'highlight' : ''}`}>
-                  <span>{s.skillName}</span>
-                  <span>{pct}% · {per10}/10 posts</span>
-                </div>
-                <div className="hp-feedmode-track">
-                  <div className="hp-feedmode-fill" style={{ width: `${pct}%` }} />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {onRefresh && (
-        <button
-          type="button"
-          onClick={onRefresh}
-          style={{ marginTop: 10, background: 'none', border: 'none', color: '#aa45f5', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}
-        >
-          ↻ Refresh feed
-        </button>
-      )}
-    </section>
-  );
+//       <div className="hp-feedmode-head">
+//         <span className={`hp-feedmode-badge ${isExpanded ? 'expanded' : ''}`}>
+//           {isExpanded ? 'Personalised feed' : 'Getting started'}
+//         </span>
+//         <p className="hp-feedmode-text">
+//           {isExpanded
+//             ? highlightedSkill
+//               ? `Your feed is tuned to your learning. Top skill: ${highlightedSkill}`
+//               : 'Your feed is tuned to your learning activity.'
+//             : 'Showing posts based on the skills you picked. Explore a few posts to personalise your feed.'}
+//         </p>
+//       </div>
+
+//       {isExpanded && skillDistribution.length > 0 && (
+//         <ul className="hp-feedmode-list">
+//           {skillDistribution.map((s) => {
+//             const pct = Math.max(0, Math.min(100, Number(s.percentage) || 0));
+//             const per10 = s.postsPer10 ?? s.postQuota ?? 0;
+//             const isTop = highlightedSkill && s.skillName === highlightedSkill;
+//             return (
+//               <li key={s.skillId}>
+//                 <div className={`hp-feedmode-row-top ${isTop ? 'highlight' : ''}`}>
+//                   <span>{s.skillName}</span>
+//                   <span>{pct}% · {per10}/10 posts</span>
+//                 </div>
+//                 <div className="hp-feedmode-track">
+//                   <div className="hp-feedmode-fill" style={{ width: `${pct}%` }} />
+//                 </div>
+//               </li>
+//             );
+//           })}
+//         </ul>
+//       )}
+//       {onRefresh && (
+//         <button
+//           type="button"
+//           onClick={onRefresh}
+//           style={{ marginTop: 10, background: 'none', border: 'none', color: '#aa45f5', fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: 0 }}
+//         >
+//           ↻ Refresh feed
+//         </button>
+//       )}
+//     </section>
+  //);
 }
 
 // Append posts without duplicates (also de-dupes inside the incoming page)

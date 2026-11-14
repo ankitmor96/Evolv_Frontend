@@ -878,7 +878,7 @@
   flex-direction: column;
   align-items: center;
 
-  gap: 18px;
+  gap: 5px;
 
   padding: 18px 24px 40px;
 
@@ -915,7 +915,6 @@
 
 .hp-post {
   width: 100%;
-  max-width: 690px;
 
   box-sizing: border-box;
 
@@ -1702,8 +1701,6 @@
   display: flex;
 
   flex-direction: column;
-
-  gap: 18px;
 
   scrollbar-width: thin;
 
@@ -2514,7 +2511,12 @@
 
   /* Post cards */
   .hp-post {
-    padding: 20px 20px 16px;
+    width: 100% !important;
+    max-width: 100% !important;
+    align-self: stretch !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
   }
 
   /* Show the filter button so the right sidebar can be opened */
@@ -4327,14 +4329,11 @@
   border-radius: 12px;
   border: 1px solid rgba(9, 3, 15, 0.1);
   padding: 14px 16px;
-  margin-bottom: 12px;
 }
 
 .hp-composer-header {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 12px;
 }
 
 .hp-composer-body {
@@ -4741,7 +4740,7 @@
 
 /* Video frame and document card line up with the new layout */
 .hp-video-frame {
-  margin: 0 auto;
+  margin: 0;
   border-radius: 0;
   max-width: 100%;
 }
