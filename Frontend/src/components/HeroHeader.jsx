@@ -402,7 +402,6 @@ export default function HeroHeader() {
           font-weight: 700;
           color: #fff;
           background: #7C3AED;
-          border: 2px solid var(--border, #09030F);
           text-decoration: none;
           box-shadow: 2px 2px 0 rgba(9, 3, 15, 0.2);
           transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
@@ -414,7 +413,7 @@ export default function HeroHeader() {
         .nav-signup-action:hover {
           transform: translateY(-2px);
           box-shadow: 4px 4px 0 rgba(9, 3, 15, 0.25);
-          background: #1B0F2A;
+          background: #6B21A8;
         }
 
         .nav-signup-action:active {

@@ -540,20 +540,6 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
     margin-bottom: 6px;
   }
 
-  .hp-sidebar-edit-btn {
-    font-size: 11px;
-    color: #aa45f5;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    font-weight: 500;
-  }
-
-  .hp-sidebar-edit-btn:hover {
-    text-decoration: underline;
-  }
-
   .hp-skill-list {
     list-style: none;
     padding: 0;
@@ -687,7 +673,6 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
         <div className="hp-sidebar-section">
           <div className="hp-sidebar-section-header">
             <p className="hp-nav-section-label" style={{ margin: 0 }}>MY LEARNING GOALS</p>
-            <button className="hp-sidebar-edit-btn" aria-label="Edit learning goals">Edit</button>
           </div>
           <ul className="hp-skill-list">
             {displayGoals.map((goal) => (
@@ -1816,7 +1801,7 @@ body {
   .hp-composer-body { flex: 1; }
   .hp-composer-prompt { font-size: 14px; font-weight: 600; color: #2d1b4e; margin: 0 0 3px; }
   .hp-composer-placeholder { font-size: 12px; color: #8b7aa3; margin: 0; }
-  .hp-composer-types { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .hp-composer-types { display: flex; flex-wrap: wrap; gap: 6px;}
   .hp-composer-type-btn { display: flex; align-items: center; gap: 4px; padding: 5px 10px; border: 1px solid rgba(9,3,15,0.12); border-radius: 20px; background: #fff; font-size: 12px; color: #555; cursor: pointer; }
   .hp-composer-type-btn:hover { border-color: #aa45f5; color: #aa45f5; }
   .hp-composer-footer { display: flex; justify-content: flex-end; }
@@ -2220,13 +2205,13 @@ body {
 // POST COMPOSER (UI only — no backend yet)
 // ─────────────────────────────────────────────────────────────────────────────
 const COMPOSER_TYPES = [
-  { label: 'Text', type: 'text', icon: '📝' },
+  // { label: 'Text', type: 'text', icon: '📝' },
   { label: 'Short Video', type: 'short_video', icon: '▶️' },
   { label: 'Photos', type: 'photos', icon: '🖼️' },
-  { label: 'Article', type: 'article', icon: '📰' },
+  // { label: 'Article', type: 'article', icon: '📰' },
   { label: 'Document', type: 'document', icon: '📄' },
-  { label: 'Question', type: 'question', icon: '❓' },
-  { label: 'Achievement', type: 'achievement', icon: '🏆' },
+  // { label: 'Question', type: 'question', icon: '❓' },
+  // { label: 'Achievement', type: 'achievement', icon: '🏆' },
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 // SKILL PICKER MODAL (used by PostComposer)
@@ -2819,9 +2804,9 @@ function PostComposer({ user, profileAvatar, profileName, onPostCreated }) {
             </>
           )}
 
-          <p className="hp-composer-placeholder">
+          {/* <p className="hp-composer-placeholder">
             Share a learning, idea, question, experience, or achievement.
-          </p>
+          </p> */}
 
         </div>
       </div>

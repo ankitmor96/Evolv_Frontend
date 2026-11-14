@@ -6,7 +6,8 @@ import {
   CheckCheck, Check, X, Menu, Plus
 } from 'lucide-react';
 import { authService } from '../../services/authService.js';
-import { messageService } from '../../services/messageService.js';
+import { messageService, normaliseMessage } from '../../services/messageService.js';
+import socketService from '../../services/socketService.js';
 import { notificationService } from '../../services/notificationService.js';
 import { isMessageNotification } from '../../components/hooks/useNotificationCount.jsx';
 import { navigate } from '../../utils/navigate.js';
@@ -52,9 +53,6 @@ function NavRail({ user }) {
 
   return (
     <nav className="mp-nav-rail" aria-label="Main navigation">
-      <button className="mp-nav-logo" onClick={() => navigate('/home')} aria-label="EVOLV Home">
-        <span>ev</span>
-      </button>
 
       <div className="mp-nav-items">
         {NAV_ITEMS.map(({ id, Icon, label, hash }) => (
@@ -390,10 +388,10 @@ function ChatWindow({ conv, messages, onSend, onBack, chatOpen, onMenu, loading 
 
         <div className="mp-chat-header-info">
           <div className="mp-chat-header-name">{conv.user}</div>
-          <div className={`mp-chat-header-status${!conv.online ? ' offline' : ''}`}>
+          {/* <div className={`mp-chat-header-status${!conv.online ? ' offline' : ''}`}>
             <span className="mp-chat-header-status-dot" />
             {conv.online ? 'Online' : 'Offline'}
-          </div>
+          </div> */}
         </div>
 
         <div className="mp-chat-header-actions">
@@ -466,6 +464,61 @@ export default function MessagesPage() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  const activeIdRef = useRef(null);
+useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
+
+// ── Real-time messages ──
+useEffect(() => {
+  socketService.connect();   // must be called BEFORE onMessageNew
+
+  const off = socketService.onMessageNew(async (payload) => {
+    const raw = payload?.message ?? payload;
+    const convId = payload?.conversationId ?? raw?.conversationId;
+    if (!convId) return;
+
+    const msg = normaliseMessage(raw, myId);
+    if (msg.sender === 'me') return;                 // I already added it when sending
+
+    const isActive = String(activeIdRef.current) === String(convId);
+
+    // 1) append to the open chat (no duplicates)
+    setAllMessages((prev) => {
+      const list = prev[convId];
+      if (!list) return prev;
+      if (list.some((m) => String(m.id) === String(msg.id))) return prev;
+      return { ...prev, [convId]: [...list, msg] };
+    });
+
+    // 2) update the sidebar
+    let found = false;
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (String(c.id) !== String(convId)) return c;
+        found = true;
+        return {
+          ...c,
+          lastMessage: msg.text,
+          timestamp: msg.timestamp,
+          unreadCount: isActive ? 0 : (c.unreadCount || 0) + 1,
+        };
+      })
+    );
+    if (!found) {
+      try { setConversations(await messageService.getConversations(myId)); } catch {}
+    }
+
+    // 3) chat is open → mark read
+    if (isActive) messageService.markRead(convId).catch(() => {});
+  });
+
+  return () => {
+    off();
+    socketService.disconnect();
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [myId]);
+
   const handleStartChat = async (person) => {
     try {
       const conv = await messageService.startConversation(person.userId, person, myId);
@@ -560,8 +613,6 @@ export default function MessagesPage() {
     );
     if (conv.unreadCount > 0) messageService.markRead(conv.id).catch(() => { });
 
-    // fetch only once per conversation
-    if (allMessages[conv.id]) return;
     try {
       setMsgLoading(true);
       const msgs = await messageService.getMessages(conv.id, myId);

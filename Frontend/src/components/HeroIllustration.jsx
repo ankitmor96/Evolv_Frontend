@@ -291,6 +291,7 @@ export default function HeroIllustration() {
   pointer-events: none;
   z-index: 30;
   will-change: transform;
+  margin-bottom:10px;
 }
 
 .stage-label-anchor { pointer-events: auto; }

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { authService } from "../../services/authService.js";
 import evolvLogo from "/logo-remove.png";
 import { navigate } from '../../utils/navigate.js';
+import {Info} from "lucide-react";
 
 import "./LoginPage.css";
 
@@ -678,9 +679,8 @@ const LoginPage = () => {
         <header className="navbar">
           <div className="nav-left">
             <div className="nav-item">
-              <span className="nav-who-icon"><WhoIAmIcon /></span>
-              <span>Who We Are</span>
-              <span className="arrow-down">⌄</span>
+              <span className="nav-who-icon"><Info /></span>
+              <span>About Us</span>
             </div>
           </div>
 
@@ -766,13 +766,13 @@ const LoginPage = () => {
               </p>
 
               {/* Floating Skill / Interest Tags */}
-              <div className="skill-tags-wrap">
+              {/* <div className="skill-tags-wrap">
                 <div className="skill-tag tag-design">🎨 Design</div>
                 <div className="skill-tag tag-coding">💻 Coding</div>
                 <div className="skill-tag tag-marketing">📈 Marketing</div>
                 <div className="skill-tag tag-content">🎬 Filmmaking</div>
                 <div className="skill-tag tag-strategy">🚀 Entrepreneurship</div>
-              </div>
+              </div> */}
 
               {/* Vector Graphic Scene */}
               <ArtSceneIllustration />

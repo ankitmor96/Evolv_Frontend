@@ -176,7 +176,6 @@ select {
 .login-nav-btn,
 .signup-nav-btn {
   border: 0;
-  background: transparent;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
@@ -195,7 +194,7 @@ select {
 }
 
 .signup-nav-btn {
-  background: #07050c;
+  background: #7C3AED;
   color: white;
   padding: 8px 16px;
   border-radius: 8px;
@@ -210,7 +209,7 @@ select {
 }
 
 .signup-nav-btn:hover {
-  background: #231936;
+  background: #6B21A8;
   transform: translateY(-1px);
 }
 
@@ -259,6 +258,7 @@ select {
   font-size: 13.5px;
   line-height: 1.35;
   max-width: 720px;
+  margin-top: 15px;
   margin-left: auto;
   margin-right: auto;
 }

@@ -4,6 +4,7 @@ const API_BASE_URL = import.meta.env?.VITE_API_BASE_URL ?? '';
 const BASE = `${API_BASE_URL}/api/messaging`;
 const TOKEN_KEYS = ['evolv_auth_token', 'token', 'accessToken', 'access_token'];
 
+
 // Check DevTools → Application → Local Storage and keep the key your login uses
 const getToken = () => {
   for (const key of TOKEN_KEYS) {
@@ -12,11 +13,6 @@ const getToken = () => {
   }
   return null;
 };
-
-const authHeaders = () => ({
-  'Content-Type': 'application/json',
-  Authorization: `Bearer ${getToken()}`,
-});
 
 async function request(path, options = {}) {
   const token = getToken();
@@ -88,7 +84,7 @@ const normaliseConversation = (c = {}, myId) => {
   };
 };
 
-const normaliseMessage = (m = {}, myId) => {
+export const normaliseMessage = (m = {}, myId) => {
   const senderId = m.senderId ?? m.sender_id ?? m.sender?.id;
   return {
     id: m.id ?? m.messageId,
@@ -146,17 +142,5 @@ export const messageService = {
   async searchConnections(query) {
     const res = await request(`/connections/search?search=${encodeURIComponent(query)}`);
     return toList(res);
-  },
-
-  // POST /messaging/conversations/start/:userId
-  async startConversation(userId, person) {
-    const res = await request(`/conversations/start/${userId}`, { method: 'POST' });
-    const raw = res?.data?.conversation ?? res?.data ?? res;
-    const conv = normaliseConversation(raw);
-    return {
-      ...conv,
-      user: conv.user === 'Unknown' ? person?.name ?? person?.username ?? 'Unknown' : conv.user,
-      avatar: conv.avatar || person?.avatarUrl || '',
-    };
   },
 };

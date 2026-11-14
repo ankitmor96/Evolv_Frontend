@@ -218,6 +218,21 @@ const socketService = {
     };
   },
 
+    /**
+   * Subscribe to `message:new`.
+   * Payload: { conversationId, message: { id, senderId, text, createdAt } }
+   */
+  onMessageNew(callback) {
+    if (!_socket) {
+      console.warn('[socketService] onMessageNew called before connect() — call connect() first.');
+      return () => {};
+    }
+    _socket.on('message:new', callback);
+    return () => {
+      if (_socket) _socket.off('message:new', callback);
+    };
+  },
+
   /**
    * @returns {boolean} Whether the socket is currently connected.
    */
