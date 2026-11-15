@@ -3480,7 +3480,6 @@
 .hp-post-actions-left {
   display: flex;
   align-items: center;
-  gap: 4px;
 
   min-width: 0;
 }
@@ -4740,7 +4739,7 @@
 
 @media (max-width: 1024px) {
   .hp-post-actions-left {
-    gap: 4px;
+    gap: 5px;
     justify-content: flex-start;
   }
 
@@ -5196,4 +5195,66 @@
     border: 0;
     background: rgba(9, 3, 15, 0.48);
   }
+}
+
+/* ── Document card: aligned layout ── */
+.hp-document-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: auto;
+  box-sizing: border-box;
+  margin: 4px 14px 8px !important;
+  padding: 14px 16px;
+  border: 1px solid #e5dcef;
+  border-radius: 14px;
+  background: #faf7ff;
+}
+
+.hp-document-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.hp-document-name {
+  margin: 0 0 4px;
+  color: #20152c;
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hp-document-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.hp-document-view {
+  min-width: 72px;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .hp-document-card {
+    flex-wrap: wrap;
+  }
+  .hp-document-info {
+    flex: 1 1 calc(100% - 70px);
+  }
+  .hp-document-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+  .hp-document-actions .hp-document-view {
+    flex: 1;
+  }
+}
+
+.hp-composer-post-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

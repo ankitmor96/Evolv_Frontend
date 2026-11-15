@@ -55,10 +55,6 @@
   border-radius: 14px;
   color: #8e819b;
 }
-.dx-search:focus-within {
-  border-color: var(--dx-purple);
-  box-shadow: 0 0 0 3px rgba(160, 68, 232, 0.1);
-}
 .dx-search input {
   flex: 1;
   min-width: 0;
@@ -450,8 +446,7 @@
 .dx-empty p { margin: 0; font-size: 13px; }
 
 /* ============ FOCUS + MOTION ============ */
-.discover-page button:focus-visible,
-.discover-page input:focus-visible {
+.discover-page button:focus-visible{
   outline: 2px solid var(--dx-purple);
   outline-offset: 2px;
 }

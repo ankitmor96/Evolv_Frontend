@@ -97,7 +97,7 @@ const request = async (path, options = {}) => {
       ...fetchOptions,
       headers,
       signal: controller.signal,
-      });
+    });
     if (response.status === 401 && token) {
       forceLogout();
     }
@@ -483,7 +483,7 @@ export const homePostService = {
    * @returns {Promise<object>}  Raw server response.
    * @throws {Error} On auth failure, network error, or server error.
    */
-    async removeReaction(postId, reactionType) {
+  async removeReaction(postId, reactionType) {
     try {
       return await request(`/api/posts/${postId}/reactions/${reactionType}`, {
         method: 'DELETE',
@@ -494,13 +494,13 @@ export const homePostService = {
       throw err;
     }
   },
-  
-   /**
-   * DELETE /api/posts/:postId/learned
-   * @param {string|number} postId
-   * @returns {Promise<object>}  Raw server response.
-   * @throws {Error} On auth failure, network error, or server error.
-   */
+
+  /**
+  * DELETE /api/posts/:postId/learned
+  * @param {string|number} postId
+  * @returns {Promise<object>}  Raw server response.
+  * @throws {Error} On auth failure, network error, or server error.
+  */
 
   async unmarkLearned(postId) {
     try {
@@ -525,7 +525,7 @@ export const homePostService = {
     return request(`/api/posts/${postId}/learned`, { method: 'PUT' });
   },
 
- 
+
 
   // ── Comments ──────────────────────────────────────────────────────────────
 
@@ -779,7 +779,7 @@ export const homePostService = {
     }
   },
 
-    // ── Personalised feed (INITIAL / EXPANDED) ─────────────────────────────────
+  // ── Personalised feed (INITIAL / EXPANDED) ─────────────────────────────────
   /**
    * GET /api/posts/feed?cursor=...
    * Throws on failure so the UI can show an error state.
@@ -790,7 +790,7 @@ export const homePostService = {
     const qs = params.toString() ? `?${params.toString()}` : "";
 
     const result = await request(`${FEED_ENDPOINT}${qs}`, { method: "GET" });
-    console.log('[Feed raw response]', result);   
+    console.log('[Feed raw response]', result);
 
     const posts = Array.isArray(result?.data)
       ? result.data
@@ -856,12 +856,28 @@ export const homePostService = {
       fallbackType
     ).toLowerCase();
 
-    const isVideo = String(rawType).toLowerCase().includes("video");
+    const postTypeStr = String(p.postType ?? p.postKind ?? "").toLowerCase();
+    const urlForCheck = String(
+      media?.documentUrl ?? media?.fileUrl ?? media?.mediaUrl ?? media?.url ??
+      p.documentUrl ?? p.fileUrl ?? p.mediaUrl ?? ""
+    ).toLowerCase().split("?")[0];
+
+    const DOC_EXT = /\.(pdf|docx?|pptx?|xlsx?|txt|csv)$/;
+
+    const isVideo = rawType.includes("video");
     const isDocument =
-      rawType.includes("document") ||
-      rawType.includes("file") ||
-      rawType.includes("application/pdf") ||
-      rawType.includes("application/vnd");
+      !isVideo &&
+      (
+        [rawType, postTypeStr].some(
+          (t) =>
+            t.includes("document") ||
+            t.includes("file") ||
+            t.includes("raw") ||
+            t.includes("application/")
+        ) ||
+        DOC_EXT.test(urlForCheck) ||
+        urlForCheck.includes("/raw/upload/")
+      );
 
     const mediaSrc =
       media?.mediaUrl ??
@@ -987,6 +1003,8 @@ export const homePostService = {
           p.fileName ??
           p.originalName ??
           p.document?.name ??
+          (DOC_EXT.test(String(p.caption ?? "").toLowerCase()) ? p.caption : null) ??
+          (urlForCheck ? decodeURIComponent(urlForCheck.split("/").pop()) : null) ??
           "Document",
 
         ...(media?.thumbnailUrl

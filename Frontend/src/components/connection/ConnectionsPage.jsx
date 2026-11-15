@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, Search, Users } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { ArrowLeft, Search, Users, CheckCheck } from 'lucide-react';
 import { authService } from '../../services/authService.js';
 import { userProfileService } from '../../services/userProfileService.js';
+import { connectionService } from '../../services/connectionService.js';
 import { navigate as go } from '../../utils/navigate.js';
 import '../userProfile/Userprofilepage.css';
 
@@ -9,6 +10,14 @@ function getUserIdFromPath() {
   const parts = window.location.pathname.split('/').filter(Boolean);
   return parts[0] === 'connections' ? parts[1] : null;
 }
+
+// label + style for each connection status
+const CONNECT_CONFIG = {
+  none: { label: '+ Connect', cls: 'primary' },
+  pending: { label: 'Requested', cls: '' },
+  incoming: { label: 'Accept', cls: 'primary' },
+  connected: { label: 'Connected', cls: '' },
+};
 
 function PersonAvatar({ src, name }) {
   const [err, setErr] = useState(false);
@@ -22,6 +31,7 @@ function PersonAvatar({ src, name }) {
 
 export default function ConnectionsPage() {
   const user = authService.getCurrentUser();
+  const me = user?.id ?? user?.userId ?? user?._id ?? null;
 
   const [userId, setUserId] = useState(getUserIdFromPath());
   const [people, setPeople] = useState([]);
@@ -29,6 +39,10 @@ export default function ConnectionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
+
+  // { [userId]: { status, connectionId } }  — MY relationship with each person
+  const [statusMap, setStatusMap] = useState({});
+  const busy = useRef(new Set());
 
   // Re-read the id if the URL changes while this page is mounted
   useEffect(() => {
@@ -46,7 +60,7 @@ export default function ConnectionsPage() {
     if (!user) go('/login');
   }, [user]);
 
-  // Load connections
+  // Load the list of people
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -69,6 +83,64 @@ export default function ConnectionsPage() {
 
     return () => { cancelled = true; };
   }, [userId]);
+
+  // Load MY connection status with everyone
+  const loadStatuses = useCallback(async () => {
+    if (me == null) return;
+    const map = await connectionService.getConnectionMap(me).catch(() => new Map());
+    const obj = {};
+    map.forEach((value, key) => { obj[String(key)] = value; });
+    setStatusMap(obj);
+  }, [me]);
+
+  useEffect(() => { loadStatuses(); }, [loadStatuses]);
+
+  // Connect / Accept / Cancel request / Remove
+  const handleConnect = async (person) => {
+    const key = String(person.id);
+    if (busy.current.has(key)) return;
+    busy.current.add(key);
+
+    const entry = statusMap[key];
+    const status = entry?.status ?? 'none';
+    const patch = (p) =>
+      setStatusMap((prev) => ({ ...prev, [key]: { ...prev[key], ...p } }));
+
+    const findId = async () =>
+      entry?.connectionId ??
+      (await connectionService.getConnectionMap(me)).get(key)?.connectionId;
+
+    try {
+      if (status === 'none') {
+        patch({ status: 'pending' });
+        try {
+          await connectionService.sendConnectionRequest(person.id);
+        } catch (err) {
+          if (err.status !== 409) throw err; // 409 = already exists
+        }
+        await loadStatuses();
+      } else if (status === 'incoming') {
+        const id = await findId();
+        if (id == null) throw new Error('Connection record not found.');
+        patch({ status: 'connected' });
+        await connectionService.acceptConnectionRequest(id);
+      } else {
+        if (status === 'connected' &&
+          !window.confirm(`Remove ${person.name} from your connections?`)) {
+          return;
+        }
+        const id = await findId();
+        if (id == null) throw new Error('Connection record not found.');
+        patch({ status: 'none', connectionId: null });
+        await connectionService.removeConnection(id);
+      }
+    } catch (err) {
+      console.warn('[Connections] action failed, resyncing:', err.message);
+      await loadStatuses().catch(() => { });
+    } finally {
+      busy.current.delete(key);
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -129,17 +201,35 @@ export default function ConnectionsPage() {
               <p className="up-note">No one matches "{query.trim()}".</p>
             ) : (
               <ul className="cp-list">
-                {filtered.map((p) => (
-                  <li key={p.connectionId ?? p.id}>
-                    <button type="button" className="cp-row" onClick={() => openPerson(p.id)}>
-                      <PersonAvatar src={p.avatar} name={p.name} />
-                      <span className="cp-info">
-                        <span className="cp-name">{p.name}</span>
-                        {p.username && <span className="cp-username">@{p.username}</span>}
-                      </span>
-                    </button>
-                  </li>
-                ))}
+                {filtered.map((p) => {
+                  const isMe = me != null && String(p.id) === String(me);
+                  const status = statusMap[String(p.id)]?.status ?? 'none';
+                  const config = CONNECT_CONFIG[status];
+
+                  return (
+                    <li key={p.connectionId ?? p.id} className="cp-item">
+                      <button type="button" className="cp-row" onClick={() => openPerson(p.id)}>
+                        <PersonAvatar src={p.avatar} name={p.name} />
+                        <span className="cp-info">
+                          <span className="cp-name">{p.name}</span>
+                          {p.username && <span className="cp-username">@{p.username}</span>}
+                        </span>
+                      </button>
+
+                      {!isMe && (
+                        <button
+                          type="button"
+                          className={`cp-btn ${config.cls}`}
+                          onClick={() => handleConnect(p)}
+                          aria-label={`${config.label} ${p.name}`}
+                        >
+                          {status === 'connected' && <CheckCheck size={14} aria-hidden="true" />}
+                          {config.label}
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </>
@@ -158,9 +248,15 @@ const CSS = `
 .cp-search input{flex:1;min-width:0;border:none;outline:none;background:transparent;font:inherit;font-size:14px;color:#1a0a2e}
 
 .cp-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
-.cp-row{display:flex;align-items:center;gap:14px;width:100%;padding:12px 14px;background:#fff;border:1px solid rgba(9,3,15,.08);border-radius:16px;text-align:left;cursor:pointer;font:inherit;transition:border-color .2s}
+.cp-item{display:flex;align-items:center;gap:10px}
+.cp-row{display:flex;align-items:center;gap:14px;flex:1;min-width:0;padding:12px 14px;background:#fff;border:1px solid rgba(9,3,15,.08);border-radius:16px;text-align:left;cursor:pointer;font:inherit;transition:border-color .2s}
 .cp-row:hover{border-color:rgba(170,69,245,.45)}
 .cp-row:focus-visible{outline:2px solid #aa45f5;outline-offset:2px}
+
+.cp-btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;flex-shrink:0;min-width:96px;padding:9px 16px;border-radius:999px;border:1px solid rgba(170,69,245,.45);background:#fff;color:#aa45f5;font:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:background .2s,color .2s}
+.cp-btn:hover{background:rgba(170,69,245,.08)}
+.cp-btn.primary{background:#aa45f5;border-color:#aa45f5;color:#fff}
+.cp-btn.primary:hover{background:#9535e0}
 
 .cp-avatar{flex-shrink:0;width:48px;height:48px;border-radius:50%;object-fit:cover}
 .cp-avatar-fallback{display:flex;align-items:center;justify-content:center;background:#aa45f5;color:#fff;font-weight:700}
