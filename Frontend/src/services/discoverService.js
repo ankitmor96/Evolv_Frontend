@@ -1,6 +1,7 @@
 import { homePostService } from './homePostService.js';
 import { getPostReactions, getPostLearned, normaliseReactions } from './reactionTotals.js';
 import { forceLogout } from './sessionService.js';
+import { userProfileService } from './userProfileService.js';
 
 const ORIGIN =
   import.meta.env?.VITE_API_BASE_URL ?? 'https://evolve-backend-4lux.onrender.com';
@@ -9,6 +10,54 @@ const getToken = () =>
   localStorage.getItem('evolv_auth_token') ||
   sessionStorage.getItem('evolv_auth_token') ||
   null;
+
+// ── Fill in creator name/avatar when the API only sends userId ──
+const profileCache = new Map();
+
+function loadProfile(userId) {
+  const key = String(userId);
+  if (!profileCache.has(key)) {
+    const promise = userProfileService.getUserProfile(userId).catch(() => null);
+    profileCache.set(key, promise);
+    // don't keep failed lookups, so they can be retried
+    promise.then((p) => { if (!p) profileCache.delete(key); });
+  }
+  return profileCache.get(key);
+}
+
+export async function enrichCreators(posts) {
+  try {
+    const ids = [
+      ...new Set(
+        posts
+          .filter((p) => !p.creator?.name && p.creator?.id != null)
+          .map((p) => String(p.creator.id))
+      ),
+    ];
+    if (ids.length === 0) return posts;
+
+    const profiles = await Promise.all(ids.map(loadProfile));
+    const byId = new Map(ids.map((id, i) => [id, profiles[i]]));
+
+    return posts.map((p) => {
+      const prof = byId.get(String(p.creator?.id));
+      if (!prof) return p;
+      return {
+        ...p,
+        creator: {
+          ...p.creator,
+          name: prof.name || prof.username || p.creator.name,
+          username: prof.username || p.creator.username,
+          avatar: prof.avatar || p.creator.avatar,
+          field: prof.field || p.creator.field,
+        },
+      };
+    });
+  } catch (err) {
+    console.warn('[enrichCreators] failed, showing posts without profiles:', err.message);
+    return posts; // never block the posts
+  }
+}
 
 async function getJson(path, { limit, cursor }) {
   const token = getToken();
@@ -23,10 +72,13 @@ async function getJson(path, { limit, cursor }) {
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json?.message || `Request failed (${res.status})`);
 
+  const normalised = (Array.isArray(json.data) ? json.data : []).map((p) =>
+    homePostService._normalisePost(p)
+  );
+  const posts = await enrichCreators(normalised);
+
   return {
-    posts: (Array.isArray(json.data) ? json.data : []).map((p) =>
-      homePostService._normalisePost(p)
-    ),
+    posts,
     message: json.message ?? '',
     totalConnections: json.totalConnections ?? 0,
     totalPosts: json.totalPosts ?? 0,

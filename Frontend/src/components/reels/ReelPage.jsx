@@ -9,6 +9,7 @@ import CommentPanel from '../shared/CommentPanel.jsx';
 import { useInView, useLearningTracker } from '../hooks/useLearningTracker.js';
 import { navigate } from '../../utils/navigate.js';
 import { takeListPosts, clearListPosts } from '../../utils/listPosts.js';
+import { enrichCreators } from '../../services/discoverService.js';
 import "../reels/ReelPage.css";
 
 // ── Type helpers ────────────────────────────────────────────────────────────
@@ -105,6 +106,8 @@ function FeedItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
   const creator = post.creator || {};
   const initial = (creator.name || 'U')[0].toUpperCase();
   const backdropSrc = video ? post.media.poster : post.media.src;
+
+
 
   return (
     <section className="rl-item" ref={itemRef} data-post-id={post.id}>
@@ -258,29 +261,32 @@ export default function ReelsPage() {
     let cancelled = false;
     (async () => {
       try {
+        let list;
+
         const given = takeListPosts();
         if (given) {
-          const list = given.filter(isMedia);
-          const withCounts = await homePostService.attachCommentCounts(list);
-          if (!cancelled) setPosts(withCounts);
-          return;
+          // opened from Discover / Profile
+          list = given.filter(isMedia);
+        } else {
+          // opened from Home
+          const userId = user?.id ?? user?.userId ?? user?._id ?? null;
+
+          const [feedRes, mine] = await Promise.all([
+            homePostService.getFeedPosts().catch(() => ({ posts: [] })),
+            homePostService.getMyPosts(userId).catch(() => []),
+          ]);
+
+          const feed = (feedRes?.posts ?? []).map((p) => homePostService._normalisePost(p));
+
+          const map = new Map();
+          [...(mine || []), ...feed].forEach((p) => {
+            if (p?.id && isMedia(p)) map.set(String(p.id), p);
+          });
+          list = [...map.values()];
         }
-        const userId = user?.id ?? user?.userId ?? user?._id ?? null;
 
-        const [feedRes, mine] = await Promise.all([
-          homePostService.getFeedPosts().catch(() => ({ posts: [] })),
-          homePostService.getMyPosts(userId).catch(() => []),
-        ]);
-
-        const feed = (feedRes?.posts ?? []).map((p) => homePostService._normalisePost(p));
-
-        const map = new Map();
-        [...(mine || []), ...feed].forEach((p) => {
-          if (p?.id && isMedia(p)) map.set(String(p.id), p);   // ✅ isMedia
-        });
-
-        const unique = [...map.values()];
-        const withCounts = await homePostService.attachCommentCounts(unique);
+        const withCreators = await enrichCreators(list);
+        const withCounts = await homePostService.attachCommentCounts(withCreators);
 
         if (!cancelled) setPosts(withCounts);
       } catch (error) {
@@ -368,6 +374,7 @@ export default function ReelsPage() {
   }, []);
 
   if (!user) return null;
+
 
   return (
     <div className="rl-page">
