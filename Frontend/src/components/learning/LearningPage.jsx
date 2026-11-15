@@ -19,7 +19,6 @@ const NAV = [
   { id: 'home', label: 'Home', icon: Home, to: '/home' },
   { id: 'discover', label: 'Discover', icon: Compass, to: '/discover' },
   { id: 'learning', label: 'My Learning', icon: BookOpen, to: '/learning' },
-  { id: 'create', label: 'Create', icon: PlusCircle, to: '/home' },
   { id: 'notifications', label: 'Notifications', icon: Bell, to: '/notifications' },
   { id: 'profile', label: 'Profile', icon: User, to: '/profile' },
 ];

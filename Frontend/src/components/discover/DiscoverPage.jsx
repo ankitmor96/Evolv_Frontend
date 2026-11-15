@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search, ChevronLeft, ChevronRight, ArrowRight, Sparkles, Code2, Mic,
   Brain, Palette, PenLine, TrendingUp, Target, Compass, Users, Route,
-  Rocket, Globe, Lightbulb, Play, FileText,Heart,CheckCircle2
+  Rocket, Globe, Lightbulb, Play, FileText, Heart, CheckCircle2, Home,
+  BookOpen, Bell, User
 } from 'lucide-react';
 import '../discover/DiscoverPage.css';
 import { profileService } from '../../services/profileService';
@@ -12,7 +13,13 @@ import { CURIOSITY_DOMAINS } from '../onboarding/onboardingData.js';
 import { homePostService } from '../../services/homePostService.js';
 
 /* ───────────────────────── STATIC CONTENT ───────────────────────── */
-
+const NAV = [
+  { id: 'home', label: 'Home', icon: Home, to: '/home' },
+  { id: 'discover', label: 'Discover', icon: Compass, to: '/discover' },
+  { id: 'learning', label: 'My Learning', icon: BookOpen, to: '/learning' },
+  { id: 'notifications', label: 'Notifications', icon: Bell, to: '/notifications' },
+  { id: 'profile', label: 'Profile', icon: User, to: '/profile' },
+];
 // The 4 options under the search bar
 const TABS = [
   { id: 'foryou', label: 'For You' },
@@ -457,31 +464,51 @@ export default function DiscoverPage() {
   const nextSlide = () => setSlide((s) => (s + 1) % SLIDES.length);
 
   return (
-    <div className="discover-page">
-      {/* ───── Header ───── */}
-      <header className="dx-header">
-        <h1>Discover</h1>
-        <p>Explore what interests you. Learn new skills. Become a better you.</p>
-      </header>
+    <div className="dx-layout">
+      {/* ───── Sidebar (desktop / tablet) ───── */}
+      <aside className="dx-sidebar" aria-label="Main navigation">
+        <img src="/logo-remove.png" alt="EVOLV" className="dx-logo" />
+        <nav>
+          {NAV.map(({ id, label, icon: Icon, to }) => (
+            <button
+              key={id}
+              type="button"
+              className={`dx-nav-item ${id === 'discover' ? 'active' : ''}`}
+              aria-current={id === 'discover' ? 'page' : undefined}
+              onClick={() => navigate(to)}
+            >
+              <Icon size={19} aria-hidden="true" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+      </aside>
 
-      {/* ───── Search ───── */}
-      <div className="dx-search">
-        <Search size={19} />
-        <input
-          type="search"
-          placeholder="Search skills, topics, questions, or people..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        {search && (
-          <button type="button" className="dx-clear" onClick={() => setSearch('')}>
-            Clear
-          </button>
-        )}
-      </div>
+      <div className="discover-page">
+        {/* ───── Header ───── */}
+        <header className="dx-header">
+          <h1>Discover</h1>
+          <p>Explore what interests you. Learn new skills. Become a better you.</p>
+        </header>
 
-      {/* ───── 4 options ───── */}
-      {/* <div className="dx-tabs" role="tablist" aria-label="Discover sections">
+        {/* ───── Search ───── */}
+        <div className="dx-search">
+          <Search size={19} />
+          <input
+            type="search"
+            placeholder="Search skills, topics, questions, or people..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && (
+            <button type="button" className="dx-clear" onClick={() => setSearch('')}>
+              Clear
+            </button>
+          )}
+        </div>
+
+        {/* ───── 4 options ───── */}
+        {/* <div className="dx-tabs" role="tablist" aria-label="Discover sections">
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -496,14 +523,14 @@ export default function DiscoverPage() {
         ))}
       </div> */}
 
-      {/* ───── Hero slider ───── */}
-      <section
-        className="dx-hero"
-        aria-roledescription="carousel"
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
-      >
-        {/* <div className="dx-hero-track" style={{ transform: `translateX(-${slide * 100}%)` }}>
+        {/* ───── Hero slider ───── */}
+        <section
+          className="dx-hero"
+          aria-roledescription="carousel"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+        >
+          {/* <div className="dx-hero-track" style={{ transform: `translateX(-${slide * 100}%)` }}>
           {SLIDES.map((s, i) => (
             <div
               key={s.title}
@@ -528,206 +555,206 @@ export default function DiscoverPage() {
           ))}
         </div> */}
 
-        <button type="button" className="dx-arrow left" onClick={prevSlide} aria-label="Previous slide">
-          <ChevronLeft size={18} />
-        </button>
-        <button type="button" className="dx-arrow right" onClick={nextSlide} aria-label="Next slide">
-          <ChevronRight size={18} />
-        </button>
+          <button type="button" className="dx-arrow left" onClick={prevSlide} aria-label="Previous slide">
+            <ChevronLeft size={18} />
+          </button>
+          <button type="button" className="dx-arrow right" onClick={nextSlide} aria-label="Next slide">
+            <ChevronRight size={18} />
+          </button>
 
-        <div className="dx-dots">
-          {SLIDES.map((s, i) => (
-            <button
-              key={s.title}
-              type="button"
-              className={i === slide ? 'active' : ''}
-              onClick={() => setSlide(i)}
-              aria-label={`Go to slide ${i + 1}`}
-            />
-          ))}
-        </div>
-      </section>
-
-      {/* ───── Based on what you want to improve ───── */}
-      <section className="dx-section">
-        <div className="dx-section-head">
-          <h2>{personalCards.length ? 'Based on what you want to improve' : 'A good place to start with curiosity'}</h2>        </div>
-
-        {loading ? (
-          <p className="dx-muted">Loading your interests...</p>
-        ) : improveCards.length === 0 ? (
-          <p className="dx-muted">Add skills to your profile to get personal picks here.</p>
-        ) : (
-          <div className="dx-scroll dx-improve">
-            {improveCards.map((name, i) => {
-              const Icon = iconFor(name);
-
-              return (
-                <button
-                  key={name}
-                  type="button"
-                  className={`dx-improve-card tone-${SLIDES[i % SLIDES.length].tone}`}
-                  onClick={() => pickTopic(name)}
-                >
-                  <span className="dx-icon-box">
-                    <Icon size={22} />
-                  </span>
-
-                  <strong>{name}</strong>
-
-                  <span className="dx-improve-text">
-                    See posts and questions about {name.toLowerCase()}.
-                  </span>
-
-                  <span className="dx-improve-go">
-                    <ArrowRight size={15} />
-                  </span>
-                </button>
-              );
-            })}
+          <div className="dx-dots">
+            {SLIDES.map((s, i) => (
+              <button
+                key={s.title}
+                type="button"
+                className={i === slide ? 'active' : ''}
+                onClick={() => setSlide(i)}
+                aria-label={`Go to slide ${i + 1}`}
+              />
+            ))}
           </div>
-        )}
-      </section>
-
-      {/* ───── Skills / curiosity chips (with Connections box first) ───── */}
-      <section className="dx-section">
-        <div className="dx-section-head">
-          <h2>{chipTitle}</h2>
-        </div>
-
-        {loading ? (
-          <p className="dx-muted">Loading your interests...</p>
-       ) : improveCards.length === 0 ? (
-  <p className="dx-muted">Add skills to your profile to get personal picks here.</p>
-) : (
-          <div className="dx-scroll dx-skill-row">
-            <button
-              type="button"
-              className={`dx-skill ${connMode ? 'active' : ''}`}
-              onClick={openConnections}
-              aria-pressed={connMode}
-            >
-              <span className="dx-skill-icon"><Users size={22} /></span>
-              Connections
-            </button>
-            <button
-              type="button"
-              className={`dx-skill ${skillMode ? 'active' : ''}`}
-              onClick={openSkills}
-              aria-pressed={skillMode}
-            >
-              <span className="dx-skill-icon"><Sparkles size={22} /></span>
-              Skills
-            </button>
-            
-          </div>
-        )}
-      </section>
-      {skillMode && (
-        <section className="dx-section" ref={postsRef}>
-          <div className="dx-section-head">
-            <h2>{selectedSkill ? `${selectedSkill} posts` : 'Choose a skill'}</h2>
-            <button type="button" className="dx-link" onClick={() => setSkillMode(false)}>Close</button>
-          </div>
-
-          <div className="dx-dropdown">
-            <select
-              value={selectedSkill}
-              onChange={(e) => e.target.value && selectSkill(e.target.value)}
-              aria-label="Choose a skill"
-            >
-              <option value="" disabled>Select a skill…</option>
-              {CURIOSITY_DOMAINS.map((domain) => (
-                <optgroup key={domain.id} label={domain.label}>
-                  {[...new Set(domain.skills)].map((name) => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </div>
-
-          {selectedSkill && (
-            <div style={{ marginTop: 20 }}>
-              {skillError ? (
-                <p className="dx-muted" role="alert">{skillError}</p>
-              ) : skillLoading && skillPosts.length === 0 ? (
-                <p className="dx-muted">Loading posts...</p>
-              ) : skillPosts.length === 0 ? (
-                <div className="dx-empty">
-                  <Search size={28} />
-                  <h3>No connection yet</h3>
-                  <p>{skillMeta.message || `No posts for ${selectedSkill} yet.`}</p>
-                </div>
-              ) : (
-                <>
-                  <div className="dx-conn-grid">
-                    {skillPosts.map((post) => (
-                      <PostTile key={post.id} post={post} onOpen={(p) => openPost(p, skillPosts)} />
-                    ))}
-                  </div>
-                  {skillMeta.hasMore && (
-                    <div style={{ textAlign: 'center', marginTop: 20 }}>
-                      <button type="button" className="dx-slide-btn"
-                        onClick={() => loadSkillPosts(selectedSkill, skillMeta.nextCursor)}
-                        disabled={skillLoading}>
-                        {skillLoading ? 'Loading...' : 'Load more'}
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
         </section>
-      )}
 
-      {/* ───── Connections posts OR Popular posts ───── */}
-      {connMode ? (
-        <section className="dx-section" ref={postsRef}>
+        {/* ───── Based on what you want to improve ───── */}
+        <section className="dx-section">
           <div className="dx-section-head">
-            <h2>Posts from your connections</h2>
-            <button type="button" className="dx-link" onClick={() => setConnMode(false)}>
-              Close
-            </button>
-          </div>
+            <h2>{personalCards.length ? 'Based on what you want to improve' : 'A good place to start with curiosity'}</h2>        </div>
 
-          {connError ? (
-            <p className="dx-muted" role="alert">{connError}</p>
-          ) : connLoading && connPosts.length === 0 ? (
-            <p className="dx-muted">Loading posts...</p>
-          ) : connPosts.length === 0 ? (
-            <div className="dx-empty">
-              <Users size={28} />
-              <h3>No posts yet</h3>
-              <p>{connMeta.message || 'Connect with people to see their posts here.'}</p>
-            </div>
+          {loading ? (
+            <p className="dx-muted">Loading your interests...</p>
+          ) : improveCards.length === 0 ? (
+            <p className="dx-muted">Add skills to your profile to get personal picks here.</p>
           ) : (
-            <>
-              <div className="dx-conn-grid">
-                {connPosts.map((post) => (
-                  <PostTile key={post.id} post={post} onOpen={(p) => openPost(p, connPosts)} />
-                ))}
-              </div>
+            <div className="dx-scroll dx-improve">
+              {improveCards.map((name, i) => {
+                const Icon = iconFor(name);
 
-              {connMeta.hasMore && (
-                <div style={{ textAlign: 'center', marginTop: 20 }}>
+                return (
                   <button
+                    key={name}
                     type="button"
-                    className="dx-slide-btn"
-                    onClick={() => loadConnPosts(connMeta.nextCursor)}
-                    disabled={connLoading}
+                    className={`dx-improve-card tone-${SLIDES[i % SLIDES.length].tone}`}
+                    onClick={() => pickTopic(name)}
                   >
-                    {connLoading ? 'Loading...' : 'Load more'}
+                    <span className="dx-icon-box">
+                      <Icon size={22} />
+                    </span>
+
+                    <strong>{name}</strong>
+
+                    <span className="dx-improve-text">
+                      See posts and questions about {name.toLowerCase()}.
+                    </span>
+
+                    <span className="dx-improve-go">
+                      <ArrowRight size={15} />
+                    </span>
                   </button>
-                </div>
-              )}
-            </>
+                );
+              })}
+            </div>
           )}
         </section>
-      ) : skillMode ? null : (
-        <section className="dx-section" ref={postsRef}>
-          {/* <div className="dx-section-head">
+
+        {/* ───── Skills / curiosity chips (with Connections box first) ───── */}
+        <section className="dx-section">
+          <div className="dx-section-head">
+            <h2>{chipTitle}</h2>
+          </div>
+
+          {loading ? (
+            <p className="dx-muted">Loading your interests...</p>
+          ) : improveCards.length === 0 ? (
+            <p className="dx-muted">Add skills to your profile to get personal picks here.</p>
+          ) : (
+            <div className="dx-scroll dx-skill-row">
+              <button
+                type="button"
+                className={`dx-skill ${connMode ? 'active' : ''}`}
+                onClick={openConnections}
+                aria-pressed={connMode}
+              >
+                <span className="dx-skill-icon"><Users size={22} /></span>
+                Connections
+              </button>
+              <button
+                type="button"
+                className={`dx-skill ${skillMode ? 'active' : ''}`}
+                onClick={openSkills}
+                aria-pressed={skillMode}
+              >
+                <span className="dx-skill-icon"><Sparkles size={22} /></span>
+                Skills
+              </button>
+
+            </div>
+          )}
+        </section>
+        {skillMode && (
+          <section className="dx-section" ref={postsRef}>
+            <div className="dx-section-head">
+              <h2>{selectedSkill ? `${selectedSkill} posts` : 'Choose a skill'}</h2>
+              <button type="button" className="dx-link" onClick={() => setSkillMode(false)}>Close</button>
+            </div>
+
+            <div className="dx-dropdown">
+              <select
+                value={selectedSkill}
+                onChange={(e) => e.target.value && selectSkill(e.target.value)}
+                aria-label="Choose a skill"
+              >
+                <option value="" disabled>Select a skill…</option>
+                {CURIOSITY_DOMAINS.map((domain) => (
+                  <optgroup key={domain.id} label={domain.label}>
+                    {[...new Set(domain.skills)].map((name) => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+
+            {selectedSkill && (
+              <div style={{ marginTop: 20 }}>
+                {skillError ? (
+                  <p className="dx-muted" role="alert">{skillError}</p>
+                ) : skillLoading && skillPosts.length === 0 ? (
+                  <p className="dx-muted">Loading posts...</p>
+                ) : skillPosts.length === 0 ? (
+                  <div className="dx-empty">
+                    <Search size={28} />
+                    <h3>No Post Yet</h3>
+                    <p>{skillMeta.message || `No posts for ${selectedSkill} yet.`}</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="dx-conn-grid">
+                      {skillPosts.map((post) => (
+                        <PostTile key={post.id} post={post} onOpen={(p) => openPost(p, skillPosts)} />
+                      ))}
+                    </div>
+                    {skillMeta.hasMore && (
+                      <div style={{ textAlign: 'center', marginTop: 20 }}>
+                        <button type="button" className="dx-slide-btn"
+                          onClick={() => loadSkillPosts(selectedSkill, skillMeta.nextCursor)}
+                          disabled={skillLoading}>
+                          {skillLoading ? 'Loading...' : 'Load more'}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ───── Connections posts OR Popular posts ───── */}
+        {connMode ? (
+          <section className="dx-section" ref={postsRef}>
+            <div className="dx-section-head">
+              <h2>Posts from your connections</h2>
+              <button type="button" className="dx-link" onClick={() => setConnMode(false)}>
+                Close
+              </button>
+            </div>
+
+            {connError ? (
+              <p className="dx-muted" role="alert">{connError}</p>
+            ) : connLoading && connPosts.length === 0 ? (
+              <p className="dx-muted">Loading posts...</p>
+            ) : connPosts.length === 0 ? (
+              <div className="dx-empty">
+                <Users size={28} />
+                <h3>No connection yet</h3>
+                <p>{connMeta.message || 'Connect with people to see their posts here.'}</p>
+              </div>
+            ) : (
+              <>
+                <div className="dx-conn-grid">
+                  {connPosts.map((post) => (
+                    <PostTile key={post.id} post={post} onOpen={(p) => openPost(p, connPosts)} />
+                  ))}
+                </div>
+
+                {connMeta.hasMore && (
+                  <div style={{ textAlign: 'center', marginTop: 20 }}>
+                    <button
+                      type="button"
+                      className="dx-slide-btn"
+                      onClick={() => loadConnPosts(connMeta.nextCursor)}
+                      disabled={connLoading}
+                    >
+                      {connLoading ? 'Loading...' : 'Load more'}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        ) : skillMode ? null : (
+          <section className="dx-section" ref={postsRef}>
+            {/* <div className="dx-section-head">
             <h2>{topic ? topic : 'Popular in your interests'}</h2>
             {(topic || search) && (
               <button
@@ -740,15 +767,15 @@ export default function DiscoverPage() {
             )}
           </div> */}
 
-          {posts.length === 0 ? (
-            <div className="dx-empty">
-              <Search size={28} />
-              <h3>No posts found</h3>
-              <p>Try another topic or search term.</p>
-            </div>
-          ) : (
-            <div className="dx-scroll dx-posts">
-              {/* {PEOPLE.map((p) => (
+            {posts.length === 0 ? (
+              <div className="dx-empty">
+                <Search size={28} />
+                <h3>No posts found</h3>
+                <p>Try another topic or search term.</p>
+              </div>
+            ) : (
+              <div className="dx-scroll dx-posts">
+                {/* {PEOPLE.map((p) => (
                 <article key={p.id} className="dx-post">
                   <div className={`dx-thumb tone-${p.tone}`}>
                     <Play size={26} />
@@ -769,42 +796,42 @@ export default function DiscoverPage() {
                   </div>
                 </article>
               ))} */}
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* ───── People ───── */}
-      <section className="dx-section">
-        <div className="dx-section-head">
-          <h2>People you could learn from</h2>
-        </div>
-
-        <div className="dx-scroll dx-people">
-          {DEMO_PEOPLE.map((p) => (
-            <div key={p.id} className="dx-person">
-              <div className="dx-person-top">
-                <span className="dx-avatar big">{initials(p.name)}</span>
-                <div>
-                  <strong>{p.name}</strong>
-                  <span>{p.role}</span>
-                </div>
               </div>
-              <p>{p.bio}</p>
-              <button
-                type="button"
-                className={`dx-follow ${following.has(p.id) ? 'on' : ''}`}
-                onClick={() => toggleFollow(p.id)}
-              >
-                {following.has(p.id) ? 'Following' : 'Follow'}
-              </button>
-            </div>
-          ))}
-        </div>
-      </section>
+            )}
+          </section>
+        )}
 
-      {/* ───── Explore something new ───── */}
-      {/* <section className="dx-section">
+        {/* ───── People ───── */}
+        <section className="dx-section">
+          <div className="dx-section-head">
+            <h2>People you could learn from</h2>
+          </div>
+
+          <div className="dx-scroll dx-people">
+            {DEMO_PEOPLE.map((p) => (
+              <div key={p.id} className="dx-person">
+                <div className="dx-person-top">
+                  <span className="dx-avatar big">{initials(p.name)}</span>
+                  <div>
+                    <strong>{p.name}</strong>
+                    <span>{p.role}</span>
+                  </div>
+                </div>
+                <p>{p.bio}</p>
+                <button
+                  type="button"
+                  className={`dx-follow ${following.has(p.id) ? 'on' : ''}`}
+                  onClick={() => toggleFollow(p.id)}
+                >
+                  {following.has(p.id) ? 'Following' : 'Follow'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ───── Explore something new ───── */}
+        {/* <section className="dx-section">
         <div className="dx-section-head">
           <h2>Explore something new</h2>
         </div>
@@ -825,20 +852,22 @@ export default function DiscoverPage() {
         </div>
       </section> */}
 
-      {/* ───── Discovery journey ───── */}
-      <section className="dx-journey">
-        <h2>Your Discovery Journey</h2>
-        <p>The more you explore, the better we can recommend for you.</p>
-        <div className="dx-journey-grid">
-          {JOURNEY.map(({ icon: Icon, text }) => (
-            <div key={text} className="dx-journey-item">
-              <span className="dx-journey-icon"><Icon size={20} /></span>
-              {text}
-            </div>
-          ))}
-        </div>
-      </section>
-    </div>
+        {/* ───── Discovery journey ───── */}
+        <section className="dx-journey">
+          <h2>Your Discovery Journey</h2>
+          <p>The more you explore, the better we can recommend for you.</p>
+          <div className="dx-journey-grid">
+            {JOURNEY.map(({ icon: Icon, text }) => (
+              <div key={text} className="dx-journey-item">
+                <span className="dx-journey-icon"><Icon size={20} /></span>
+                {text}
+              </div>
+            ))}
+          </div>
+        </section>
 
+
+    </div>
+  </div>
   );
 }
