@@ -2,13 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search, ChevronLeft, ChevronRight, ArrowRight, Sparkles, Code2, Mic,
   Brain, Palette, PenLine, TrendingUp, Target, Compass, Users, Route,
-  Rocket, Globe, Lightbulb, Play, FileText,
+  Rocket, Globe, Lightbulb, Play, FileText,Heart,CheckCircle2
 } from 'lucide-react';
 import '../discover/DiscoverPage.css';
 import { profileService } from '../../services/profileService';
 import { discoverService } from '../../services/discoverService.js';
 import { navigate } from '../../utils/navigate.js';
 import { CURIOSITY_DOMAINS } from '../onboarding/onboardingData.js';
+import { homePostService } from '../../services/homePostService.js';
 
 /* ───────────────────────── STATIC CONTENT ───────────────────────── */
 
@@ -134,15 +135,70 @@ const openPost = (post, list = []) => {
   navigate('/reels');
 };
 
+/* Username shown on the tile */
+const usernameOf = (post) =>
+  post.creator?.username || post.creator?.name || post.username || 'user';
+
+/* Total reactions, whatever shape the API sends */
+const reactionTotal = (post) => {
+  const counts = post.reactions?.counts ?? post.reactionCounts ?? post.counts;
+  if (counts && typeof counts === 'object') {
+    return Object.values(counts).reduce((sum, n) => sum + (Number(n) || 0), 0);
+  }
+  const direct =
+    post.reactionCount ?? post.totalReactions ?? post.reactionsCount ?? post.likes;
+  if (direct != null) return Number(direct) || 0;
+
+  return (
+    (Number(post.appreciations) || 0) +
+    (Number(post.helpfulCount) || 0) +
+    (Number(post.learnedCount) || 0)
+  );
+};
+
 function PostTile({ post, onOpen }) {
   const type = post.media?.type;
   const src = post.media?.src;
+  const username = usernameOf(post);
+
+  // start with whatever the post already has, then fill from the API
+  const [counts, setCounts] = useState({
+    appreciate: Number(post.appreciations) || 0,
+    helpful: Number(post.helpfulCount) || 0,
+    learned: Number(post.learnedCount) || 0,
+  });
+
+  useEffect(() => {
+    if (!/^\d+$/.test(String(post.id))) return undefined;
+    let cancelled = false;
+
+    homePostService.getReactions(post.id).then(({ counts: c = {} }) => {
+      if (cancelled) return;
+      setCounts((prev) => ({
+        appreciate: c.APPRECIATE ?? prev.appreciate,
+        helpful: c.HELPFUL ?? prev.helpful,
+        learned: c.LEARNED ?? prev.learned,
+      }));
+    });
+
+    return () => { cancelled = true; };
+  }, [post.id]);
+
   return (
-    <button type="button" className="dx-conn-tile" onClick={() => onOpen(post)}
-      aria-label={`Open post by ${post.creator?.name || 'a user'}`}>
+    <button
+      type="button"
+      className="dx-conn-tile"
+      onClick={() => onOpen(post)}
+      aria-label={`Open post by ${username}`}
+    >
       {type === 'video' && src ? (
-        <video src={`${src}#t=0.1`} poster={post.media?.poster || undefined}
-          muted playsInline preload="metadata" />
+        <video
+          src={`${src}#t=0.1`}
+          poster={post.media?.poster || undefined}
+          muted
+          playsInline
+          preload="metadata"
+        />
       ) : type === 'image' && src ? (
         <img src={src} alt={post.caption || 'Post'} loading="lazy" />
       ) : (
@@ -151,9 +207,28 @@ function PostTile({ post, onOpen }) {
           <span>{(post.caption || 'Post').slice(0, 40)}</span>
         </div>
       )}
+
+      {/* top-left: 3 reactions */}
+      <span className="dx-conn-reactions">
+        <span className="dx-conn-react pink" title="Appreciate">
+          <Heart size={13} fill="currentColor" />
+          {counts.appreciate}
+        </span>
+        <span className="dx-conn-react blue" title="Helpful">
+          <Sparkles size={13} />
+          {counts.helpful}
+        </span>
+        <span className="dx-conn-react green" title="Learned">
+          <CheckCircle2 size={13} />
+          {counts.learned}
+        </span>
+      </span>
+
       {type === 'video' && (
         <span className="dx-conn-badge"><Play size={12} fill="currentColor" /></span>
       )}
+
+      <span className="dx-conn-user">@{username}</span>
     </button>
   );
 }
@@ -264,7 +339,12 @@ export default function DiscoverPage() {
   }, [allSkills, skills, curiosity, improve]);
 
   /* "Based on what you want to improve" cards */
-  const improveCards = (improve.length ? improve : suggestions).slice(0, 6);
+  /* "Based on what you want to improve" cards:
+     1) skills the user wants to improve (WANT_TO_IMPROVE)
+     2) then the user's curiosity skills
+     3) if both are empty, fall back to suggestions */
+  const personalCards = [...new Set([...improve, ...curiosity])];
+  const improveCards = (personalCards.length ? personalCards : suggestions).slice(0, 8);
 
   /* chips row changes with the tab */
   const chipTitle =
@@ -471,8 +551,7 @@ export default function DiscoverPage() {
       {/* ───── Based on what you want to improve ───── */}
       <section className="dx-section">
         <div className="dx-section-head">
-          <h2>{improve.length ? 'Based on what you want to improve' : 'A good place to start'}</h2>
-        </div>
+          <h2>{personalCards.length ? 'Based on what you want to improve' : 'A good place to start with curiosity'}</h2>        </div>
 
         {loading ? (
           <p className="dx-muted">Loading your interests...</p>
@@ -480,14 +559,7 @@ export default function DiscoverPage() {
           <p className="dx-muted">Add skills to your profile to get personal picks here.</p>
         ) : (
           <div className="dx-scroll dx-improve">
-            {[
-              "Web Development",
-              "JavaScript",
-              "React",
-              "Node.js",
-              "UI/UX Design",
-              "Data Science",
-            ].map((name, i) => {
+            {improveCards.map((name, i) => {
               const Icon = iconFor(name);
 
               return (
@@ -524,8 +596,10 @@ export default function DiscoverPage() {
         </div>
 
         {loading ? (
-          <p className="dx-muted">Loading...</p>
-        ) : (
+          <p className="dx-muted">Loading your interests...</p>
+       ) : improveCards.length === 0 ? (
+  <p className="dx-muted">Add skills to your profile to get personal picks here.</p>
+) : (
           <div className="dx-scroll dx-skill-row">
             <button
               type="button"
@@ -545,22 +619,7 @@ export default function DiscoverPage() {
               <span className="dx-skill-icon"><Sparkles size={22} /></span>
               Skills
             </button>
-{/* 
-            {chipItems.map((name) => {
-              const Icon = iconFor(name);
-              return (
-                <button
-                  key={name}
-                  type="button"
-                  className={`dx-skill ${!connMode && topic === name ? 'active' : ''}`}
-                  onClick={() => pickTopic(name)}
-                  aria-pressed={!connMode && topic === name}
-                >
-                  <span className="dx-skill-icon"><Icon size={22} /></span>
-                  {name}
-                </button>
-              );
-            })} */}
+            
           </div>
         )}
       </section>
@@ -597,7 +656,7 @@ export default function DiscoverPage() {
               ) : skillPosts.length === 0 ? (
                 <div className="dx-empty">
                   <Search size={28} />
-                  <h3>No posts found</h3>
+                  <h3>No connection yet</h3>
                   <p>{skillMeta.message || `No posts for ${selectedSkill} yet.`}</p>
                 </div>
               ) : (
@@ -668,7 +727,7 @@ export default function DiscoverPage() {
         </section>
       ) : skillMode ? null : (
         <section className="dx-section" ref={postsRef}>
-          <div className="dx-section-head">
+          {/* <div className="dx-section-head">
             <h2>{topic ? topic : 'Popular in your interests'}</h2>
             {(topic || search) && (
               <button
@@ -679,7 +738,7 @@ export default function DiscoverPage() {
                 Clear filters
               </button>
             )}
-          </div>
+          </div> */}
 
           {posts.length === 0 ? (
             <div className="dx-empty">
@@ -689,40 +748,7 @@ export default function DiscoverPage() {
             </div>
           ) : (
             <div className="dx-scroll dx-posts">
-              {[
-                {
-                  id: 1,
-                  title: "Build Modern Websites with React",
-                  author: "Rahul Patel",
-                  tone: "purple",
-                  duration: "12:45",
-                  tags: ["React", "Frontend", "Web Development"],
-                },
-                {
-                  id: 2,
-                  title: "JavaScript Fundamentals Explained",
-                  author: "Priya Shah",
-                  tone: "blue",
-                  duration: "08:30",
-                  tags: ["JavaScript", "Programming", "Basics"],
-                },
-                {
-                  id: 3,
-                  title: "Getting Started with Node.js",
-                  author: "Aarav Mehta",
-                  tone: "green",
-                  duration: "15:20",
-                  tags: ["Node.js", "Backend", "JavaScript"],
-                },
-                {
-                  id: 4,
-                  title: "UI/UX Design Principles",
-                  author: "Neha Desai",
-                  tone: "orange",
-                  duration: "10:15",
-                  tags: ["UI/UX", "Design", "Creativity"],
-                },
-              ].map((p) => (
+              {/* {PEOPLE.map((p) => (
                 <article key={p.id} className="dx-post">
                   <div className={`dx-thumb tone-${p.tone}`}>
                     <Play size={26} />
@@ -742,7 +768,7 @@ export default function DiscoverPage() {
                     ))}
                   </div>
                 </article>
-              ))}
+              ))} */}
             </div>
           )}
         </section>

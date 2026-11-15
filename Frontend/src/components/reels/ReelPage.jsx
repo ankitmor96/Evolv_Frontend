@@ -30,6 +30,25 @@ function goBack() {
   clearListPosts();
   navigate(back);
 }
+// Fill real reaction counts + my reaction state for each post
+const attachReactions = (list) =>
+  Promise.all(
+    list.map(async (p) => {
+      if (!/^\d+$/.test(String(p.id))) return p;
+
+      const { counts = {}, myReaction } = await homePostService.getReactions(p.id);
+      const mine = [].concat(myReaction ?? []);
+
+      return {
+        ...p,
+        appreciations: counts.APPRECIATE ?? p.appreciations ?? 0,
+        helpfulCount: counts.HELPFUL ?? p.helpfulCount ?? 0,
+        learnedCount: counts.LEARNED ?? p.learnedCount ?? 0,
+        appreciated: mine.includes('APPRECIATE') || p.appreciated,
+        helpful: mine.includes('HELPFUL') || p.helpful,
+      };
+    })
+  );
 
 // ─── One feed item (video OR image) ─────────────────────────────────────────
 function FeedItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, onDiscuss }) {
@@ -104,7 +123,9 @@ function FeedItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
   };
 
   const creator = post.creator || {};
-  const initial = (creator.name || 'U')[0].toUpperCase();
+  const displayName =
+    creator.name || creator.username || (creator.id ? `User ${creator.id}` : 'EVOLV member');
+  const initial = displayName[0].toUpperCase();
   const backdropSrc = video ? post.media.poster : post.media.src;
 
 
@@ -178,12 +199,12 @@ function FeedItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
           )}
           <div className="rl-creator">
             {creator.avatar ? (
-              <img src={creator.avatar} alt={creator.name} className="rl-avatar" />
+              <img src={creator.avatar} alt={displayName} className="rl-avatar" />
             ) : (
               <span className="rl-avatar rl-avatar-fallback">{initial}</span>
             )}
             <div className="rl-creator-info">
-              <strong>{creator.name || 'EVOLV member'}</strong>
+              <strong>{displayName}</strong>
               <span>{post.timestamp}</span>
             </div>
           </div>
@@ -286,7 +307,8 @@ export default function ReelsPage() {
         }
 
         const withCreators = await enrichCreators(list);
-        const withCounts = await homePostService.attachCommentCounts(withCreators);
+        const withReactions = await attachReactions(withCreators);
+        const withCounts = await homePostService.attachCommentCounts(withReactions);
 
         if (!cancelled) setPosts(withCounts);
       } catch (error) {

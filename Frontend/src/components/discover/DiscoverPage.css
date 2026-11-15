@@ -283,8 +283,8 @@
 
 /* ============ SKILL CHIPS ============ */
 .dx-skill {
-  width: 118px;
-  height: 100px;
+  width: 48%;
+  height: 120px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -300,6 +300,7 @@
   text-align: center;
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s;
+  box-shadow: rgba(0, 0, 0, 0.02) 0px 1px 3px 0px, rgba(27, 31, 35, 0.15) 0px 0px 0px 1px;
 }
 .dx-skill-icon { color: var(--dx-purple); }
 .dx-skill:hover { border-color: var(--dx-purple); }
@@ -485,7 +486,7 @@
   .dx-section-head h2 { font-size: 18px; }
 
   .dx-improve-card { width: 215px; min-height: 160px; }
-  .dx-skill { width: 100px; height: 92px; }
+  .dx-skill { width: 50%; height: auto; }
   .dx-post { width: 78vw; max-width: 300px; }
   .dx-thumb { height: 160px; }
   .dx-person { width: 82vw; max-width: 300px; }
@@ -610,4 +611,81 @@
   .dx-modal-media { flex: 0 0 auto; }
   .dx-modal-media img, .dx-modal-media video { max-height: 60vh; }
   .dx-modal-side { min-width: 0; }
+}
+/* dark gradient at the bottom so the username is always readable */
+.dx-conn-tile::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 45%;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+  pointer-events: none;
+}
+
+/* top-left: reactions (heart / helpful / learned) */
+.dx-conn-reactions {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+.dx-conn-react {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.dx-conn-react.pink  { color: #ff5c7c; }
+.dx-conn-react.blue  { color: #8b8cf7; }
+.dx-conn-react.green { color: #34c77b; }
+/* bottom-left: username */
+.dx-conn-user {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 2;
+  max-width: calc(100% - 20px);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+/* make sure the video badge is above the gradient */
+.dx-conn-badge { z-index: 2; }
+
+/* ── Connections / skill post grid: 2 columns on mobile ── */
+@media (max-width: 600px) {
+  .dx-conn-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .dx-conn-reactions {
+    top: 6px;
+    left: 6px;
+    gap: 6px;
+    padding: 4px 7px;
+    font-size: 10.5px;
+  }
+  .dx-conn-react { gap: 2px; }
+  .dx-conn-react svg { width: 11px; height: 11px; }
+
+  .dx-conn-user { left: 8px; bottom: 8px; font-size: 12px; }
+  .dx-conn-badge { top: 6px; right: 6px; }
 }
