@@ -5120,3 +5120,80 @@
   border: none; background: transparent; color: inherit;
   cursor: pointer; display: inline-flex; padding: 2px;
 }
+
+/* =====================================================
+   RIGHT SIDEBAR DRAWER (tablet + mobile) — FIX
+   ===================================================== */
+@media (max-width: 1024px) {
+  .hp-right-sidebar {
+    animation: none !important;          /* animation was overriding transform */
+    position: fixed !important;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1002;                       /* above the backdrop (1001) */
+    width: min(360px, 88vw);
+    max-width: 420px;
+    height: 100dvh;
+    display: flex !important;
+    flex-direction: column;
+    gap: 10px;
+    box-sizing: border-box;
+    padding: 16px;
+    background: #fff;
+    box-shadow: -8px 0 30px rgba(9, 3, 15, 0.12);
+
+    /* scrolling */
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+
+    /* closed state */
+    transform: translateX(105%);
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 280ms ease, visibility 280ms ease;
+  }
+
+  .hp-right-sidebar.open {
+    transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  /* cards must not shrink, so the sidebar scrolls instead */
+  .hp-right-sidebar > * {
+    flex-shrink: 0;
+  }
+
+  /* keep the X header visible while scrolling */
+  .hp-right-sidebar .hp-mobile-drawer-header {
+    display: flex;
+    position: sticky;
+    top: -16px;
+    z-index: 5;
+    margin: -16px -16px 12px;
+    padding: 14px 16px 12px;
+    background: #fff;
+  }
+
+  .hp-right-sidebar .hp-mobile-drawer-header button {
+    cursor: pointer;
+    position: relative;
+    z-index: 6;
+  }
+
+  /* backdrop on tablet too (was mobile only) */
+  .hp-right-sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1001;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: rgba(9, 3, 15, 0.48);
+  }
+}
