@@ -286,7 +286,6 @@ const handleLogout = () => {
       const result = await profileService.submitOnboardingDraft(draft, { isEdit });
       const errors = Array.isArray(result?.errors) ? result.errors : [];
 
-      console.table(errors.map(({ section, status, message }) => ({ section, status, message })));
 
       const critical = errors.filter((item) => CRITICAL_SECTIONS.includes(item.section));
 

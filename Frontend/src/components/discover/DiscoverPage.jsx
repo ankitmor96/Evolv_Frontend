@@ -401,7 +401,7 @@ export default function DiscoverPage() {
       </div>
 
       {/* ───── 4 options ───── */}
-      <div className="dx-tabs" role="tablist" aria-label="Discover sections">
+      {/* <div className="dx-tabs" role="tablist" aria-label="Discover sections">
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -414,7 +414,7 @@ export default function DiscoverPage() {
             {t.label}
           </button>
         ))}
-      </div>
+      </div> */}
 
       {/* ───── Hero slider ───── */}
       <section
@@ -423,7 +423,7 @@ export default function DiscoverPage() {
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
       >
-        <div className="dx-hero-track" style={{ transform: `translateX(-${slide * 100}%)` }}>
+        {/* <div className="dx-hero-track" style={{ transform: `translateX(-${slide * 100}%)` }}>
           {SLIDES.map((s, i) => (
             <div
               key={s.title}
@@ -446,7 +446,7 @@ export default function DiscoverPage() {
               <Compass className="dx-slide-art" size={210} strokeWidth={1} aria-hidden="true" />
             </div>
           ))}
-        </div>
+        </div> */}
 
         <button type="button" className="dx-arrow left" onClick={prevSlide} aria-label="Previous slide">
           <ChevronLeft size={18} />
@@ -545,7 +545,7 @@ export default function DiscoverPage() {
               <span className="dx-skill-icon"><Sparkles size={22} /></span>
               Skills
             </button>
-
+{/* 
             {chipItems.map((name) => {
               const Icon = iconFor(name);
               return (
@@ -560,7 +560,7 @@ export default function DiscoverPage() {
                   {name}
                 </button>
               );
-            })}
+            })} */}
           </div>
         )}
       </section>
@@ -778,7 +778,7 @@ export default function DiscoverPage() {
       </section>
 
       {/* ───── Explore something new ───── */}
-      <section className="dx-section">
+      {/* <section className="dx-section">
         <div className="dx-section-head">
           <h2>Explore something new</h2>
         </div>
@@ -797,7 +797,7 @@ export default function DiscoverPage() {
             </button>
           ))}
         </div>
-      </section>
+      </section> */}
 
       {/* ───── Discovery journey ───── */}
       <section className="dx-journey">

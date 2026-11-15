@@ -170,7 +170,7 @@
 
 /* Content wrapper */
 .pp-content {
-  flex: 1; padding: 24px; display: flex; flex-direction: column; gap: 20px;
+  flex: 1; padding: 24px; display: flex; flex-direction: column; gap: 10px;
   max-width: 860px; margin: 0 auto; width: 100%; box-sizing: border-box;
 }
 
@@ -179,6 +179,7 @@
   background: #fff; border-radius: 20px;
   border: 1.5px solid rgba(9,3,15,0.07); overflow: hidden;
   animation: ppFadeUp 0.5s cubic-bezier(0.16,1,0.3,1) both;
+  padding-top: 50px;
 }
 
 @keyframes ppFadeUp {
@@ -194,14 +195,6 @@
 .pp-hero-banner::before {
   content: ''; position: absolute; inset: 0;
   background: radial-gradient(ellipse at 70% 50%, rgba(170,69,245,0.35) 0%, transparent 70%);
-}
-.pp-hero-banner-pattern {
-  position: absolute; inset: 0;
-  background-image:
-    radial-gradient(circle at 20% 80%, rgba(255,255,255,0.06) 2px, transparent 2px),
-    radial-gradient(circle at 80% 20%, rgba(255,255,255,0.04) 3px, transparent 3px),
-    radial-gradient(circle at 50% 50%, rgba(255,255,255,0.03) 1px, transparent 1px);
-  background-size: 40px 40px, 60px 60px, 20px 20px;
 }
 
 .pp-hero-body { padding: 0 28px 24px; position: relative; }
@@ -462,7 +455,7 @@
   .pp-mobile-menu-btn { display: flex; }
   .pp-content { padding: 16px; max-width: 100%; }
   .pp-grid { grid-template-columns: repeat(2, 1fr); }
-  .pp-hero-body { padding: 0 20px 20px; }
+  .pp-hero-body { padding: 0 20px 15px; }
   .pp-stats-row { gap: 16px; }
 }
 
@@ -479,7 +472,7 @@
   .pp-content { padding: 12px; gap: 14px; max-width: 100%; }
   .pp-hero-card { border-radius: 16px; }
   .pp-hero-banner { height: 100px; }
-  .pp-hero-body { padding: 0 16px 18px; }
+  .pp-hero-body { padding: 0 16px 10px; }
   .pp-hero-avatar-row { margin-top: -38px; margin-bottom: 12px; }
   .pp-hero-avatar, .pp-hero-avatar-fallback { width: 76px; height: 76px; font-size: 26px; }
   .pp-hero-name { font-size: 18px; }

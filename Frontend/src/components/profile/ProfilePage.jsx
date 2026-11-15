@@ -909,9 +909,6 @@ function ProfileHero({ profile, user, identities, showToast, onOpenSettings, pos
 
   return (
     <div className="pp-hero-card">
-      <div className="pp-hero-banner" aria-hidden="true">
-        <div className="pp-hero-banner-pattern" />
-      </div>
 
       <div className="pp-hero-body">
         <div className="pp-hero-avatar-row">
