@@ -52,7 +52,8 @@ import {
   Sun,
   Moon,
   Monitor,
-  TrendingUp
+  TrendingUp,
+  
 } from 'lucide-react';
 
 import { getProfile } from "../../services/getProfile.js";

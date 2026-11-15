@@ -208,9 +208,14 @@ const handleLogout = () => {
     }
 
     let cancelled = false;
-    guardOnboardingRoute().then((ok) => {
-      if (!cancelled && ok) setChecking(false);
-    });
+    guardOnboardingRoute()
+  .then((ok) => {
+    if (!cancelled && ok) setChecking(false);
+  })
+  .catch((err) => {
+    console.error('[Onboarding] guard failed:', err);
+    if (!cancelled) setChecking(false);
+  });
     return () => { cancelled = true; };
   }, []);
 

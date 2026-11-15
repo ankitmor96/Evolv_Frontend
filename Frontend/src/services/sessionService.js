@@ -33,14 +33,18 @@ export const guardOnboardingRoute = async () => {
     forceLogout('expired');
     return false;
   }
-async function safeOnboardingStatus() {
+
+  let done = false;
   try {
-    return await authService.isOnboardingComplete();   
+    done = await authService.isOnboardingComplete();
   } catch (err) {
-    return null;                                    
+    // server unreachable: let the user stay on onboarding instead of getting stuck
+    console.error('[guardOnboardingRoute] status check failed', err);
+    return true;
   }
-}  if (done) {
-    navigate('/home')
+
+  if (done) {
+    navigate('/home');
     window.dispatchEvent(new Event('navigated'));
     return false;
   }
