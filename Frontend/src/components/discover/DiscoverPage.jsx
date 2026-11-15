@@ -9,7 +9,6 @@ import { profileService } from '../../services/profileService';
 import { discoverService } from '../../services/discoverService.js';
 import { navigate } from '../../utils/navigate.js';
 import { CURIOSITY_DOMAINS } from '../onboarding/onboardingData.js';
-import { takeSinglePost } from '../../services/discoverService.js';
 
 /* ───────────────────────── STATIC CONTENT ───────────────────────── */
 
@@ -109,7 +108,7 @@ const rowsOf = (r) => {
   return Array.isArray(v) ? v : v?.data ?? v?.items ?? [];
 };
 
-const openPost = (post) => {
+const openPost = (post, list = []) => {
   const type = post.media?.type;
   const src = post.media?.src;
   if (!src) return;
@@ -119,12 +118,20 @@ const openPost = (post) => {
     return;
   }
 
-  sessionStorage.setItem('evolv-single-post', JSON.stringify(post));
-  if (type === 'video') sessionStorage.setItem('evolv-reel-back', '/discover');
-  else sessionStorage.setItem('evolv-image-back', '/discover');
+  // Only images/videos can be shown in the viewer
+  const mediaList = list.filter(
+    (p) => (p.media?.type === 'video' || p.media?.type === 'image') && p.media?.src
+  );
 
-  navigate(type === 'video' ? '/reels' : '/image');
-  window.dispatchEvent(new Event('navigated'));
+  // 1) the list the user can scroll through
+  sessionStorage.setItem('evolv-list-posts', JSON.stringify(mediaList));
+  // 2) the post that must open FIRST
+  sessionStorage.setItem('evolv-reel-start', String(post.id));
+  // 3) where Back should return
+  sessionStorage.setItem('evolv-reel-back', '/discover');
+
+  // ReelsPage handles both images and videos with vertical scrolling
+  navigate('/reels');
 };
 
 function PostTile({ post, onOpen }) {
@@ -202,11 +209,6 @@ export default function DiscoverPage() {
 
     (async () => {
       try {
-        const single = await takeSinglePost();
-        if (single) {
-          if (!cancelled) setPosts([single]);
-          return;
-        }
         const [curRes, skillRes, idToName] = await Promise.allSettled([
           profileService.getUserCuriosity(),
           profileService.getUserSkills(),
@@ -602,7 +604,7 @@ export default function DiscoverPage() {
                 <>
                   <div className="dx-conn-grid">
                     {skillPosts.map((post) => (
-                      <PostTile key={post.id} post={post} onOpen={openPost} />
+                      <PostTile key={post.id} post={post} onOpen={(p) => openPost(p, skillPosts)} />
                     ))}
                   </div>
                   {skillMeta.hasMore && (
@@ -645,7 +647,7 @@ export default function DiscoverPage() {
             <>
               <div className="dx-conn-grid">
                 {connPosts.map((post) => (
-                  <PostTile key={post.id} post={post} onOpen={openPost} />
+                  <PostTile key={post.id} post={post} onOpen={(p) => openPost(p, connPosts)} />
                 ))}
               </div>
 

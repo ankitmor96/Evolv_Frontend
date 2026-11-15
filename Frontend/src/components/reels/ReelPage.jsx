@@ -111,7 +111,7 @@ function FeedItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
       <div className="rl-card" ref={trackRef}>
         <div className="rl-media">
           {isLandscape && backdropSrc && (
-            <div className="rl-backdrop" style={{ backgroundImage: `url(${backdropSrc})` }} onClick={() => go('/home')} aria-label="Back to home" />
+            <div className="rl-backdrop" style={{ backgroundImage: `url(${backdropSrc})` }} onClick={goBack} aria-label="Back to home" />
           )}
 
           {video ? (

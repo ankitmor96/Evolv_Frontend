@@ -5,7 +5,7 @@
 .up-body { width: 100%; max-width: 640px; padding: 16px; box-sizing: border-box; }
 
 .up-top { display: flex; align-items: center; gap: 24px; }
-.up-avatar, .up-avatar-fallback { border-radius: 50%; object-fit: cover; flex-shrink: 0; padding: 3px; background: linear-gradient(45deg, #aa45f5, #ec4899, #f59e0b); box-sizing: border-box; }
+.up-avatar, .up-avatar-fallback { border-radius: 50%; object-fit: cover; flex-shrink: 0; padding: 3px; box-sizing: border-box; }
 .up-avatar-fallback { display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; background: #aa45f5; }
 .up-stats { flex: 1; display: flex; justify-content: space-around; text-align: center; }
 .up-stats div { display: flex; flex-direction: column; }

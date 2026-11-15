@@ -70,7 +70,7 @@ import { navigate } from '../../utils/navigate.js';
 import { learnedService } from '../../services/learnedService.js';
 
 function openMyPost(postId, tab) {
-  const filterMap = { images: 'image', reels: 'video', all: 'all', articles: 'all' };
+  const filterMap = { images: 'image', reels: 'video', all: 'all', };
   sessionStorage.setItem('evolv-myposts-start', String(postId));
   sessionStorage.setItem('evolv-myposts-filter', filterMap[tab] || 'all');
   sessionStorage.setItem('evolv-myposts-back', '/profile');
@@ -729,14 +729,14 @@ function ContentSection({ posts, authUserId, onDiscuss, onDelete }) {
     { id: 'all', label: 'All Posts', icon: Grid3X3 },
     { id: 'images', label: 'Images', icon: ImageIcon },
     { id: 'reels', label: 'Short Video', icon: Video },
-    { id: 'articles', label: 'Articles', icon: FileText },
+    // { id: 'articles', label: 'Articles', icon: FileText },
   ];
 
   const getFiltered = () => {
     switch (activeTab) {
       case 'images': return posts.filter((p) => p.media?.type === 'image');
       case 'reels': return posts.filter((p) => p.media?.type === 'video' || p.type === 'reel');
-      case 'articles': return posts.filter((p) => !p.media?.src && p.type !== 'reel');
+      // case 'articles': return posts.filter((p) => !p.media?.src && p.type !== 'reel');
       default: return posts;
     }
   };
@@ -745,7 +745,7 @@ function ContentSection({ posts, authUserId, onDiscuss, onDelete }) {
     switch (tabId) {
       case 'images': return posts.filter((p) => p.media?.type === 'image').length;
       case 'reels': return posts.filter((p) => p.media?.type === 'video' || p.type === 'reel').length;
-      case 'articles': return posts.filter((p) => !p.media?.src && p.type !== 'reel').length;
+      // case 'articles': return posts.filter((p) => !p.media?.src && p.type !== 'reel').length;
       default: return posts.length;
     }
   };

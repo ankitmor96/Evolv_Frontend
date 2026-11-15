@@ -213,7 +213,7 @@
 
 .pp-hero-avatar {
   width: 90px; height: 90px; border-radius: 50%;
-  border: 4px solid #fff; box-shadow: 0 4px 16px rgba(0,0,0,0.13);
+  border: 2px solid #fff; box-shadow: 0 4px 16px rgba(0,0,0,0.13);
   object-fit: cover; display: block; flex-shrink: 0;
 }
 
