@@ -12,9 +12,15 @@ export const getRequiredRoute = async () => {
 
 /** Use on /home and other protected pages. Sends incomplete users to onboarding. */
 export const guardProtectedRoute = async () => {
-  const route = await getRequiredRoute();
+  if (isTokenExpired()) { navigate('/login'); return false; }
+
+  const route = await authService.getPostLoginRoute().catch(() => null);
+
+  // server unreachable: stay on the current page instead of redirecting
+  if (route == null) return true;
+
   if (route !== '/home') {
-    navigate(route)
+    navigate(route);
     window.dispatchEvent(new Event('navigated'));
     return false;
   }
@@ -27,8 +33,13 @@ export const guardOnboardingRoute = async () => {
     forceLogout('expired');
     return false;
   }
-  const done = await authService.isOnboardingComplete().catch(() => false);
-  if (done) {
+async function safeOnboardingStatus() {
+  try {
+    return await authService.isOnboardingComplete();   
+  } catch (err) {
+    return null;                                    
+  }
+}  if (done) {
     navigate('/home')
     window.dispatchEvent(new Event('navigated'));
     return false;

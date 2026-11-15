@@ -2,10 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search, ChevronLeft, ChevronRight, ArrowRight, Sparkles, Code2, Mic,
   Brain, Palette, PenLine, TrendingUp, Target, Compass, Users, Route,
-  Rocket, Globe, Lightbulb, Play,
+  Rocket, Globe, Lightbulb, Play, FileText,
 } from 'lucide-react';
 import '../discover/DiscoverPage.css';
 import { profileService } from '../../services/profileService';
+import { discoverService } from '../../services/discoverService.js';
+import { navigate } from '../../utils/navigate.js';
+import { CURIOSITY_DOMAINS } from '../onboarding/onboardingData.js';
+import { takeSinglePost } from '../../services/discoverService.js';
 
 /* ───────────────────────── STATIC CONTENT ───────────────────────── */
 
@@ -98,11 +102,55 @@ const iconFor = (name = '') =>
 const initials = (name = '') =>
   name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
+
 const rowsOf = (r) => {
   if (r.status !== 'fulfilled') return [];
   const v = r.value;
   return Array.isArray(v) ? v : v?.data ?? v?.items ?? [];
 };
+
+const openPost = (post) => {
+  const type = post.media?.type;
+  const src = post.media?.src;
+  if (!src) return;
+
+  if (type === 'document') {
+    window.open(src, '_blank', 'noopener');
+    return;
+  }
+
+  sessionStorage.setItem('evolv-single-post', JSON.stringify(post));
+  if (type === 'video') sessionStorage.setItem('evolv-reel-back', '/discover');
+  else sessionStorage.setItem('evolv-image-back', '/discover');
+
+  navigate(type === 'video' ? '/reels' : '/image');
+  window.dispatchEvent(new Event('navigated'));
+};
+
+function PostTile({ post, onOpen }) {
+  const type = post.media?.type;
+  const src = post.media?.src;
+  return (
+    <button type="button" className="dx-conn-tile" onClick={() => onOpen(post)}
+      aria-label={`Open post by ${post.creator?.name || 'a user'}`}>
+      {type === 'video' && src ? (
+        <video src={`${src}#t=0.1`} poster={post.media?.poster || undefined}
+          muted playsInline preload="metadata" />
+      ) : type === 'image' && src ? (
+        <img src={src} alt={post.caption || 'Post'} loading="lazy" />
+      ) : (
+        <div className="dx-conn-fallback">
+          <FileText size={26} />
+          <span>{(post.caption || 'Post').slice(0, 40)}</span>
+        </div>
+      )}
+      {type === 'video' && (
+        <span className="dx-conn-badge"><Play size={12} fill="currentColor" /></span>
+      )}
+    </button>
+  );
+}
+
 
 /* ───────────────────────── COMPONENT ───────────────────────── */
 
@@ -125,6 +173,22 @@ export default function DiscoverPage() {
   const [following, setFollowing] = useState(() => new Set());
   const postsRef = useRef(null);
 
+  // connections explore
+  const [connMode, setConnMode] = useState(false);
+  const [connPosts, setConnPosts] = useState([]);
+  const [connMeta, setConnMeta] = useState({
+    message: '', totalConnections: 0, totalPosts: 0, hasMore: false, nextCursor: null,
+  });
+  const [connLoading, setConnLoading] = useState(false);
+  const [connError, setConnError] = useState('');
+  // skill explore
+  const [skillIds, setSkillIds] = useState({});
+  const [skillMode, setSkillMode] = useState(false);
+  const [selectedSkill, setSelectedSkill] = useState('');
+  const [skillPosts, setSkillPosts] = useState([]);
+  const [skillMeta, setSkillMeta] = useState({ message: '', totalPosts: 0, hasMore: false, nextCursor: null });
+  const [skillLoading, setSkillLoading] = useState(false);
+  const [skillError, setSkillError] = useState('');
   /* auto-advance slider */
   useEffect(() => {
     if (paused) return undefined;
@@ -138,6 +202,11 @@ export default function DiscoverPage() {
 
     (async () => {
       try {
+        const single = await takeSinglePost();
+        if (single) {
+          if (!cancelled) setPosts([single]);
+          return;
+        }
         const [curRes, skillRes, idToName] = await Promise.allSettled([
           profileService.getUserCuriosity(),
           profileService.getUserSkills(),
@@ -165,6 +234,11 @@ export default function DiscoverPage() {
           )
         );
         setAllSkills(unique(Object.values(map)));
+        setSkillIds(
+          Object.fromEntries(
+            Object.entries(map).map(([id, name]) => [String(name).trim().toLowerCase(), Number(id)])
+          )
+        );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -216,7 +290,76 @@ export default function DiscoverPage() {
   const goToPosts = () =>
     postsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
+  const loadConnPosts = async (cursor = null) => {
+    setConnLoading(true);
+    setConnError('');
+    try {
+      const res = await discoverService.getConnectionPosts({ limit: 12, cursor });
+      setConnPosts((prev) => (cursor ? [...prev, ...res.posts] : res.posts));
+      setConnMeta({
+        message: res.message,
+        totalConnections: res.totalConnections,
+        totalPosts: res.totalPosts,
+        hasMore: res.hasMore,
+        nextCursor: res.nextCursor,
+      });
+    } catch (err) {
+      setConnError(err.message || 'Could not load connection posts.');
+    } finally {
+      setConnLoading(false);
+    }
+  };
+
+  const openConnections = () => {
+    if (connMode) { setConnMode(false); return; }
+    setConnMode(true);
+    setSkillMode(false);
+    setTopic('');
+    loadConnPosts(null);
+    setTimeout(goToPosts, 50);
+  };
+
+  const loadSkillPosts = async (name, cursor = null) => {
+    const id = skillIds[String(name).trim().toLowerCase()];
+    if (id == null) {
+      setSkillError(`Could not find an ID for "${name}".`);
+      return;
+    }
+    setSkillLoading(true);
+    setSkillError('');
+    try {
+      const res = await discoverService.getSkillPosts({ skillId: id, limit: 12, cursor });
+      setSkillPosts((prev) => (cursor ? [...prev, ...res.posts] : res.posts));
+      setSkillMeta({
+        message: res.message,
+        totalPosts: res.totalPosts,
+        hasMore: res.hasMore,
+        nextCursor: res.nextCursor,
+      });
+    } catch (err) {
+      setSkillError(err.message || 'Could not load skill posts.');
+    } finally {
+      setSkillLoading(false);
+    }
+  };
+
+  const openSkills = () => {
+    if (skillMode) { setSkillMode(false); return; }
+    setSkillMode(true);
+    setConnMode(false);
+    setTopic('');
+    setTimeout(goToPosts, 50);
+  };
+
+  const selectSkill = (name) => {
+    setSelectedSkill(name);
+    setSkillPosts([]);
+    loadSkillPosts(name, null);
+  };
+
   const pickTopic = (name) => {
+    setConnMode(false);
+    setSkillMode(false);
     setTopic((cur) => (cur === name ? '' : name));
     goToPosts();
   };
@@ -264,7 +407,7 @@ export default function DiscoverPage() {
             role="tab"
             aria-selected={tab === t.id}
             className={`dx-tab ${tab === t.id ? 'active' : ''}`}
-            onClick={() => { setTab(t.id); setTopic(''); }}
+            onClick={() => { setTab(t.id); setTopic(''); setConnMode(false); setSkillMode(false); }}
           >
             {t.label}
           </button>
@@ -372,7 +515,7 @@ export default function DiscoverPage() {
         )}
       </section>
 
-      {/* ───── Skills / curiosity chips ───── */}
+      {/* ───── Skills / curiosity chips (with Connections box first) ───── */}
       <section className="dx-section">
         <div className="dx-section-head">
           <h2>{chipTitle}</h2>
@@ -380,19 +523,36 @@ export default function DiscoverPage() {
 
         {loading ? (
           <p className="dx-muted">Loading...</p>
-        ) : chipItems.length === 0 ? (
-          <p className="dx-muted">Nothing here yet. Add some on your profile.</p>
         ) : (
           <div className="dx-scroll dx-skill-row">
+            <button
+              type="button"
+              className={`dx-skill ${connMode ? 'active' : ''}`}
+              onClick={openConnections}
+              aria-pressed={connMode}
+            >
+              <span className="dx-skill-icon"><Users size={22} /></span>
+              Connections
+            </button>
+            <button
+              type="button"
+              className={`dx-skill ${skillMode ? 'active' : ''}`}
+              onClick={openSkills}
+              aria-pressed={skillMode}
+            >
+              <span className="dx-skill-icon"><Sparkles size={22} /></span>
+              Skills
+            </button>
+
             {chipItems.map((name) => {
               const Icon = iconFor(name);
               return (
                 <button
                   key={name}
                   type="button"
-                  className={`dx-skill ${topic === name ? 'active' : ''}`}
+                  className={`dx-skill ${!connMode && topic === name ? 'active' : ''}`}
                   onClick={() => pickTopic(name)}
-                  aria-pressed={topic === name}
+                  aria-pressed={!connMode && topic === name}
                 >
                   <span className="dx-skill-icon"><Icon size={22} /></span>
                   {name}
@@ -402,87 +562,189 @@ export default function DiscoverPage() {
           </div>
         )}
       </section>
+      {skillMode && (
+        <section className="dx-section" ref={postsRef}>
+          <div className="dx-section-head">
+            <h2>{selectedSkill ? `${selectedSkill} posts` : 'Choose a skill'}</h2>
+            <button type="button" className="dx-link" onClick={() => setSkillMode(false)}>Close</button>
+          </div>
 
-      {/* ───── Popular posts ───── */}
-      <section className="dx-section" ref={postsRef}>
-        <div className="dx-section-head">
-          <h2>{topic ? topic : 'Popular in your interests'}</h2>
-          {(topic || search) && (
-            <button
-              type="button"
-              className="dx-link"
-              onClick={() => { setTopic(''); setSearch(''); }}
+          <div className="dx-dropdown">
+            <select
+              value={selectedSkill}
+              onChange={(e) => e.target.value && selectSkill(e.target.value)}
+              aria-label="Choose a skill"
             >
-              Clear filters
-            </button>
-          )}
-        </div>
-
-        {posts.length === 0 ? (
-          <div className="dx-empty">
-            <Search size={28} />
-            <h3>No posts found</h3>
-            <p>Try another topic or search term.</p>
-          </div>
-        ) : (
-          <div className="dx-scroll dx-posts">
-            {[
-              {
-                id: 1,
-                title: "Build Modern Websites with React",
-                author: "Rahul Patel",
-                tone: "purple",
-                duration: "12:45",
-                tags: ["React", "Frontend", "Web Development"],
-              },
-              {
-                id: 2,
-                title: "JavaScript Fundamentals Explained",
-                author: "Priya Shah",
-                tone: "blue",
-                duration: "08:30",
-                tags: ["JavaScript", "Programming", "Basics"],
-              },
-              {
-                id: 3,
-                title: "Getting Started with Node.js",
-                author: "Aarav Mehta",
-                tone: "green",
-                duration: "15:20",
-                tags: ["Node.js", "Backend", "JavaScript"],
-              },
-              {
-                id: 4,
-                title: "UI/UX Design Principles",
-                author: "Neha Desai",
-                tone: "orange",
-                duration: "10:15",
-                tags: ["UI/UX", "Design", "Creativity"],
-              },
-            ].map((p) => (
-              <article key={p.id} className="dx-post">
-                <div className={`dx-thumb tone-${p.tone}`}>
-                  <Play size={26} />
-                  <span className="dx-duration">{p.duration}</span>
-                </div>
-
-                <h3>{p.title}</h3>
-
-                <div className="dx-author">
-                  <span className="dx-avatar">{initials(p.author)}</span>
-                  {p.author}
-                </div>
-
-                <div className="dx-tags">
-                  {p.tags.map((t) => (
-                    <span key={t}>{t}</span>
+              <option value="" disabled>Select a skill…</option>
+              {CURIOSITY_DOMAINS.map((domain) => (
+                <optgroup key={domain.id} label={domain.label}>
+                  {[...new Set(domain.skills)].map((name) => (
+                    <option key={name} value={name}>{name}</option>
                   ))}
-                </div>
-              </article>
-            ))}
+                </optgroup>
+              ))}
+            </select>
           </div>
-        )}
-      </section>
+
+          {selectedSkill && (
+            <div style={{ marginTop: 20 }}>
+              {skillError ? (
+                <p className="dx-muted" role="alert">{skillError}</p>
+              ) : skillLoading && skillPosts.length === 0 ? (
+                <p className="dx-muted">Loading posts...</p>
+              ) : skillPosts.length === 0 ? (
+                <div className="dx-empty">
+                  <Search size={28} />
+                  <h3>No posts found</h3>
+                  <p>{skillMeta.message || `No posts for ${selectedSkill} yet.`}</p>
+                </div>
+              ) : (
+                <>
+                  <div className="dx-conn-grid">
+                    {skillPosts.map((post) => (
+                      <PostTile key={post.id} post={post} onOpen={openPost} />
+                    ))}
+                  </div>
+                  {skillMeta.hasMore && (
+                    <div style={{ textAlign: 'center', marginTop: 20 }}>
+                      <button type="button" className="dx-slide-btn"
+                        onClick={() => loadSkillPosts(selectedSkill, skillMeta.nextCursor)}
+                        disabled={skillLoading}>
+                        {skillLoading ? 'Loading...' : 'Load more'}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ───── Connections posts OR Popular posts ───── */}
+      {connMode ? (
+        <section className="dx-section" ref={postsRef}>
+          <div className="dx-section-head">
+            <h2>Posts from your connections</h2>
+            <button type="button" className="dx-link" onClick={() => setConnMode(false)}>
+              Close
+            </button>
+          </div>
+
+          {connError ? (
+            <p className="dx-muted" role="alert">{connError}</p>
+          ) : connLoading && connPosts.length === 0 ? (
+            <p className="dx-muted">Loading posts...</p>
+          ) : connPosts.length === 0 ? (
+            <div className="dx-empty">
+              <Users size={28} />
+              <h3>No posts yet</h3>
+              <p>{connMeta.message || 'Connect with people to see their posts here.'}</p>
+            </div>
+          ) : (
+            <>
+              <div className="dx-conn-grid">
+                {connPosts.map((post) => (
+                  <PostTile key={post.id} post={post} onOpen={openPost} />
+                ))}
+              </div>
+
+              {connMeta.hasMore && (
+                <div style={{ textAlign: 'center', marginTop: 20 }}>
+                  <button
+                    type="button"
+                    className="dx-slide-btn"
+                    onClick={() => loadConnPosts(connMeta.nextCursor)}
+                    disabled={connLoading}
+                  >
+                    {connLoading ? 'Loading...' : 'Load more'}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      ) : skillMode ? null : (
+        <section className="dx-section" ref={postsRef}>
+          <div className="dx-section-head">
+            <h2>{topic ? topic : 'Popular in your interests'}</h2>
+            {(topic || search) && (
+              <button
+                type="button"
+                className="dx-link"
+                onClick={() => { setTopic(''); setSearch(''); }}
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+
+          {posts.length === 0 ? (
+            <div className="dx-empty">
+              <Search size={28} />
+              <h3>No posts found</h3>
+              <p>Try another topic or search term.</p>
+            </div>
+          ) : (
+            <div className="dx-scroll dx-posts">
+              {[
+                {
+                  id: 1,
+                  title: "Build Modern Websites with React",
+                  author: "Rahul Patel",
+                  tone: "purple",
+                  duration: "12:45",
+                  tags: ["React", "Frontend", "Web Development"],
+                },
+                {
+                  id: 2,
+                  title: "JavaScript Fundamentals Explained",
+                  author: "Priya Shah",
+                  tone: "blue",
+                  duration: "08:30",
+                  tags: ["JavaScript", "Programming", "Basics"],
+                },
+                {
+                  id: 3,
+                  title: "Getting Started with Node.js",
+                  author: "Aarav Mehta",
+                  tone: "green",
+                  duration: "15:20",
+                  tags: ["Node.js", "Backend", "JavaScript"],
+                },
+                {
+                  id: 4,
+                  title: "UI/UX Design Principles",
+                  author: "Neha Desai",
+                  tone: "orange",
+                  duration: "10:15",
+                  tags: ["UI/UX", "Design", "Creativity"],
+                },
+              ].map((p) => (
+                <article key={p.id} className="dx-post">
+                  <div className={`dx-thumb tone-${p.tone}`}>
+                    <Play size={26} />
+                    <span className="dx-duration">{p.duration}</span>
+                  </div>
+
+                  <h3>{p.title}</h3>
+
+                  <div className="dx-author">
+                    <span className="dx-avatar">{initials(p.author)}</span>
+                    {p.author}
+                  </div>
+
+                  <div className="dx-tags">
+                    {p.tags.map((t) => (
+                      <span key={t}>{t}</span>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ───── People ───── */}
       <section className="dx-section">
@@ -549,5 +811,6 @@ export default function DiscoverPage() {
         </div>
       </section>
     </div>
+
   );
 }
