@@ -7,6 +7,7 @@ import { authService } from '../../services/authService.js';
 import { homePostService } from '../../services/homePostService.js';
 import { navigate } from '../../utils/navigate.js';
 import CommentPanel from '../shared/CommentPanel.jsx';
+import { takeListPosts, clearListPosts } from '../../utils/listPosts.js';
 import "../image/ImageViewerPage.css"
 
 const isImage = (p) => p.media?.type === 'image' && p.media?.src;
@@ -15,6 +16,7 @@ const fmt = (n = 0) => (n >= 1000 ? (n / 1000).toFixed(1).replace('.0', '') + 'K
 function goBack() {
   const back = sessionStorage.getItem('evolv-image-back') || '/home';
   sessionStorage.removeItem('evolv-image-back');
+  clearListPosts();
   navigate(back);
 }
 
@@ -37,6 +39,16 @@ export default function ImageViewerPage() {
     let cancelled = false;
     (async () => {
       try {
+        const given = takeListPosts();
+        if (given) {
+          const list = given.filter(isImage);
+          if (cancelled) return;
+          setPosts(list);
+          const startId = sessionStorage.getItem('evolv-image-start');
+          const i = list.findIndex((p) => String(p.id) === startId);
+          setIndex(i >= 0 ? i : 0);
+          return;
+        }
         const userId = user?.id ?? user?.userId ?? user?._id ?? null;
         const [feedRes, mine] = await Promise.all([
           homePostService.getFeedPosts().catch(() => ({ posts: [] })),
@@ -70,41 +82,41 @@ export default function ImageViewerPage() {
     HELPFUL: { flag: 'helpful', count: 'helpfulCount' },
   };
 
-const toggleReaction = useCallback(async (postId, type) => {
-  const key = `reaction:${postId}:${type}`;
-  if (pending.current.has(key)) return;
+  const toggleReaction = useCallback(async (postId, type) => {
+    const key = `reaction:${postId}:${type}`;
+    if (pending.current.has(key)) return;
 
-  const snapshot = postsRef.current;
-  const current = snapshot.find((p) => String(p.id) === String(postId));
-  if (!current) { pending.current.delete(key); return; }
+    const snapshot = postsRef.current;
+    const current = snapshot.find((p) => String(p.id) === String(postId));
+    if (!current) { pending.current.delete(key); return; }
 
-  const mine = REACTION_FIELDS[type];
-  const was = Boolean(current[mine.flag]);
-  const next = !was;
+    const mine = REACTION_FIELDS[type];
+    const was = Boolean(current[mine.flag]);
+    const next = !was;
 
-  // Optimistic update: only this reaction changes
-  setPosts((ps) => ps.map((p) =>
-    String(p.id) !== String(postId) ? p : {
-      ...p,
-      [mine.flag]: next,
-      [mine.count]: Math.max(0, (p[mine.count] ?? 0) + (next ? 1 : -1)),
+    // Optimistic update: only this reaction changes
+    setPosts((ps) => ps.map((p) =>
+      String(p.id) !== String(postId) ? p : {
+        ...p,
+        [mine.flag]: next,
+        [mine.count]: Math.max(0, (p[mine.count] ?? 0) + (next ? 1 : -1)),
+      }
+    ));
+
+    try {
+      if (was) await homePostService.removeReaction(postId, type);
+      else await homePostService.addReaction(postId, type);
+    } catch (err) {
+      if (was && err.status === 404) {
+        console.warn('[ImageViewer] reaction already removed on server');
+      } else {
+        console.warn('[ImageViewer] reaction failed, rolling back:', err.message);
+        setPosts(snapshot);
+      }
+    } finally {
+      pending.current.delete(key);
     }
-  ));
-
-  try {
-    if (was) await homePostService.removeReaction(postId, type);
-    else await homePostService.addReaction(postId, type);
-  } catch (err) {
-    if (was && err.status === 404) {
-      console.warn('[ImageViewer] reaction already removed on server');
-    } else {
-      console.warn('[ImageViewer] reaction failed, rolling back:', err.message);
-      setPosts(snapshot);
-    }
-  } finally {
-    pending.current.delete(key);
-  }
-}, []);
+  }, []);
 
   const go = useCallback((dir) => {
     setZoomed(false);
@@ -284,7 +296,7 @@ const toggleReaction = useCallback(async (postId, type) => {
                 <MessageCircle size={20} />
                 <strong>{fmt(post.comments)}</strong><span>Discuss</span>
               </button>
-              
+
             </div>
             {isOwner && (
               <div className="iv-delete-zone">

@@ -194,6 +194,15 @@ export default function UserProfilePage() {
 
     const isVideo = type === 'video';
     if (!isVideo && type !== 'image') return;
+
+    // Only the posts of the same kind, so swiping stays inside this profile
+    const list = posts.filter(
+      (p) =>
+        (p.media?.type === 'video' || p.media?.type === 'image') &&
+        String(p.creator?.id) === String(userId)
+    );
+
+    sessionStorage.setItem('evolv-list-posts', JSON.stringify(list));
     sessionStorage.setItem(isVideo ? 'evolv-reel-start' : 'evolv-image-start', String(post.id));
     sessionStorage.setItem(isVideo ? 'evolv-reel-back' : 'evolv-image-back', `/profile/${userId}`);
     go(isVideo ? '/reels' : '/image');

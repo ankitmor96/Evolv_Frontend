@@ -8,12 +8,13 @@ import { homePostService } from '../../services/homePostService.js';
 import CommentPanel from '../shared/CommentPanel.jsx';
 import { useInView, useLearningTracker } from '../hooks/useLearningTracker.js';
 import { navigate } from '../../utils/navigate.js';
+import { takeListPosts, clearListPosts } from '../../utils/listPosts.js';
 import "../reels/ReelPage.css";
 
 // ── Type helpers ────────────────────────────────────────────────────────────
 const isVideo = (p) => (p.media?.type === 'video' || p.type === 'reel') && p.media?.src;
 const isImage = (p) => p.media?.type === 'image' && p.media?.src;
-const isMedia = (p) => isVideo(p) || isImage(p);   // ✅ both kinds in one feed
+const isMedia = (p) => isVideo(p) || isImage(p);
 
 const fmt = (n = 0) =>
   n >= 1000 ? (n / 1000).toFixed(1).replace('.0', '') + 'K' : String(n);
@@ -25,6 +26,7 @@ function goBack() {
     '/home';
   sessionStorage.removeItem('evolv-reel-back');
   sessionStorage.removeItem('evolv-image-back');
+  clearListPosts();
   navigate(back);
 }
 
@@ -256,6 +258,13 @@ export default function ReelsPage() {
     let cancelled = false;
     (async () => {
       try {
+        const given = takeListPosts();
+        if (given) {
+          const list = given.filter(isMedia);
+          const withCounts = await homePostService.attachCommentCounts(list);
+          if (!cancelled) setPosts(withCounts);
+          return;
+        }
         const userId = user?.id ?? user?.userId ?? user?._id ?? null;
 
         const [feedRes, mine] = await Promise.all([
@@ -292,9 +301,11 @@ export default function ReelsPage() {
       sessionStorage.getItem('evolv-image-start');
     if (!startId) return;
     const el = feedRef.current?.querySelector(`[data-post-id="${startId}"]`);
-    if (el) el.scrollIntoView();
-    sessionStorage.removeItem('evolv-reel-start');
-    sessionStorage.removeItem('evolv-image-start');
+    if (el) {
+      el.scrollIntoView();
+      sessionStorage.removeItem('evolv-reel-start');
+      sessionStorage.removeItem('evolv-image-start');
+    }
   }, [loading, posts.length]);
 
   // Esc = back
