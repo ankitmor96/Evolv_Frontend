@@ -53,7 +53,7 @@ import {
   Moon,
   Monitor,
   TrendingUp,
-  
+
 } from 'lucide-react';
 
 import { getProfile } from "../../services/getProfile.js";
@@ -875,7 +875,7 @@ function useToast() {
 }
 
 // ─── Profile Hero ─────────────────────────────────────────────────────────────
-function ProfileHero({ profile, user, identities, showToast, onOpenSettings, postCounts, connectionsCount }) {
+function ProfileHero({ profile, user, identities, showToast, onOpenSettings, postCounts, connectionsCount, skills }) {
   const displayName = profile?.fullName || user?.name || 'Your Name';
   const username =
     profile?.username || (user?.email || '').split('@')[0] || 'username';
@@ -893,6 +893,16 @@ function ProfileHero({ profile, user, identities, showToast, onOpenSettings, pos
   const roleName =
     primaryIdentity?.identityType?.name || primaryIdentity?.name || '';
   const myId = user?.id ?? user?.userId ?? user?._id ?? null;
+  // Posts: from GET /api/posts/my-posts/counts (null while loading)
+  const postsTotal = postCounts ? postCounts.totalPosts : null;
+
+  // Skills: unique skills across all 4 lists (can do, learning, improve, interest)
+  const skillsTotal = new Set([
+    ...(skills?.canDo ?? []),
+    ...(skills?.learning ?? []),
+    ...(skills?.wantToImprove ?? []),
+    ...(skills?.curiosity ?? []),
+  ]).size;
   const handleShare = async () => {
     const url = `${window.location.origin}/profile`;
     try {
@@ -987,6 +997,13 @@ function ProfileHero({ profile, user, identities, showToast, onOpenSettings, pos
 
         {/* Stats row → "Connections" */}
         <div className="pp-stats-row" role="list" aria-label="Profile statistics">
+          <div className="pp-stat" role="listitem">
+            <span className="pp-stat-value" aria-live="polite" aria-atomic="true">
+              {postsTotal !== null ? postsTotal : '–'}
+            </span>
+            <span className="pp-stat-label">Posts</span>
+          </div>
+
           <div
             className="pp-stat"
             role="listitem"
@@ -997,6 +1014,11 @@ function ProfileHero({ profile, user, identities, showToast, onOpenSettings, pos
               {connectionsCount !== null ? connectionsCount : '–'}
             </span>
             <span className="pp-stat-label">Connections</span>
+          </div>
+
+          <div className="pp-stat" role="listitem">
+            <span className="pp-stat-value">{skillsTotal}</span>
+            <span className="pp-stat-label">Skills</span>
           </div>
         </div>
       </div>
@@ -2045,8 +2067,8 @@ export default function ProfilePage() {
     // Listen for reaction / learned updates on the user's own posts
     const offUpdates = socketService.onPostUpdatesBatch((batch) => {
       if (batch.some((u) => u.type === 'learned')) {
-  learnedService.getMyLearnedCount().then(setLearnedTotal).catch(() => {});
-}
+        learnedService.getMyLearnedCount().then(setLearnedTotal).catch(() => { });
+      }
       if (!Array.isArray(batch) || batch.length === 0) return;
       setPosts(prev => {
         let changed = false;
@@ -2170,7 +2192,7 @@ export default function ProfilePage() {
     } finally {
       pendingDelete.current.delete(String(postId));
     }
-  }, [posts, authUserId, showToast, loadEngagement,loadLearnedTotal]);
+  }, [posts, authUserId, showToast, loadEngagement, loadLearnedTotal]);
 
   const handleCommentCountChange = useCallback((postId, delta) => {
     setPosts(prev => prev.map(p =>
@@ -2305,6 +2327,7 @@ export default function ProfilePage() {
                 onOpenSettings={() => setShowSettingsModal(true)}
                 postCounts={postCounts}
                 connectionsCount={connectionsCount}
+                skills={skills}
               />
 
               <SkillsCard skills={skills} onEditSkills={handleOpenSkillsModal} />

@@ -1841,3 +1841,15 @@
   color: #b45309;
   border: 1px solid #fcd9a8;
 }
+
+.pp-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+.pp-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
