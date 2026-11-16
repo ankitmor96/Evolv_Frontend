@@ -11,6 +11,8 @@ import { discoverService } from '../../services/discoverService.js';
 import { navigate } from '../../utils/navigate.js';
 import { CURIOSITY_DOMAINS } from '../onboarding/onboardingData.js';
 import { homePostService } from '../../services/homePostService.js';
+import { X } from "lucide-react";
+
 
 /* ───────────────────────── STATIC CONTENT ───────────────────────── */
 const NAV = [
@@ -279,6 +281,106 @@ export default function DiscoverPage() {
   const [skillLoading, setSkillLoading] = useState(false);
   const [skillError, setSkillError] = useState('');
   const [skillCounts, setSkillCounts] = useState({});
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  const [curiosityLoading, setCuriosityLoading] = useState(true);
+
+  // the clicked curiosity + its posts
+  const [activeCur, setActiveCur] = useState(null);
+  const [curPosts, setCurPosts] = useState([]);
+  const [curPostsLoading, setCurPostsLoading] = useState(false);
+  const [curError, setCurError] = useState("");
+  const [curCursor, setCurCursor] = useState(null);
+  const [curHasMore, setCurHasMore] = useState(false);
+
+  const curReq = useRef(0);
+  const curPanelRef = useRef(null);
+  const curiosityNames = useMemo(() => curiosity.map((c) => c.name), [curiosity]);
+
+  // 1) Bind GET /api/skills/curiosity
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const [res, idToName] = await Promise.all([
+          profileService.getUserCuriosity(),
+          profileService.fetchSkillIdToNameMap(),
+        ]);
+        const rows = Array.isArray(res) ? res : res?.data ?? res?.items ?? [];
+
+        const seen = new Set();
+        const list = [];
+        rows.forEach((r) => {
+          const id = Number(r.skillId);
+          const name = idToName[id];
+          if (name && !seen.has(id)) {
+            seen.add(id);
+            list.push({ id, name });
+          }
+        });
+
+        if (alive) setCuriosity(list);
+      } catch (err) {
+        console.error("[Discover] curiosity load failed:", err);
+      } finally {
+        if (alive) setCuriosityLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  // 2) Fetch posts of one curiosity skill
+  const fetchCurPosts = async (skill, cursor = null) => {
+    const reqId = ++curReq.current;
+    setCurPostsLoading(true);
+    setCurError("");
+    try {
+      const res = await discoverService.getSkillPosts({ skillId: skill.id, cursor });
+      if (reqId !== curReq.current) return;
+      setCurPosts((prev) => (cursor ? [...prev, ...res.posts] : res.posts));
+      setCurCursor(res.nextCursor);
+      setCurHasMore(res.hasMore);
+    } catch (err) {
+      if (reqId !== curReq.current) return;
+      setCurError(err.message || "Could not load posts.");
+    } finally {
+      if (reqId === curReq.current) setCurPostsLoading(false);
+    }
+  };
+
+  // 3) Click handler (click same card again = close)
+  const openCuriosity = (skill) => {
+    if (activeCur?.id === skill.id) {
+      closeCuriosity();
+      return;
+    }
+    setActiveCur(skill);
+    setCurPosts([]);
+    setCurCursor(null);
+    setCurHasMore(false);
+    fetchCurPosts(skill);
+    setTimeout(() => {
+      curPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 80);
+  };
+
+  const closeCuriosity = () => {
+    curReq.current++;
+    setActiveCur(null);
+    setCurPosts([]);
+    setCurError("");
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   /* auto-advance slider */
   useEffect(() => {
@@ -288,13 +390,13 @@ export default function DiscoverPage() {
   }, [paused]);
 
   /* load the user's curiosity / skills / improve lists */
+  /* load the user's skills / improve lists + skill map */
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       try {
-        const [curRes, skillRes, idToName] = await Promise.allSettled([
-          profileService.getUserCuriosity(),
+        const [skillRes, idToName] = await Promise.allSettled([
           profileService.getUserSkills(),
           profileService.fetchSkillIdToNameMap(),
         ]);
@@ -303,10 +405,8 @@ export default function DiscoverPage() {
         const map = idToName.status === 'fulfilled' ? idToName.value || {} : {};
         const unique = (arr) => [...new Set(arr.filter(Boolean))];
         const nameOf = (row) => map[Number(row.skillId)];
-
         const userRows = rowsOf(skillRes);
 
-        setCuriosity(unique(rowsOf(curRes).map(nameOf)));
         setSkills(
           unique(
             userRows
@@ -315,9 +415,7 @@ export default function DiscoverPage() {
           )
         );
         setImprove(
-          unique(
-            userRows.filter((r) => r.relationshipType === 'WANT_TO_IMPROVE').map(nameOf)
-          )
+          unique(userRows.filter((r) => r.relationshipType === 'WANT_TO_IMPROVE').map(nameOf))
         );
         setAllSkills(unique(Object.values(map)));
         setSkillIds(
@@ -336,23 +434,25 @@ export default function DiscoverPage() {
   /* terms that the selected tab is "about" */
   const tabTerms = useMemo(() => {
     if (tab === 'skills') return skills;
-    if (tab === 'curiosity') return curiosity;
+    if (tab === 'curiosity') return curiosityNames;
     if (tab === 'improve') return improve;
-    return [...new Set([...skills, ...curiosity, ...improve])];
-  }, [tab, skills, curiosity, improve]);
+    return [...new Set([...skills, ...curiosityNames, ...improve])];
+  }, [tab, skills, curiosityNames, improve]);
 
   /* skills the user does not have yet → "worth exploring" */
   const suggestions = useMemo(() => {
-    const mine = new Set([...skills, ...curiosity, ...improve].map((s) => s.toLowerCase()));
-    return allSkills.filter((s) => !mine.has(s.toLowerCase())).slice(0, 14);
-  }, [allSkills, skills, curiosity, improve]);
+    const mine = new Set(
+      [...skills, ...curiosityNames, ...improve].map((s) => String(s).toLowerCase())
+    );
+    return allSkills.filter((s) => !mine.has(String(s).toLowerCase())).slice(0, 14);
+  }, [allSkills, skills, curiosityNames, improve]);
 
   /* "Based on what you want to improve" cards */
   /* "Based on what you want to improve" cards:
      1) skills the user wants to improve (WANT_TO_IMPROVE)
      2) then the user's curiosity skills
      3) if both are empty, fall back to suggestions */
-  const personalCards = [...new Set([...improve, ...curiosity])];
+  const personalCards = [...new Set([...improve, ...curiosityNames])];
   const improveCards = (personalCards.length ? personalCards : suggestions).slice(0, 8);
 
   /* chips row changes with the tab */
@@ -442,6 +542,10 @@ export default function DiscoverPage() {
     loadSkillCounts();
     setTimeout(goToPosts, 50);
   };
+
+  useEffect(() => {
+    loadSkillCounts();
+  }, []);
 
   const loadSkillCounts = async () => {
     try {
@@ -590,43 +694,91 @@ export default function DiscoverPage() {
           </div>
         </section>
 
-        {/* ───── Based on what you want to improve ───── */}
+        {/* <h2>{personalCards.length ? 'Based on what you want to improve' : 'A good place to start with curiosity'}</h2> */}
+
+        {/* ───── Your curiosities ───── */}
         <section className="dx-section">
           <div className="dx-section-head">
-            <h2>{personalCards.length ? 'Based on what you want to improve' : 'A good place to start with curiosity'}</h2>        </div>
+            <div>
+              <h2>Your curiosities</h2>
+              <p className="dx-muted">Tap a topic to see posts about it right here.</p>
+            </div>
+            {curiosity.length > 0 && (
+              <span className="dx-cur-total">{curiosity.length} topics</span>
+            )}
+          </div>
 
-          {loading ? (
-            <p className="dx-muted">Loading your interests...</p>
-          ) : improveCards.length === 0 ? (
-            <p className="dx-muted">Add skills to your profile to get personal picks here.</p>
+          {curiosityLoading ? (
+            <div className="dx-cur-row">
+              {[0, 1, 2, 3].map((n) => <div key={n} className="dx-cur-skeleton" />)}
+            </div>
+          ) : curiosity.length === 0 ? (
+            <p className="dx-muted">Add curiosity skills to your profile to see them here.</p>
           ) : (
-            <div className="dx-scroll dx-improve">
-              {improveCards.map((name, i) => {
-                const Icon = iconFor(name);
-
+            <div className="dx-scroll dx-cur-row">
+              {curiosity.map((skill, i) => {
+                const Icon = iconFor(skill.name);
+                const count = skillCounts[skill.id] ?? 0;
+                const active = activeCur != null && activeCur.id === skill.id;
                 return (
                   <button
-                    key={name}
+                    key={skill.id}
                     type="button"
-                    className={`dx-improve-card tone-${SLIDES[i % SLIDES.length].tone}`}
-                    onClick={() => pickTopic(name)}
+                    aria-pressed={active}
+                    className={`dx-cur-card tone-${SLIDES[i % SLIDES.length].tone} ${active ? "active" : ""}`}
+                    onClick={() => openCuriosity(skill)}
                   >
-                    <span className="dx-icon-box">
-                      <Icon size={22} />
+                    <span className="dx-cur-icon"><Icon size={20} /></span>
+                    <span className="dx-cur-info">
+                      <strong>{skill.name}</strong>
+                      <small>{count} {count === 1 ? "post" : "posts"}</small>
                     </span>
-
-                    <strong>{name}</strong>
-
-                    <span className="dx-improve-text">
-                      See posts and questions about {name.toLowerCase()}.
-                    </span>
-
-                    <span className="dx-improve-go">
-                      <ArrowRight size={15} />
-                    </span>
+                    <span className="dx-cur-arrow"><ArrowRight size={15} /></span>
                   </button>
                 );
               })}
+            </div>
+          )}
+
+          {/* Posts open right under the cards */}
+          {activeCur && (
+            <div className="dx-cur-panel" ref={curPanelRef}>
+              <div className="dx-cur-panel-head">
+                <h3>Posts on {activeCur.name}</h3>
+                <button type="button" className="dx-cur-close" onClick={closeCuriosity} aria-label="Close posts">
+                  <X size={16} /> Close
+                </button>
+              </div>
+
+              {curError ? (
+                <p className="dx-muted">{curError}</p>
+              ) : curPostsLoading && curPosts.length === 0 ? (
+                <p className="dx-muted">Loading posts…</p>
+              ) : curPosts.length === 0 ? (
+                <div className="dx-empty">
+                  <h3>No posts yet</h3>
+                  <p>Nobody has posted about {activeCur.name} yet.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="dx-conn-grid">
+                    {curPosts.map((post) => (
+
+                      <PostTile key={post.id} post={post} onOpen={(p) => openPost(p, curPosts)} />))}
+                  </div>
+
+                  {curHasMore && (
+                    <button
+                      type="button"
+                      className="dx-cur-more"
+                      disabled={curPostsLoading}
+                      onClick={() => fetchCurPosts(activeCur, curCursor)}
+                    >
+                      {curPostsLoading ? "Loading…" : "Load more"}
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           )}
         </section>
@@ -672,27 +824,58 @@ export default function DiscoverPage() {
               <button type="button" className="dx-link" onClick={() => setSkillMode(false)}>Close</button>
             </div>
 
-            <div className="dx-dropdown">
-              <select
-                value={selectedSkill}
-                onChange={(e) => e.target.value && selectSkill(e.target.value)}
+            <div className="dx-dropdown" ref={dropdownRef}>
+              <button
+                type="button"
+                className="dx-dd-trigger"
+                onClick={() => setDropdownOpen((o) => !o)}
+                aria-haspopup="listbox"
+                aria-expanded={dropdownOpen}
                 aria-label="Choose a skill"
               >
-                <option value="" disabled>Select a skill…</option>
-                {CURIOSITY_DOMAINS.map((domain) => (
-                  <optgroup key={domain.id} label={domain.label}>
-                    {[...new Set(domain.skills)].map((name) => {
-                      const id = skillIds[String(name).trim().toLowerCase()];
-                      const count = skillCounts[id];
-                      return (
-                        <option key={name} value={name}>
-                          {count != null ? `${name} (${count})` : name}
-                        </option>
-                      );
-                    })}
-                  </optgroup>
-                ))}
-              </select>
+                <span className={selectedSkill ? "" : "dx-dd-placeholder"}>
+                  {selectedSkill || "Select a skill…"}
+                </span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {dropdownOpen && (
+                <div className="dx-dd-menu" role="listbox">
+                  <div className="dx-dd-colhead">
+                    <span>Skill</span>
+                    <span>Post count</span>
+                  </div>
+
+                  {CURIOSITY_DOMAINS.map((domain) => (
+                    <div key={domain.id} className="dx-dd-group">
+                      <div className="dx-dd-group-label">{domain.label}</div>
+
+                      {[...new Set(domain.skills)].map((name) => {
+                        const id = skillIds[String(name).trim().toLowerCase()];
+                        const count = skillCounts[id] ?? 0;
+                        return (
+                          <button
+                            type="button"
+                            key={name}
+                            role="option"
+                            aria-selected={selectedSkill === name}
+                            className={`dx-dd-option ${selectedSkill === name ? "active" : ""}`}
+                            onClick={() => {
+                              selectSkill(name);
+                              setDropdownOpen(false);
+                            }}
+                          >
+                            <span>{name}</span>
+                            <span className="dx-dd-count">{count}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {selectedSkill && (
