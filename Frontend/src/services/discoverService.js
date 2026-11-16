@@ -38,6 +38,7 @@ async function fetchCreatorFallback(userId) {
   }
 }
 
+
 // function loadProfile(userId) {
 //   const key = String(userId);
 //   if (!profileCache.has(key)) {
@@ -165,6 +166,9 @@ export const discoverService = {
   getSkillCounts() {
     return getSkillCountsJson();
   },
+  getUserSuggestions() {          // NEW
+    return getUserSuggestionsJson();
+  },
 };
 async function getSkillCountsJson() {
   const token = getToken();
@@ -178,3 +182,37 @@ async function getSkillCountsJson() {
 
   return Array.isArray(json.data) ? json.data : [];
 }
+
+async function getUserSuggestionsJson() {
+  const token = getToken();
+  const res = await fetch(`${ORIGIN}/api/discover/users/suggestions`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (res.status === 401 && token) forceLogout();
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json?.message || `Request failed (${res.status})`);
+
+  const list = Array.isArray(json.data) ? json.data : [];
+
+  return list.map((u) => {
+    const identities = Array.isArray(u.identity) ? u.identity : [];
+    const primary = identities.find((i) => i.isPrimary) ?? identities[0] ?? null;
+    const rr = u.reactionRanking ?? {};
+
+    return {
+      id: u.userId,
+      name: u.userName || `User ${u.userId}`,
+      hasUsername: Boolean(u.userName),
+      avatar: u.avatarUrl || '',         
+      role: primary?.name ?? 'Community Member',
+      identities: identities.map((i) => i.name),
+      postCount: Number(u.totalPostCount ?? 0),
+      appreciate: Number(rr.APPRECIATE ?? 0),
+      helpful: Number(rr.HELPFUL ?? 0),
+      learned: Number(rr.LEARNED ?? 0),
+      total: Number(rr.total ?? 0),
+    };
+  });
+}
+

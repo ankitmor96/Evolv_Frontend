@@ -361,7 +361,7 @@
 
 /* ============ PEOPLE ============ */
 .dx-person {
-  width: 270px;
+  width: 288px;
   padding: 16px;
   border: 1px solid var(--dx-line);
   border-radius: 14px;
@@ -382,6 +382,69 @@
   cursor: pointer;
 }
 .dx-follow.on { background: #fff; color: var(--dx-purple-deep); }
+.dx-avatar-img {
+  object-fit: cover;
+  display: block;
+  padding: 0;
+  background: #ede4f7;
+}
+/* ── Reaction tooltip (hover on icon or count) ── */
+.dx-stat {
+  position: relative;
+  cursor: default;
+  outline: none;
+}
+
+.dx-stat::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 20;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: #1a0a2e;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+/* small arrow under the tooltip */
+.dx-stat::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  bottom: calc(100% + 3px);
+  z-index: 20;
+  border: 5px solid transparent;
+  border-top-color: #1a0a2e;
+  border-bottom: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.dx-stat:hover::after,
+.dx-stat:focus-visible::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+.dx-stat:hover::before,
+.dx-stat:focus-visible::before {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dx-stat::after,
+  .dx-stat::before { transition: none; }
+}
 
 /* ============ EXPLORE NEW ============ */
 .dx-new-card {
@@ -864,6 +927,11 @@
 }
 
 .dx-cur-row { gap: 12px; }
+.dx-follow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
 
 .dx-cur-card {
   position: relative;
@@ -877,7 +945,7 @@
   color: #fff;
   text-align: left;
   cursor: pointer;
-  background: linear-gradient(135deg, var(--g1), var(--g2));
+  background: #A043E8;
   box-shadow: 0 6px 16px rgba(60, 20, 100, 0.15);
   transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
@@ -983,3 +1051,62 @@
 @media (prefers-reduced-motion: reduce) {
   .dx-cur-card, .dx-cur-arrow, .dx-cur-panel, .dx-cur-skeleton { animation: none; transition: none; }
 }
+
+.dx-note {
+  margin: 8px 0;
+  font-size: 14px;
+  color: #8b7aa3;
+}
+.dx-note.error { color: #dc2626; }
+
+.dx-rank {
+  margin-left: auto;
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #aa45f5;
+  background: rgba(170, 69, 245, 0.12);
+}
+
+.dx-person-meta {
+  margin: 10px 0 8px;
+  font-size: 13px;
+  color: #6b5e80;
+}
+
+.dx-person-stats {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.dx-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.dx-stat.appreciate { color: #ef476f; }
+.dx-stat.helpful    { color: #5b5cf0; }
+.dx-stat.learned    { color: #16a05d; }
+
+.dx-person-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dx-view-profile {
+  padding: 10px 18px;
+  border: 1.5px solid rgba(170, 69, 245, 0.4);
+  border-radius: 999px;
+  background: #fff;
+  color: #aa45f5;
+  font-weight: 600;
+  cursor: pointer;
+}
+.dx-view-profile:hover { background: rgba(170, 69, 245, 0.06); }

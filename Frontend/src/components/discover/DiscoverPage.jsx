@@ -3,7 +3,7 @@ import {
   Search, ChevronLeft, ChevronRight, ArrowRight, Sparkles, Code2, Mic,
   Brain, Palette, PenLine, TrendingUp, Target, Compass, Users, Route,
   Rocket, Globe, Lightbulb, Play, FileText, Heart, CheckCircle2, Home,
-  BookOpen, Bell, User
+  BookOpen, Bell, User, CheckCheck
 } from 'lucide-react';
 import '../discover/DiscoverPage.css';
 import { profileService } from '../../services/profileService';
@@ -12,7 +12,8 @@ import { navigate } from '../../utils/navigate.js';
 import { CURIOSITY_DOMAINS } from '../onboarding/onboardingData.js';
 import { homePostService } from '../../services/homePostService.js';
 import { X } from "lucide-react";
-
+import { connectionService } from '../../services/connectionService.js';
+import { authService } from '../../services/authService.js';
 
 /* ───────────────────────── STATIC CONTENT ───────────────────────── */
 const NAV = [
@@ -111,6 +112,23 @@ const iconFor = (name = '') =>
 const initials = (name = '') =>
   name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
+function PersonAvatar({ src, name }) {
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed) {
+    return <span className="dx-avatar big">{initials(name)}</span>;
+  }
+
+  return (
+    <img
+      src={src}
+      alt={name}
+      className="dx-avatar big dx-avatar-img"
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
+  );
+}
 
 const rowsOf = (r) => {
   if (r.status !== 'fulfilled') return [];
@@ -261,8 +279,9 @@ export default function DiscoverPage() {
   const [allSkills, setAllSkills] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [following, setFollowing] = useState(() => new Set());
-  const postsRef = useRef(null);
+  // userId(string) -> { status: 'none'|'pending'|'incoming'|'connected', connectionId }
+  const [connMap, setConnMap] = useState(() => new Map());
+  const pendingConnect = useRef(new Set()); const postsRef = useRef(null);
 
   // connections explore
   const [connMode, setConnMode] = useState(false);
@@ -298,6 +317,33 @@ export default function DiscoverPage() {
   const curPanelRef = useRef(null);
   const curiosityNames = useMemo(() => curiosity.map((c) => c.name), [curiosity]);
 
+  const [people, setPeople] = useState([]);
+  const [peopleLoading, setPeopleLoading] = useState(true);
+  const [peopleError, setPeopleError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      setPeopleLoading(true);
+      setPeopleError('');
+      try {
+        const list = await discoverService.getUserSuggestions();
+        if (!cancelled) setPeople(list);
+      } catch (err) {
+        console.error('[Discover] Failed to load user suggestions:', err);
+        if (!cancelled) {
+          setPeople([]);
+          setPeopleError('Could not load suggestions right now.');
+        }
+      } finally {
+        if (!cancelled) setPeopleLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, []);
+
   // 1) Bind GET /api/skills/curiosity
   useEffect(() => {
     let alive = true;
@@ -329,6 +375,12 @@ export default function DiscoverPage() {
     })();
     return () => { alive = false; };
   }, []);
+
+  const openUserProfile = (userId) => {
+    if (userId == null) return;
+    navigate(`/profile/${userId}`);
+    window.dispatchEvent(new Event('navigated'));
+  };
 
   // 2) Fetch posts of one curiosity skill
   const fetchCurPosts = async (skill, cursor = null) => {
@@ -572,15 +624,83 @@ export default function DiscoverPage() {
     goToPosts();
   };
 
-  const toggleFollow = (id) =>
-    setFollowing((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
+  const handleConnect = async (userId) => {
+    const key = String(userId);
+    if (pendingConnect.current.has(key)) return;
+    pendingConnect.current.add(key);
+
+    const me = authService.getCurrentUser();
+    const myId = me?.id ?? me?.userId ?? me?._id ?? null;
+
+    const current = connMap.get(key) ?? { status: 'none', connectionId: null };
+    const setEntry = (entry) =>
+      setConnMap((prev) => {
+        const next = new Map(prev);
+        if (entry) next.set(key, entry); else next.delete(key);
+        return next;
+      });
+
+    // Re-read the server state (used when we are missing a connectionId)
+    const syncFromServer = async () => {
+      const map = await connectionService.getConnectionMap(myId);
+      setConnMap(map);
+      return map.get(key);
+    };
+
+    try {
+      if (current.status === 'none') {
+        // Send request
+        setEntry({ status: 'pending', connectionId: null });
+        try {
+          const res = await connectionService.sendConnectionRequest(userId);
+          const newId = res?.data?.id ?? res?.id ?? res?.connectionId ?? null;
+          if (newId != null) setEntry({ status: 'pending', connectionId: newId });
+          else await syncFromServer();
+        } catch (err) {
+          if (err.status === 409) { await syncFromServer(); return; }
+          throw err;
+        }
+
+      } else if (current.status === 'incoming') {
+        // Accept their request
+        let id = current.connectionId;
+        if (id == null) id = (await syncFromServer())?.connectionId;
+        if (id == null) throw new Error('Connection record not found.');
+        setEntry({ status: 'connected', connectionId: id });
+        await connectionService.acceptConnectionRequest(id);
+
+      } else {
+        // Cancel pending request / remove connection
+        if (current.status === 'connected' &&
+          !window.confirm('Remove this person from your connections?')) {
+          return;
+        }
+        let id = current.connectionId;
+        if (id == null) id = (await syncFromServer())?.connectionId;
+        if (id == null) throw new Error('Connection record not found.');
+        setEntry(null);
+        await connectionService.removeConnection(id);
+      }
+    } catch (err) {
+      console.warn('[Discover] Connection action failed, rolling back:', err.message);
+      setEntry(current.status === 'none' ? null : current);
+    } finally {
+      pendingConnect.current.delete(key);
+    }
+  };
 
   const prevSlide = () => setSlide((s) => (s - 1 + SLIDES.length) % SLIDES.length);
   const nextSlide = () => setSlide((s) => (s + 1) % SLIDES.length);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const me = authService.getCurrentUser();
+      const myId = me?.id ?? me?.userId ?? me?._id ?? null;
+      const map = await connectionService.getConnectionMap(myId);
+      if (!cancelled) setConnMap(map);
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <div className="dx-layout">
@@ -1011,27 +1131,96 @@ export default function DiscoverPage() {
             <h2>People you could learn from</h2>
           </div>
 
-          <div className="dx-scroll dx-people">
-            {DEMO_PEOPLE.map((p) => (
-              <div key={p.id} className="dx-person">
-                <div className="dx-person-top">
-                  <span className="dx-avatar big">{initials(p.name)}</span>
-                  <div>
-                    <strong>{p.name}</strong>
-                    <span>{p.role}</span>
+          {peopleLoading ? (
+            <p className="dx-note">Loading suggestions...</p>
+          ) : peopleError ? (
+            <p className="dx-note error">{peopleError}</p>
+          ) : people.length === 0 ? (
+            <p className="dx-note">No suggestions yet. Check back soon.</p>
+          ) : (
+            <div className="dx-scroll dx-people">
+              {people.map((p, index) => (
+                <div key={p.id} className="dx-person">
+                  <div className="dx-person-top">
+                    <PersonAvatar src={p.avatar} name={p.name} />
+                    <div>
+                      <strong>{p.hasUsername ? `@${p.name}` : p.name}</strong>
+                      <span>
+                        {p.identities.length > 0 ? p.identities.join(' • ') : p.role}
+                      </span>
+                    </div>
+                    {index < 3 && <span className="dx-rank">#{index + 1}</span>}
+                  </div>
+
+                  <p className="dx-person-meta">
+                    {p.postCount} post{p.postCount === 1 ? '' : 's'} · {p.total} reaction
+                    {p.total === 1 ? '' : 's'}
+                  </p>
+
+                  <div className="dx-person-stats">
+                    <span
+                      className="dx-stat appreciate"
+                      data-tip="Appreciated"
+                      tabIndex={0}
+                      aria-label={`${p.appreciate} appreciations`}
+                    >
+                      <Heart size={13} aria-hidden="true" /> {p.appreciate}
+                    </span>
+
+                    <span
+                      className="dx-stat helpful"
+                      data-tip="Helpful"
+                      tabIndex={0}
+                      aria-label={`${p.helpful} found helpful`}
+                    >
+                      <Sparkles size={13} aria-hidden="true" /> {p.helpful}
+                    </span>
+
+                    <span
+                      className="dx-stat learned"
+                      data-tip="Learned"
+                      tabIndex={0}
+                      aria-label={`${p.learned} learned`}
+                    >
+                      <CheckCircle2 size={13} aria-hidden="true" /> {p.learned}
+                    </span>
+                  </div>
+
+                  <div className="dx-person-actions">
+                    <button
+                      type="button"
+                      className="dx-view-profile"
+                      onClick={() => openUserProfile(p.id)}
+                    >
+                      View Profile
+                    </button>
+
+                    {(() => {
+                      const status = connMap.get(String(p.id))?.status ?? 'none';
+                      const config = {
+                        none: { label: 'Connect', cls: '', aria: `Connect with ${p.name}` },
+                        pending: { label: 'Requested', cls: 'on', aria: `Cancel request to ${p.name}` },
+                        incoming: { label: 'Accept', cls: '', aria: `Accept request from ${p.name}` },
+                        connected: { label: 'Connected', cls: 'on', aria: `Disconnect from ${p.name}` },
+                      }[status];
+
+                      return (
+                        <button
+                          type="button"
+                          className={`dx-follow ${config.cls}`}
+                          onClick={() => handleConnect(p.id)}
+                          aria-label={config.aria}
+                        >
+                          {status === 'connected' && <CheckCheck size={14} aria-hidden="true" />}
+                          {config.label}
+                        </button>
+                      );
+                    })()}
                   </div>
                 </div>
-                <p>{p.bio}</p>
-                <button
-                  type="button"
-                  className={`dx-follow ${following.has(p.id) ? 'on' : ''}`}
-                  onClick={() => toggleFollow(p.id)}
-                >
-                  {following.has(p.id) ? 'Following' : 'Follow'}
-                </button>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* ───── Explore something new ───── */}

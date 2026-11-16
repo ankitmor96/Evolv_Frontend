@@ -45,7 +45,7 @@
 .lp-primary:hover{background:var(--accent-dark)}
 
 .lp-hero{margin-bottom:20px;padding:32px 36px;border-radius:16px;color:#fff;
-  background:linear-gradient(110deg,rgba(26,10,46,.95) 30%,rgba(26,10,46,.45)),linear-gradient(135deg,#aa45f5,#5b3fd1 60%,#1a0a2e)}
+  background:#A043E8;}
 .lp-hero h2{margin-bottom:10px;font-size:28px;line-height:1.2;overflow-wrap:anywhere}
 .lp-hero p{max-width:480px;font-size:15px;line-height:1.6;color:rgba(255,255,255,.85)}
 
