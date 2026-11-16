@@ -192,3 +192,14 @@
 .rl-image--landscape {
   object-fit: contain;        
 }
+.rl-creator[role="button"]:hover strong {
+  text-decoration: underline;
+}
+
+.rl-creator[role="button"] {
+  pointer-events: auto;   /* overrides pointer-events: none from .rl-overlay */
+  position: relative;
+  z-index: 5;             /* stays above the image / video layer */
+  cursor: pointer;
+  width: fit-content;     /* only the avatar + name are clickable, not the full row */
+}

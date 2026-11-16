@@ -51,7 +51,7 @@ const attachReactions = (list) =>
   );
 
 // ─── One feed item (video OR image) ─────────────────────────────────────────
-function FeedItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, onDiscuss }) {
+function FeedItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, onDiscuss, onOpenProfile }) {
   const video = isVideo(post);
 
   const itemRef = useRef(null);
@@ -197,7 +197,19 @@ function FeedItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
               {post.tags.slice(0, 3).map((t) => <span key={t}>{t}</span>)}
             </div>
           )}
-          <div className="rl-creator">
+          <div
+            className="rl-creator"
+            role={creator.id != null ? 'button' : undefined}
+            tabIndex={creator.id != null ? 0 : undefined}
+            style={creator.id != null ? { cursor: 'pointer' } : undefined}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (creator.id != null) onOpenProfile(creator.id);
+            }} onKeyDown={(e) => {
+              if (e.key === 'Enter' && creator.id != null) onOpenProfile(creator.id);
+            }}
+            aria-label={`Open ${displayName}'s profile`}
+          >
             {creator.avatar ? (
               <img src={creator.avatar} alt={displayName} className="rl-avatar" />
             ) : (
@@ -394,7 +406,12 @@ export default function ReelsPage() {
         ? p
         : { ...p, comments: Math.max(0, (Number(p.comments) || 0) + delta) }));
   }, []);
-
+  const openProfile = (userId, currentPostId) => {
+    // keep the same list, so browser Back returns to this exact post
+    sessionStorage.setItem('evolv-list-posts', JSON.stringify(postsRef.current));
+    sessionStorage.setItem('evolv-reel-start', String(currentPostId));
+    navigate(`/profile/${userId}`);
+  };
   if (!user) return null;
 
 
@@ -420,6 +437,8 @@ export default function ReelsPage() {
               onHelpful={onHelpful}
               onLearned={onLearned}
               onDiscuss={(id) => setCommentPostId(String(id))}
+              onOpenProfile={(userId) => openProfile(userId, post.id)}
+
             />
           ))}
         </div>

@@ -278,6 +278,8 @@ export default function DiscoverPage() {
   const [skillMeta, setSkillMeta] = useState({ message: '', totalPosts: 0, hasMore: false, nextCursor: null });
   const [skillLoading, setSkillLoading] = useState(false);
   const [skillError, setSkillError] = useState('');
+  const [skillCounts, setSkillCounts] = useState({});
+
   /* auto-advance slider */
   useEffect(() => {
     if (paused) return undefined;
@@ -437,7 +439,20 @@ export default function DiscoverPage() {
     setSkillMode(true);
     setConnMode(false);
     setTopic('');
+    loadSkillCounts();
     setTimeout(goToPosts, 50);
+  };
+
+  const loadSkillCounts = async () => {
+    try {
+      const rows = await discoverService.getSkillCounts();
+      const byId = {};
+      rows.forEach((r) => { byId[r.skillId] = Number(r.postCount) || 0; });
+      setSkillCounts(byId);
+    } catch (err) {
+      console.warn('[Discover] could not load skill counts:', err.message);
+      // the dropdown still works without counts
+    }
   };
 
   const selectSkill = (name) => {
@@ -666,9 +681,15 @@ export default function DiscoverPage() {
                 <option value="" disabled>Select a skill…</option>
                 {CURIOSITY_DOMAINS.map((domain) => (
                   <optgroup key={domain.id} label={domain.label}>
-                    {[...new Set(domain.skills)].map((name) => (
-                      <option key={name} value={name}>{name}</option>
-                    ))}
+                    {[...new Set(domain.skills)].map((name) => {
+                      const id = skillIds[String(name).trim().toLowerCase()];
+                      const count = skillCounts[id];
+                      return (
+                        <option key={name} value={name}>
+                          {count != null ? `${name} (${count})` : name}
+                        </option>
+                      );
+                    })}
                   </optgroup>
                 ))}
               </select>
@@ -867,7 +888,7 @@ export default function DiscoverPage() {
         </section>
 
 
+      </div>
     </div>
-  </div>
   );
 }

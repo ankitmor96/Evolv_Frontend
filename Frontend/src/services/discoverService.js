@@ -14,13 +14,40 @@ const getToken = () =>
 // ── Fill in creator name/avatar when the API only sends userId ──
 const profileCache = new Map();
 
+// Used when /api/profile/:id/complete returns 404 (user has no profile record).
+// Takes the creator's name from that user's own posts, like UserProfilePage does.
+async function fetchCreatorFallback(userId) {
+  try {
+    const rows = await userProfileService.getUserPosts(userId);
+    const first = rows?.[0];
+    if (!first) return null;
+
+    const post = homePostService._normalisePost({
+      ...first,
+      userId: first.userId ?? userId,
+      user: first.user
+        ? { ...first.user, id: first.user.id ?? first.userId ?? userId }
+        : { id: userId },
+    });
+
+    const c = post.creator;
+    if (!c?.name && !c?.username) return null;
+    return { name: c.name, username: c.username, avatar: c.avatar, field: c.field };
+  } catch {
+    return null;
+  }
+}
+
 function loadProfile(userId) {
   const key = String(userId);
   if (!profileCache.has(key)) {
-    const promise = userProfileService.getUserProfile(userId).catch(() => null);
+    const promise = userProfileService
+      .getUserProfile(userId)
+      .catch(() => null)
+      .then((prof) => prof ?? fetchCreatorFallback(userId));
+    // The result is cached even when it is null, so a user with no profile
+    // does not trigger a new 404 on every render.
     profileCache.set(key, promise);
-    // don't keep failed lookups, so they can be retried
-    promise.then((p) => { if (!p) profileCache.delete(key); });
   }
   return profileCache.get(key);
 }
@@ -118,4 +145,23 @@ export const discoverService = {
   getSkillPosts({ skillId, limit = 12, cursor = null }) {
     return getJson(`/api/discover/skills/${skillId}/posts`, { limit, cursor });
   },
+  // NEW
+  getCuriosityPosts({ limit = 12, cursor = null } = {}) {
+    return getJson('/api/discover/curiosities/posts', { limit, cursor });
+  },
+  getSkillCounts() {
+    return getSkillCountsJson();
+  },
 };
+async function getSkillCountsJson() {
+  const token = getToken();
+  const res = await fetch(`${ORIGIN}/api/discover/skills/counts`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (res.status === 401 && token) forceLogout();
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json?.message || `Request failed (${res.status})`);
+
+  return Array.isArray(json.data) ? json.data : [];
+}

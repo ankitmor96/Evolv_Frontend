@@ -219,8 +219,9 @@ export default function UserProfilePage() {
         <button type="button" className="up-back" onClick={goBack} aria-label="Go back">
           <ArrowLeft size={22} />
         </button>
-        <h1 className="up-header-title">{profile?.username ? `@${profile.username}` : 'Profile'}</h1>
-      </header>
+        <h1 className="up-header-title">
+          {profile?.username ? `@${profile.username}` : profile?.name || 'Profile'}
+        </h1>      </header>
 
       <main className="up-body">
         {loading && <p className="up-note">Loading profile...</p>}
