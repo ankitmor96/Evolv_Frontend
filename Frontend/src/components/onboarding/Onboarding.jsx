@@ -1618,6 +1618,7 @@ const handleLogout = () => {
         }
 
         @media (max-width: 768px) {
+        .skill-tabs { grid-template-columns: 1fr; }
           .ob-page { padding: 12px; }
           .ob-frame {
             min-height: calc(100vh - 24px);
@@ -1767,6 +1768,71 @@ const handleLogout = () => {
 .username-rule.ok .username-rule-icon { background: rgba(22, 160, 93, 0.15); }
 .username-rule.bad { color: #d1293d; }
 .username-rule.bad .username-rule-icon { background: rgba(209, 41, 61, 0.12); }
+
+/* ─── Step 3: 3 list tabs ─── */
+.skill-tabs {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.skill-tab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--white, #FFFFFF);
+  border: 2px solid var(--dark, #09030F);
+  border-radius: 12px;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: left;
+  color: var(--dark, #09030F);
+  cursor: pointer;
+  transition: background 200ms ease, color 200ms ease, transform 200ms ease, box-shadow 200ms ease;
+}
+.skill-tab:hover { transform: translateY(-1px); box-shadow: 2px 3px 0 rgba(9, 3, 15, 0.16); }
+.skill-tab.active {
+  background: var(--dark, #09030F);
+  color: var(--white, #FFFFFF);
+  box-shadow: 2px 3px 0 rgba(9, 3, 15, 0.25);
+}
+.skill-tab-count {
+  min-width: 22px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(169, 67, 245, 0.14);
+  color: var(--purple, #A943F5);
+  font-size: 0.66rem;
+  text-align: center;
+}
+.skill-tab.active .skill-tab-count { background: var(--purple, #A943F5); color: #fff; }
+.skill-tab-sub { margin: 10px 2px 0; font-size: 0.78rem; color: #77727F; }
+
+/* skill that already sits in another list */
+.ob-chip.in-other { border-style: dashed; opacity: 0.6; }
+.chip-tag {
+  margin-left: 2px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(169, 67, 245, 0.14);
+  color: var(--purple, #A943F5);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+/* summary groups */
+.skill-summary-group { margin-top: 12px; }
+.skill-summary-title {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  color: var(--purple, #A943F5);
+}
       `}</style>
     </main>
   );
