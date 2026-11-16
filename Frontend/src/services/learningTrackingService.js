@@ -127,27 +127,29 @@ export const learningTrackingService = {
     };
   },
   /** @param {'month'|'all'} period */
-async getSkillDistribution(period = 'month') {
-  const res = await request(
-    `/api/v1/learning/skill-interest-distribution?period=${period}`,
-    { method: 'GET' }
-  );
-  const rows = Array.isArray(res?.skill_distribution) ? res.skill_distribution : [];
+  async getSkillDistribution(period = 'month') {
+    const res = await request(
+      `/api/v1/learning/skill-interest-distribution?period=${period}`,
+      { method: 'GET' }
+    );
+    const rows = Array.isArray(res?.skill_distribution) ? res.skill_distribution : [];
 
-  const items = rows
-    .map((r) => ({
-      label: String(r.skill_name ?? r.skill ?? r.name ?? r.label ?? '').trim(),
-      count: Number(r.count ?? r.posts_explored ?? r.value ?? 0),
-      percentage: Number(r.percentage ?? 0),
-    }))
-    .filter((i) => i.label);
+    const items = rows
+      .map((r) => ({
+        skillId: r.skillId ?? r.skill_id ?? null,
+        label: String(
+          r.skillName ?? r.skill_name ?? r.skill ?? r.name ?? r.label ?? ''
+        ).trim(),
+        count: Number(r.count ?? r.posts_explored ?? r.value ?? 0),
+        percentage: Number(r.percentage ?? 0),
+      }))
+      .filter((i) => i.label);
 
-  return {
-    total: Number(res?.total_posts_explored ?? 0),
-    highlighted: res?.highlighted_skill ?? null,
-    items,
-  };
-},
-};
+    return {
+      total: Number(res?.total_posts_explored ?? 0),
+      highlighted: res?.highlighted_skill ?? null,
+      items,
+    };
+  },};
 
 export default learningTrackingService;

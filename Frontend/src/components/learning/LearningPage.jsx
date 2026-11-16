@@ -354,10 +354,12 @@ export default function LearningPage() {
   // Top 5 skills + "Other", from the API
   const skillParts = useMemo(() => {
     const sorted = [...skillDist.items]
-      .map((i) => ({ label: i.label, value: i.count > 0 ? i.count : i.percentage }))
+      .map((i) => ({
+        label: i.label ?? i.skillName ?? 'Other',
+        value: i.count > 0 ? i.count : i.percentage,
+      }))
       .filter((i) => i.value > 0)
       .sort((a, b) => b.value - a.value);
-
     const top = sorted.slice(0, 5);
     const otherValue = sorted.slice(5).reduce((s, i) => s + i.value, 0);
     return otherValue > 0 ? [...top, { label: 'Other', value: otherValue }] : top;
@@ -431,7 +433,7 @@ export default function LearningPage() {
                     value={learnedCount ?? 0}
                     label="Total Learned"
                     tone="green"
-                  />                  
+                  />
                   <Stat
                     icon={Flame}
                     value={streak.currentStreak}

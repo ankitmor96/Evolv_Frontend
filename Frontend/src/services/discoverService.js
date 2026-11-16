@@ -38,15 +38,28 @@ async function fetchCreatorFallback(userId) {
   }
 }
 
+// function loadProfile(userId) {
+//   const key = String(userId);
+//   if (!profileCache.has(key)) {
+//     const promise = userProfileService
+//       .getUserProfile(userId)
+//       .catch(() => null)
+//       .then((prof) => prof ?? fetchCreatorFallback(userId));
+//     // The result is cached even when it is null, so a user with no profile
+//     // does not trigger a new 404 on every render.
+//     profileCache.set(key, promise);
+//   }
+//   return profileCache.get(key);
+// }
+
 function loadProfile(userId) {
   const key = String(userId);
   if (!profileCache.has(key)) {
-    const promise = userProfileService
-      .getUserProfile(userId)
-      .catch(() => null)
-      .then((prof) => prof ?? fetchCreatorFallback(userId));
-    // The result is cached even when it is null, so a user with no profile
-    // does not trigger a new 404 on every render.
+    // 1) posts endpoint first (works even when the user has no profile record)
+    // 2) full profile only if that found nothing
+    const promise = fetchCreatorFallback(userId).then(
+      (creator) => creator ?? userProfileService.getUserProfile(userId).catch(() => null)
+    );
     profileCache.set(key, promise);
   }
   return profileCache.get(key);

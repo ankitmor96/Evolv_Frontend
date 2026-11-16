@@ -573,13 +573,6 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
     flex-shrink: 0;
   }
 
-  .hp-motivational-card {
-    margin: 8px 12px 12px;
-    padding: 14px;
-    background: #1a0a2e;
-    border-radius: 12px;
-  }
-
   .hp-motivational-quote {
     font-size: 13px;
     font-weight: 700;
@@ -686,14 +679,7 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
           </ul>
         </div>
 
-        {/* Spacer */}
-        <div className="hp-sidebar-spacer" />
 
-        {/* Motivational card */}
-        <div className="hp-motivational-card" aria-label="Daily motivation">
-          <p className="hp-motivational-quote">Consistency over consumption.</p>
-          <p className="hp-motivational-sub">You're here to grow, not just scroll.</p>
-        </div>
 
         {/* Create button */}
         <div className="hp-sidebar-footer">
@@ -742,9 +728,68 @@ function HomeSidebar({ user, activeNav = 'home', isSidebarOpen, setIsSidebarOpen
 function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRightSidebar }) {
   const { bell: pendingCount, messages: messageCount } = useUnreadCounts();
 
+  const [search, setSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const searchBoxRef = useRef(null);
+
+  // Debounced API call
+  useEffect(() => {
+    const q = search.trim();
+
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      setSearchError('');
+      return undefined;
+    }
+
+    let cancelled = false;
+    setSearchLoading(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const people = await userSearchService.searchUsers(q);
+        if (cancelled) return;
+        setSearchResults(people);
+        setSearchError('');
+      } catch (err) {
+        if (cancelled) return;
+        console.error('[HomeHeader] Search failed:', err);
+        setSearchResults([]);
+        setSearchError('Could not search right now. Please try again.');
+      } finally {
+        if (!cancelled) setSearchLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [search]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target)) {
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
+
+  const handleSelectPerson = (person) => {
+    setSearchOpen(false);
+    setSearch('');
+    openUserProfile(person.id);
+  };
+
   return (
-    <header className="hp-feed-header" style={{ marginTop: "10px" }}>
-      {/* ── Hamburger: visible only on mobile ── */}
+    <header className="hp-feed-header" style={{ marginTop: '10px' }}>
       <button
         type="button"
         className="hp-mobile-menu-btn"
@@ -755,8 +800,63 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
         <Menu size={22} aria-hidden="true" />
       </button>
 
-      <div className="hp-feed-header-right" style={{ display: "flex", justifyContent: "end", alignItems: "center", gap: "8px" }}>
-        {/* Search: mobile only */}
+      {/* Search (desktop) */}
+      <div className="hp-search-wrap hp-header-search" ref={searchBoxRef}>
+        <div className="hp-search-bar">
+          <Search size={16} className="hp-search-icon" aria-hidden="true" />
+          <input
+            type="search"
+            placeholder="Search people, skills, interests..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setSearchOpen(true); }}
+            onFocus={() => setSearchOpen(true)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && searchResults.length > 0) {
+                handleSelectPerson(searchResults[0]);
+              }
+              if (e.key === 'Escape') setSearchOpen(false);
+            }}
+            className="hp-search-input"
+            aria-label="Search people, skills, and interests"
+            aria-expanded={searchOpen}
+            autoComplete="off"
+          />
+        </div>
+
+        {searchOpen && search.trim().length >= 2 && (
+          <div className="hp-search-dropdown" role="listbox" aria-label="Search results">
+            {searchLoading && <p className="hp-search-status">Searching...</p>}
+
+            {!searchLoading && searchError && (
+              <p className="hp-search-status error">{searchError}</p>
+            )}
+
+            {!searchLoading && !searchError && searchResults.length === 0 && (
+              <p className="hp-search-status">No people found for "{search.trim()}".</p>
+            )}
+
+            {!searchLoading && searchResults.map((person) => (
+              <button
+                key={person.id}
+                type="button"
+                role="option"
+                className="hp-search-result"
+                onClick={() => handleSelectPerson(person)}
+              >
+                <Avatar src={person.avatar} name={person.name} size={34} />
+                <span className="hp-search-result-info">
+                  <span className="hp-search-result-name">{person.name}</span>
+                  <span className="hp-search-result-sub">
+                    {person.username ? `@${person.username}` : person.field}
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="hp-feed-header-right" style={{ display: 'flex', justifyContent: 'end', alignItems: 'center', gap: '12px' }}>
         <button
           type="button"
           className="hp-icon-btn hp-mobile-search-btn"
@@ -765,12 +865,12 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
         >
           <Search size={20} aria-hidden="true" />
         </button>
-        {/* Messages */}
+
         <button
           className="hp-icon-btn"
           aria-label={`Messages${messageCount ? ` (${messageCount} new)` : ''}`}
           onClick={() => navigate('/messages')}
-          style={{ marginRight: "10px" }}
+          style={{ marginRight: '10px' }}
         >
           <MessageCircle size={20} aria-hidden="true" />
           {messageCount > 0 && (
@@ -779,7 +879,7 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
             </span>
           )}
         </button>
-        {/* Notification bell */}
+
         <button
           className="hp-icon-btn"
           aria-label={`Notifications${pendingCount ? ` (${pendingCount} new)` : ''}`}
@@ -793,9 +893,6 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
           )}
         </button>
 
-        &nbsp;
-
-        {/* Right-sidebar toggle: only on mobile */}
         <button
           type="button"
           className="hp-mobile-filter-btn"
@@ -805,7 +902,6 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
           <LayoutDashboard size={20} aria-hidden="true" />
         </button>
 
-        {/* Profile avatar — navigates to #/profile on click */}
         <button
           type="button"
           className="hp-mobile-user-btn"
@@ -819,7 +915,6 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
             size={34}
           />
         </button>
-
       </div>
     </header>
   );
@@ -828,46 +923,46 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
 // ─────────────────────────────────────────────────────────────────────────────
 // INTEREST TABS
 // ─────────────────────────────────────────────────────────────────────────────
-function InterestTabs({ active, onChange, tabs = INTEREST_TABS }) {
-  const scrollRef = useRef(null);
+// function InterestTabs({ active, onChange, tabs = INTEREST_TABS }) {
+//   const scrollRef = useRef(null);
 
-  const scroll = (dir) => {
-    const el = scrollRef.current;
-    if (el) el.scrollBy({ left: dir * 200, behavior: 'smooth' });
-  };
+//   const scroll = (dir) => {
+//     const el = scrollRef.current;
+//     if (el) el.scrollBy({ left: dir * 200, behavior: 'smooth' });
+//   };
 
-  return (
-    <div className="hp-tabs-wrapper" role="navigation" aria-label="Interest filter tabs">
-      <button
-        className="hp-tabs-arrow left"
-        onClick={() => scroll(-1)}
-        aria-label="Scroll tabs left"
-      >
-        <ChevronLeft size={16} aria-hidden="true" />
-      </button>
-      <div className="hp-tabs-scroll" ref={scrollRef} role="list">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            role="listitem"
-            className={`hp-tab ${active === tab ? 'active' : ''}`}
-            onClick={() => onChange(tab)}
-            aria-pressed={active === tab}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-      <button
-        className="hp-tabs-arrow right"
-        onClick={() => scroll(1)}
-        aria-label="Scroll tabs right"
-      >
-        <ChevronRight size={16} aria-hidden="true" />
-      </button>
-    </div>
-  );
-}
+//   return (
+//     <div className="hp-tabs-wrapper" role="navigation" aria-label="Interest filter tabs">
+//       <button
+//         className="hp-tabs-arrow left"
+//         onClick={() => scroll(-1)}
+//         aria-label="Scroll tabs left"
+//       >
+//         <ChevronLeft size={16} aria-hidden="true" />
+//       </button>
+//       <div className="hp-tabs-scroll" ref={scrollRef} role="list">
+//         {tabs.map((tab) => (
+//           <button
+//             key={tab}
+//             role="listitem"
+//             className={`hp-tab ${active === tab ? 'active' : ''}`}
+//             onClick={() => onChange(tab)}
+//             aria-pressed={active === tab}
+//           >
+//             {tab}
+//           </button>
+//         ))}
+//       </div>
+//       <button
+//         className="hp-tabs-arrow right"
+//         onClick={() => scroll(1)}
+//         aria-label="Scroll tabs right"
+//       >
+//         <ChevronRight size={16} aria-hidden="true" />
+//       </button>
+//     </div>
+//   );
+// }
 
 function openReel(postId) {
   sessionStorage.setItem('evolv-reel-start', String(postId));
@@ -1466,12 +1561,7 @@ function RightSidebar({ user, isOpen, onClose }) {
     return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
 
-  const handleSelectPerson = (person) => {
-    setSearchOpen(false);
-    setSearch('');
-    onClose?.();
-    openUserProfile(person.id);
-  };
+
 
   const filteredPeople = CREATORS.slice(0, 3);
 
@@ -1957,29 +2047,6 @@ body {
 
         {/* Search */}
         <div className="hp-search-wrap" ref={searchBoxRef}>
-          <div className="hp-search-bar">
-            <Search size={16} className="hp-search-icon" aria-hidden="true" />
-            <input
-              type="search"
-              placeholder="Search people, skills, interests..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setSearchOpen(true); }}
-              onFocus={() => setSearchOpen(true)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && searchResults.length > 0) {
-                  handleSelectPerson(searchResults[0]);
-                }
-                if (e.key === 'Escape') setSearchOpen(false);
-              }}
-              className="hp-search-input"
-              aria-label="Search people, skills, and interests"
-              aria-expanded={searchOpen}
-              autoComplete="off"
-            />
-            <button className="hp-search-filter" aria-label="Filter search results">
-              <SlidersHorizontal size={16} aria-hidden="true" />
-            </button>
-          </div>
 
           {searchOpen && search.trim().length >= 2 && (
             <div className="hp-search-dropdown" role="listbox" aria-label="Search results">
@@ -3728,7 +3795,7 @@ function HomeFeed({ user, onOpenSidebar, onOpenRightSidebar }) {
         onOpenSidebar={onOpenSidebar}
         onOpenRightSidebar={onOpenRightSidebar}
       />
-      <InterestTabs active={activeTab} onChange={setActiveTab} tabs={FEED_TABS} />
+      {/* <InterestTabs active={activeTab} onChange={setActiveTab} tabs={FEED_TABS} /> */}
 
       {/* Middle Feed */}
       <main className="hp-feed" ref={feedScrollRef} aria-label="Social feed" style={{ overflowX: "hidden", overflowY: "auto", gap: "5px" }}>
