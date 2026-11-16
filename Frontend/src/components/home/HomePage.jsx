@@ -789,7 +789,7 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
   };
 
   return (
-    <header className="hp-feed-header" style={{ marginTop: '10px' }}>
+    <header className="hp-feed-header" style={{ marginTop: '10px',gap:"10px" }}>
       <button
         type="button"
         className="hp-mobile-menu-btn"
@@ -1493,9 +1493,9 @@ const GROWTH_PROGRESS = [
   { label: 'System Design', pct: 60, colorClass: 'pink' },
 ];
 const RECENTLY_LEARNED = [
-  { topic: 'RAG architecture', when: '2d ago' },
-  { topic: 'Vector databases', when: '4d ago' },
-  { topic: 'Prompt engineering', when: '1w ago' },
+  { topic: 'Python', when: '2d ago' },
+  { topic: 'AI/ML', when: '4d ago' },
+  { topic: 'Photography', when: '1w ago' },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1513,6 +1513,9 @@ function RightSidebar({ user, isOpen, onClose }) {
   const [searchError, setSearchError] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const searchBoxRef = useRef(null);
+  const [learningStats, setLearningStats] = useState([]);
+  const [learningLoading, setLearningLoading] = useState(true);
+  const [learningError, setLearningError] = useState('');
 
   // Debounced API call
   useEffect(() => {
@@ -1673,6 +1676,28 @@ function RightSidebar({ user, isOpen, onClose }) {
     return () => {
       cancelled = true;
     };
+  }, []);
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      setLearningLoading(true);
+      setLearningError('');
+      try {
+        const { skills } = await homePostService.getLearningSkillStats();
+        if (!cancelled) setLearningStats(skills);
+      } catch (err) {
+        console.error('[RightSidebar] Failed to load learning stats:', err);
+        if (!cancelled) {
+          setLearningStats([]);
+          setLearningError('Could not load your learning progress.');
+        }
+      } finally {
+        if (!cancelled) setLearningLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, []);
   return (
     <>
@@ -2020,6 +2045,31 @@ body {
   color: #9688a5;
   font-size: 12px;
 }
+  .hp-growth-note {
+  margin: 12px 0 4px;
+  font-size: 13px;
+  color: #8b7aa3;
+}
+.hp-growth-note.error { color: #dc2626; }
+
+.hp-growth-stats {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.hp-growth-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #8b7aa3;
+}
+.hp-growth-stat.appreciate { color: #ef476f; }
+.hp-growth-stat.helpful    { color: #5b5cf0; }
+.hp-growth-stat.learned    { color: #16a05d; }
 
 `}</style>
       {/* Right-sidebar backdrop (mobile only) */}
@@ -2082,17 +2132,17 @@ body {
         </div>
 
         {/* Your Growth */}
+        {/* Your Growth */}
         <section className="hp-right-card" aria-labelledby="growth-heading">
           <div className="hp-right-card-header">
             <h2 id="growth-heading" className="hp-right-card-title">Your Growth</h2>
-            <button
-              className="hp-view-all-btn"
-              onClick={() => navigate('/profile')}            >
+            <button className="hp-view-all-btn" onClick={() => navigate('/profile')}>
               View Profile →
             </button>
           </div>
+
           <div className="hp-growth-tabs" role="tablist" aria-label="Growth view">
-            {['Learning', 'Skills'].map(t => (
+            {['Learning', 'Skills'].map((t) => (
               <button
                 key={t}
                 role="tab"
@@ -2104,44 +2154,89 @@ body {
               </button>
             ))}
           </div>
-          {growthLoading ? (
-            <p>Loading your growth...</p>
-          ) : (
+
+          {/* ───────── LEARNING TAB (from skill-stats API) ───────── */}
+          {growthTab === 'Learning' && (
             <>
-              {growthItems
-                .filter((item) =>
-                  growthTab === "Learning"
-                    ? item.relationshipType === "LEARNING" ||
-                    item.relationshipType === "WANT_TO_IMPROVE"
-                    : item.relationshipType === "CAN_DO"
-                )
-                .map((item) => (
-                  <div key={`${item.label}-${item.relationshipType}`}
-                    className="hp-progress-item">
-                    <div className="hp-progress-label">
-                      <span>{item.label}</span>
-                      <span className="hp-progress-pct">Selected</span>
-                    </div>
+              {learningLoading ? (
+                <p className="hp-growth-note">Loading your growth...</p>
+              ) : learningError ? (
+                <p className="hp-growth-note error">{learningError}</p>
+              ) : learningStats.length === 0 ? (
+                <p className="hp-growth-note">
+                  No learning activity yet. Explore and react to posts to see your progress.
+                </p>
+              ) : (
+                (() => {
+                  const maxExplored = Math.max(...learningStats.map((s) => s.exploredPostCount), 1);
+                  return learningStats.map((s) => {
+                    const pct = Math.round((s.exploredPostCount / maxExplored) * 100);
+                    return (
+                      <div key={s.skillId} className="hp-progress-item">
+                        <div className="hp-progress-label">
+                          <span>{s.skillName}</span>
+                          <span className="hp-progress-pct">
+                            {s.exploredPostCount} post{s.exploredPostCount === 1 ? '' : 's'} explored
+                          </span>
+                        </div>
 
-                    <div className="hp-progress-track">
-                      <div
-                        className="hp-progress-fill"
-                        style={{ width: "100%" }}
-                        role="img"
-                        aria-label={`${item.label}, selected skill`}
-                      />
-                    </div>
-                  </div>
-                ))}
+                        <div className="hp-progress-track">
+                          <div
+                            className="hp-progress-fill"
+                            style={{ width: `${pct}%` }}
+                            role="img"
+                            aria-label={`${s.skillName}, ${s.exploredPostCount} posts explored`}
+                          />
+                        </div>
 
-              {growthItems.filter((item) =>
-                growthTab === "Learning"
-                  ? item.relationshipType === "LEARNING" ||
-                  item.relationshipType === "WANT_TO_IMPROVE"
-                  : item.relationshipType === "CAN_DO"
-              ).length === 0 && (
-                  <p>No skills selected in this section yet.</p>
-                )}
+                        <div className="hp-growth-stats">
+                          <span className="hp-growth-stat appreciate" title="Appreciated">
+                            <Heart size={12} aria-hidden="true" /> {s.appreciate}
+                          </span>
+                          <span className="hp-growth-stat helpful" title="Helpful">
+                            <Sparkles size={12} aria-hidden="true" /> {s.helpful}
+                          </span>
+                          <span className="hp-growth-stat learned" title="Learned">
+                            <CheckCircle2 size={12} aria-hidden="true" /> {s.learned}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()
+              )}
+            </>
+          )}
+
+          {/* ───────── SKILLS TAB (existing user-skills data) ───────── */}
+          {growthTab === 'Skills' && (
+            <>
+              {growthLoading ? (
+                <p className="hp-growth-note">Loading your skills...</p>
+              ) : (
+                (() => {
+                  const canDo = growthItems.filter((i) => i.relationshipType === 'CAN_DO');
+                  if (canDo.length === 0) {
+                    return <p className="hp-growth-note">No skills selected in this section yet.</p>;
+                  }
+                  return canDo.map((item) => (
+                    <div key={`${item.label}-${item.relationshipType}`} className="hp-progress-item">
+                      <div className="hp-progress-label">
+                        <span>{item.label}</span>
+                        <span className="hp-progress-pct">Selected</span>
+                      </div>
+                      <div className="hp-progress-track">
+                        <div
+                          className="hp-progress-fill"
+                          style={{ width: '100%' }}
+                          role="img"
+                          aria-label={`${item.label}, selected skill`}
+                        />
+                      </div>
+                    </div>
+                  ));
+                })()
+              )}
             </>
           )}
         </section>
@@ -2165,27 +2260,9 @@ body {
           </ul>
         </section>
 
-        {/* Continue your learning journey */}
-        <section className="hp-right-card" aria-label="Continue your learning journey">
-          <div className="hp-continue-card">
-            <div className="hp-continue-icon" aria-hidden="true">
-              <Sparkles size={16} />
-            </div>
-            <div className="hp-continue-body">
-              <p className="hp-continue-title">Continue your learning journey</p>
-              <p className="hp-continue-sub">Explore new content based on your goals.</p>
-            </div>
-            <button
-              className="hp-continue-arrow"
-              aria-label="Go to Discover"
-              onClick={() => navigate('/explore-gems')}            >
-              <ArrowRight size={14} aria-hidden="true" />
-            </button>
-          </div>
-        </section>
 
         {/* People to Learn From */}
-        <section className="hp-right-card" aria-labelledby="people-heading">
+        {/* <section className="hp-right-card" aria-labelledby="people-heading">
           <div className="hp-right-card-header">
             <h2 id="people-heading" className="hp-right-card-title">People to Learn From</h2>
             <button
@@ -2218,23 +2295,8 @@ body {
               );
             })}
           </ul>
-        </section>
+        </section> */}
 
-        {/* Recommended for You */}
-        <section className="hp-right-card" aria-labelledby="recommended-heading">
-          <div className="hp-right-card-header">
-            <h2 id="recommended-heading" className="hp-right-card-title">Recommended for You</h2>
-            <button className="hp-view-all-btn">Why this?</button>
-          </div>
-          <div className="hp-recommended-body">
-            <div className="hp-recommended-icon" aria-hidden="true">
-              <Sparkles size={16} />
-            </div>
-            <p className="hp-recommended-text">
-              Because you're learning <strong>Artificial Intelligence</strong>
-            </p>
-          </div>
-        </section>
 
       </aside>
     </>

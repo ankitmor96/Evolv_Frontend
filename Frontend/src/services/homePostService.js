@@ -601,6 +601,34 @@ export const homePostService = {
       return 0;
     }
   },
+    // ── Your Growth: learning skill stats ─────────────────────────────────────
+  /**
+   * GET /api/posts/learning/skill-stats
+   * Response: { success, totalSkills, data: [{ skillId, skillName,
+   *   exploredPostCount, reactionRanking: { APPRECIATE, HELPFUL, LEARNED } }] }
+   */
+  async getLearningSkillStats() {
+    const result = await request('/api/posts/learning/skill-stats', { method: 'GET' });
+
+    const list = Array.isArray(result?.data) ? result.data : [];
+
+    const skills = list
+      .map((s) => ({
+        skillId: s.skillId,
+        skillName: s.skillName ?? '',
+        exploredPostCount: Number(s.exploredPostCount ?? 0),
+        appreciate: Number(s.reactionRanking?.APPRECIATE ?? 0),
+        helpful: Number(s.reactionRanking?.HELPFUL ?? 0),
+        learned: Number(s.reactionRanking?.LEARNED ?? 0),
+      }))
+      .filter((s) => s.skillName)
+      .sort((a, b) => b.exploredPostCount - a.exploredPostCount);
+
+    return {
+      totalSkills: Number(result?.totalSkills ?? skills.length),
+      skills,
+    };
+  },
   /**
    * Uses GET /api/posts/:id/comments/count (one call per post, in parallel).
    */
