@@ -109,6 +109,64 @@
 
 }
 
+/* ─── Document card (same look as My Posts) ─── */
+.hp-doc-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  padding: 36px 20px 28px;
+  margin: 8px 0;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #f8f4ff 0%, #efe8fb 100%);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.hp-doc-card:hover { background: linear-gradient(180deg, #f3ecff 0%, #e8defa 100%); }
+
+.hp-doc-icon {
+  width: 76px;
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  background: #fff;
+  color: #aa45f5;
+  box-shadow: 0 4px 14px rgba(170, 69, 245, 0.15);
+}
+
+.hp-doc-name {
+  margin: 8px 0 0;
+  max-width: 100%;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.4;
+  color: #1a0a2e;
+  word-break: break-word;
+}
+
+.hp-doc-sub { font-size: 0.85rem; color: #77727f; }
+
+.hp-doc-open {
+  margin-top: 8px;
+  padding: 11px 34px;
+  border: none;
+  border-radius: 12px;
+  background: #aa45f5;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+.hp-doc-open:hover { background: #9532e0; transform: translateY(-1px); }
+
+@media (max-width: 767px) {
+  .hp-doc-card { padding: 28px 14px 22px; }
+  .hp-doc-name { font-size: 0.95rem; }
+}
 
 
 .hp-logo-img {
@@ -4812,7 +4870,7 @@
 
 /* ── Text post ─────────────────────────────── */
 .hp-text-post {
-  margin: 4px 0 12px;
+  margin: 4px 12px;
   font-size: 16px;
   line-height: 1.7;
   color: #2d1b4e;

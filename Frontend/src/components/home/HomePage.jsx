@@ -1016,6 +1016,45 @@ function AchievementPostBody({ post }) {
     </div>
   );
 }
+const DOC_EXT = /\.(pdf|docx?|pptx?|xlsx?|txt|csv)$/i;
+
+// Detects a document post, whatever shape the API sends
+const isDocumentPost = (post) =>
+  post.media?.type === 'document' ||
+  post.postType === 'DOCUMENT' ||
+  post.media?.mediaType === 'DOCUMENT' ||
+  (post.kind === 'text' && DOC_EXT.test(String(post.caption || post.content || '').trim()));
+
+function DocumentCard({ post, onOpen }) {
+  const name =
+    post.media?.fileName ||
+    (DOC_EXT.test(String(post.caption || '')) ? post.caption : '') ||
+    'Document';
+
+  return (
+    <div
+      className="hp-doc-card"
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(post.id)}
+      onKeyDown={(e) => { if (e.key === 'Enter') onOpen(post.id); }}
+      aria-label={`Open document ${name}`}
+    >
+      <div className="hp-doc-icon">
+        <FileText size={38} aria-hidden="true" />
+      </div>
+      <h3 className="hp-doc-name">{name}</h3>
+      <span className="hp-doc-sub">Document attachment</span>
+      <button
+        type="button"
+        className="hp-doc-open"
+        onClick={(e) => { e.stopPropagation(); onOpen(post.id); }}
+      >
+        Open
+      </button>
+    </div>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FEED POST
@@ -1063,15 +1102,20 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
     currentUserId != null &&
     creatorId != null &&
     String(currentUserId) === String(creatorId);
-  const isTextKind = ['text', 'article', 'question', 'achievement'].includes(post.kind);
+  const isDocument = isDocumentPost(post);
+  const isTextKind =
+    !isDocument && ['text', 'article', 'question', 'achievement'].includes(post.kind);
 
   // ── Learning tracking (images + text-style posts) ──
   // Videos are tracked in ReelsPage, documents in the document viewer.
-  const trackType = isTextKind
-    ? (post.kind === 'article' ? 'document' : 'text')
-    : post.media?.type === 'image'
-      ? 'image'
-      : null;
+  const trackType = isDocument
+    ? 'document'
+    : isTextKind
+      ? (post.kind === 'article' ? 'document' : 'text')
+      : post.media?.type === 'image'
+        ? 'image'
+        : null;
+
   const [trackRef, inView] = useInView(0.5);
   useLearningTracker({
     // skip untracked kinds and local-only posts (their ids aren't numeric)
@@ -1151,43 +1195,14 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
       {post.kind === 'question' && <QuestionPostBody post={post} onDiscuss={onDiscuss} />}
       {post.kind === 'achievement' && <AchievementPostBody post={post} />}
       {!isTextKind &&
-        post.caption &&
-        !(post.media?.type === 'document' && post.caption === post.media.fileName) &&
-        !/\.(pdf|docx?|pptx?|xlsx?|txt|csv)$/i.test(post.caption) && (
+        !isDocument &&
+        post.caption && (
           <p className="hp-post-caption">{post.caption}</p>
         )}
 
       {/* Media */}
-      {isTextKind ? null : post.media.type === 'document' ? (
-        <div
-          className="hp-document-card hp-document-clickable"
-          onClick={() => openDocument(post.id)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => { if (e.key === 'Enter') openDocument(post.id); }}
-          aria-label={`Open document ${post.media.fileName || ''}`}
-        >
-          <div className="hp-document-icon">
-            <BookOpen size={28} aria-hidden="true" />
-          </div>
-
-          <div className="hp-document-info">
-            <p className="hp-document-name">
-              {post.media.fileName || 'Document'}
-            </p>
-            <span>Document attachment</span>
-          </div>
-
-          <div className="hp-document-actions" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className="hp-document-view"
-              onClick={() => openDocument(post.id)}
-            >
-              View
-            </button>
-          </div>
-        </div>
+      {isTextKind ? null : isDocument ? (
+        <DocumentCard post={post} onOpen={openDocument} />
       ) : post.media.type === 'video' ? (
         <FeedVideo post={post} />
       ) : post.media.type === 'image' && post.media.src ? (
