@@ -89,7 +89,7 @@ const NEW_TOPICS = [
 ];
 
 const JOURNEY = [
-  { icon: Compass, text: "Follow topics you're interested in" },
+  { icon: Compass, text: "Follow topics you're curious about" },
   { icon: Sparkles, text: 'Explore new skills and questions' },
   { icon: Users, text: 'Connect with people who share knowledge' },
   { icon: Route, text: 'Track what you want to improve' },
@@ -727,7 +727,7 @@ export default function DiscoverPage() {
         {/* ───── Header ───── */}
         <header className="dx-header">
           <h1>Discover</h1>
-          <p>Explore what interests you. Learn new skills. Become a better you.</p>
+          <p>Explore what makes you curious. Learn new skills. Become a better you.</p>
         </header>
 
         {/* ───── Search ───── */}
@@ -910,7 +910,7 @@ export default function DiscoverPage() {
           </div>
 
           {loading ? (
-            <p className="dx-muted">Loading your interests...</p>
+            <p className="dx-muted">Loading your curiosities...</p>
           ) : improveCards.length === 0 ? (
             <p className="dx-muted">Add skills to your profile to get personal picks here.</p>
           ) : (

@@ -817,7 +817,7 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
               if (e.key === 'Escape') setSearchOpen(false);
             }}
             className="hp-search-input"
-            aria-label="Search people, skills, and interests"
+            aria-label="Search people"
             aria-expanded={searchOpen}
             autoComplete="off"
           />

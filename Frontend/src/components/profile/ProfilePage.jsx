@@ -69,6 +69,7 @@ import useTheme from '../hooks/useTheme.js';
 import './ProfilePage.css';
 import { navigate } from '../../utils/navigate.js';
 import { learnedService } from '../../services/learnedService.js';
+import { buildProfileShareUrl } from '../../utils/shareLink.js';
 
 function openMyPost(postId, tab) {
   const filterMap = { images: 'image', reels: 'video', all: 'all', };
@@ -282,7 +283,7 @@ function ProfileRightPanel({
   const totalLearned = totals.learned;
   const totalHelpful = totals.helpful;
 
-  const daily = (key) => (dailyStats ? dailyStats[key] : '–'); 
+  const daily = (key) => (dailyStats ? dailyStats[key] : '–');
 
   const GOAL = 10;
   const toPct = (n) => Math.min(Math.round((n / GOAL) * 100), 100);
@@ -340,7 +341,7 @@ function ProfileRightPanel({
 
         {/* Your Growth — topics from real skills; helpful % from real reactions */}
         <div className="pp-right-card">
-          <p className="pp-right-card-title">Your Growth</p>
+          <p className="pp-right-card-title">Your Daily Growth</p>
           <div className="pp-growth-section">
             {GROWTH_ITEMS.length > 0 ? (
               GROWTH_ITEMS.map(({ label, value, pct, colorClass }) => (
@@ -875,16 +876,29 @@ function ProfileHero({ profile, user, identities, showToast, onOpenSettings, pos
     ...(skills?.curiosity ?? []),
   ]).size;
   const handleShare = async () => {
-    const url = `${window.location.origin}/profile`;
+    const url = buildProfileShareUrl(username);
+
     try {
       if (navigator.share) {
-        await navigator.share({ title: `${displayName} on EVOLV`, url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        showToast('Profile link copied!');
+        await navigator.share({
+          title: `${displayName} on EVOLV`,
+          text: `Check out ${displayName}'s profile on EVOLV`,
+          url,
+        });
+        return;
       }
-    } catch {
-      // dismissed
+      await navigator.clipboard.writeText(url);
+      showToast('Profile link copied!');
+    } catch (err) {
+      if (err?.name === 'AbortError') return; // user closed the share sheet
+      // Fallback if the clipboard API is blocked
+      const input = document.createElement('input');
+      input.value = url;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      showToast('Profile link copied!');
     }
   };
 
@@ -1326,7 +1340,7 @@ const SKILL_BUCKETS = [
   { id: 'CAN_DO', key: 'canDo', label: 'I can do', badge: 'Can do' },
   { id: 'LEARNING', key: 'learning', label: "I'm learning", badge: 'Learning' },
   { id: 'WANT_TO_IMPROVE', key: 'wantToImprove', label: 'I want to get better at', badge: 'Improve' },
-  { id: 'CURIOSITY', key: 'curiosity', label: 'Interest', badge: 'Interest' },
+  { id: 'CURIOSITY', key: 'curiosity', label: 'Curiosities', badge: 'Curiosities' },
 ];
 
 function EditSkillsModal({ skills, onClose, onSaved }) {
@@ -1427,7 +1441,7 @@ function EditSkillsModal({ skills, onClose, onSaved }) {
         {/* Header */}
         <div className="pp-modal-header">
           <div>
-            <h2 className="pp-modal-title">Edit Skills &amp; Interests</h2>
+            <h2 className="pp-modal-title">Edit Skills &amp; Curiosities</h2>
             <p className="pp-modal-subtitle">
               {uniqueSelected} skill{uniqueSelected !== 1 ? 's' : ''} selected
             </p>
@@ -1565,7 +1579,7 @@ function SkillsCard({ skills, onEditSkills }) {
     { key: 'canDo', label: 'Skills I Can Do', Icon: CheckCircle, tagClass: 'can-do' },
     { key: 'learning', label: "Currently Learning", Icon: Sparkles, tagClass: 'learning' },
     { key: 'wantToImprove', label: 'Want to Get Better At', Icon: TrendingUp, tagClass: 'want-improve' },
-    { key: 'curiosity', label: 'Areas of Interest', Icon: Target, tagClass: 'curiosity' },
+    { key: 'curiosity', label: 'Areas of Curiosity', Icon: Target, tagClass: 'curiosity' },
   ];
 
   const hasAnything = groups.some(({ key }) => (skills[key] ?? []).length > 0);
@@ -1573,7 +1587,7 @@ function SkillsCard({ skills, onEditSkills }) {
   return (
     <section className="pp-skills-card" aria-label="My skills and interests">
       <div className="pp-card-header">
-        <h2 className="pp-card-title">Skills &amp; Interests</h2>
+        <h2 className="pp-card-title">Skills &amp; Curiosities</h2>
         <button
           className="pp-card-edit-btn"
           onClick={onEditSkills}

@@ -33,6 +33,7 @@ import Analytics from './components/admin/Analytics.jsx';
 import Notifications from './components/admin/Notifications.jsx';
 import AdminSettings from './components/admin/AdminSettings.jsx';
 import ConnectionsPage from './components/connection/ConnectionsPage.jsx';
+import PublicProfilePage from './components/profile/PublicProfilePage.jsx';
 import { adminService } from './services/adminService.js';
 import Report from "./pages/Report.jsx";
 import { Redirect } from './utils/navigate.js';
@@ -58,7 +59,7 @@ function renderAdminRoute(route) {
 function getRoute() {
   return window.location.pathname.replace(/\/+$/, '') || '/';
 }
-// Routes that do NOT require login
+const isPublic = PUBLIC_ROUTES.includes(route) || isPublicProfileRoute(route);
 const PUBLIC_ROUTES = ['/', '/login', '/signup'];
 
 export default function App() {
@@ -155,6 +156,11 @@ export default function App() {
     return <Onboarding />;
   }
 
+  if (isPublicProfileRoute(route)) {
+    const username = decodeURIComponent(route.split('/')[2] || '');
+    return <PublicProfilePage username={username} />;
+  }
+
   if (route === '/explore-gems') {
     return <ExploreGems />;
   }
@@ -205,6 +211,10 @@ export default function App() {
   }
   if (route.startsWith('/connections/')) {
     return <ConnectionsPage />;
+  }
+  if (PUBLIC_ROUTES.includes(route) || route === '/onboarding' || isPublicProfileRoute(route)) {
+    setAllowed(true);
+    return;
   }
   if (route === '/terms') return <LegalPage type="terms" />;
   if (route === '/privacy') return <LegalPage type="privacy" />;

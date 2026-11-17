@@ -86,9 +86,6 @@ function NavRail({ user }) {
           <LogOut size={18} />
           <span className="mp-nav-tooltip">Log out</span>
         </button>
-        <button className="mp-nav-avatar-btn" aria-label="Your profile">
-          {initials}
-        </button>
       </div>
     </nav>
   );

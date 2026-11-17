@@ -471,7 +471,7 @@ export default function LearningPage() {
                     ) : exploredLoading && skillParts.length === 0 ? (
                       <p className="lp-muted" role="status">Loading…</p>
                     ) : skillParts.length === 0 ? (
-                      <p className="lp-muted">Explore some posts to see which skills interest you.</p>
+                      <p className="lp-muted">Explore some posts to discover your curiosities.</p>
                     ) : (
                       <Donut parts={skillParts} ariaLabel="Skill interest distribution" />
                     )}
