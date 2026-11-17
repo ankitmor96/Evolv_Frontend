@@ -391,8 +391,17 @@ export default function LearningPage() {
           <button type="button" className="lp-icon-btn" aria-label="Notifications" onClick={() => go('/notifications')}>
             <Bell size={19} />
           </button>
-          <button type="button" className="lp-avatar" aria-label="Open profile" onClick={() => go('/profile')}>
-            {avatar ? <img src={avatar} alt="" /> : <span>{displayName[0]?.toUpperCase()}</span>}
+          <button
+            type="button"
+            className="lp-avatar"
+            aria-label="Open profile"
+            onClick={() => go('/profile')}
+          >
+            {avatar ? (
+              <img src={avatar} alt="" />
+            ) : (
+              <span>{displayName?.[0]?.toUpperCase()}</span>
+            )}
           </button>
         </div>
 

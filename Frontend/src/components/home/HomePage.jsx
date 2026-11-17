@@ -2219,22 +2219,23 @@ body {
                   if (canDo.length === 0) {
                     return <p className="hp-growth-note">No skills selected in this section yet.</p>;
                   }
-                  return canDo.map((item) => (
-                    <div key={`${item.label}-${item.relationshipType}`} className="hp-progress-item">
-                      <div className="hp-progress-label">
-                        <span>{item.label}</span>
-                        <span className="hp-progress-pct">Selected</span>
-                      </div>
-                      <div className="hp-progress-track">
-                        <div
-                          className="hp-progress-fill"
-                          style={{ width: '100%' }}
-                          role="img"
-                          aria-label={`${item.label}, selected skill`}
-                        />
-                      </div>
-                    </div>
-                  ));
+                  // return canDo.map((item) => (
+                  //   <div key={`${item.label}-${item.relationshipType}`} className="hp-progress-item">
+                  //     <div className="hp-progress-label">
+                  //       <span>{item.label}</span>
+                  //       <span className="hp-progress-pct">Selected</span>
+                  //     </div>
+                  //     <div className="hp-progress-track">
+                  //       <div
+                  //         className="hp-progress-fill"
+                  //         style={{ width: '100%' }}
+                  //         role="img"
+                  //         aria-label={`${item.label}, selected skill`}
+                  //       />
+                  //     </div>
+                  //   </div>
+                  // ));
+                 return <h4>Coming soon...</h4>;
                 })()
               )}
             </>

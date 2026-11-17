@@ -33,8 +33,40 @@
 .lp-search{flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:11px 16px;background:var(--panel);border:1px solid var(--line);border-radius:12px;color:var(--muted);font-size:14px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lp-search svg{flex-shrink:0}
 .lp-icon-btn{flex-shrink:0;display:grid;place-items:center;width:40px;height:40px;border:1px solid var(--line);border-radius:50%;background:var(--panel);color:var(--text-2)}
-.lp-avatar{flex-shrink:0;width:40px;height:40px;padding:0;border:2px solid var(--line);border-radius:50%;overflow:hidden;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:700}
-.lp-avatar img{width:100%;height:100%;object-fit:cover}
+.lp-avatar{
+  flex-shrink:0;
+  box-sizing:border-box;
+  width:40px;
+  height:40px;
+  padding:0;
+  margin:0;
+  border:2px solid var(--line);
+  border-radius:50%;
+  overflow:hidden;
+  background:var(--accent);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:700;
+  line-height:1;
+  cursor:pointer;
+  position:relative;
+}
+
+.lp-avatar img{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  object-position:center;
+  border-radius:50%;
+}
+
+.lp-avatar span{
+  display:block;
+  line-height:1;
+}
 
 .lp-title-row{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin-bottom:20px}
 .lp-title-row>div{flex:1 1 300px;min-width:0}
@@ -146,14 +178,21 @@
   .lp-hero{padding:26px 22px}
   .lp-hero h2{font-size:24px}
 }
-
+@media (max-width:480px){
+  .lp-icon-btn,
+  .lp-avatar{
+    width:36px;
+    height:36px;
+    min-width:36px;
+    flex-shrink:0;
+  }
+}
 /* ═════════ ≤480px : phones ═════════ */
 @media (max-width:480px){
   .lp-layout{font-size:13px}
   .lp-main{padding:12px 12px calc(84px + env(safe-area-inset-bottom,0px))}
   .lp-topbar{gap:8px;margin-bottom:16px}
   .lp-search{padding:10px 12px;font-size:13px}
-  .lp-icon-btn,.lp-avatar{width:36px;height:36px}
   .lp-title-row h1{font-size:24px}
   .lp-title-row p{font-size:13px}
   .lp-primary{width:100%;padding:12px}

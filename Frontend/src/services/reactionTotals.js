@@ -43,7 +43,7 @@ export function getCachedFlags(postId) {
 // ── API ─────────────────────────────────────────────────────────────────────
 export async function getPostReactions(postId) {
   const res = await fetch(`${API_BASE}/posts/${postId}/reactions`, {
-    headers: { Authorization: `Bearer ${getToken()}` },
+    headers: { Authorization: `Bearer ${getToken()}` }, 
   });
   if (!res.ok) throw new Error(`Reactions failed for post ${postId}`);
   const json = await res.json();

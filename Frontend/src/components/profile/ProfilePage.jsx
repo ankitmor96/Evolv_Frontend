@@ -314,7 +314,7 @@ function ProfileRightPanel({
         </button>
         {/* Quick stats — real data from post reactions & post counts */}
         <div className="pp-right-card">
-          <p className="pp-right-card-title">Quick Overview</p>
+          <p className="pp-right-card-title">Daily Reaction Count</p>
           <div className="pp-quick-stats">
             <div className="pp-quick-stat">
               <span className="pp-quick-stat-value">{postCount}</span>
@@ -366,38 +366,6 @@ function ProfileRightPanel({
             )}
           </div>
         </div>
-
-        {/* Identities */}
-        {identities.length > 0 && (
-          <div className="pp-right-card">
-            <p className="pp-right-card-title">My Roles</p>
-            <div className="pp-identity-list">
-              {identities.map((identity) => (
-                <div key={identity.id} className="pp-identity-item">
-                  <span className="pp-identity-dot" aria-hidden="true" />
-                  <span style={{ flex: 1 }}>
-                    {identity.identityType?.name || identity.name || 'Role'}
-                  </span>
-                  {identity.isPrimary && (
-                    <span className="pp-identity-primary">Primary</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Curious About */}
-        {skills.curiosity.length > 0 && (
-          <div className="pp-right-card">
-            <p className="pp-right-card-title">Curious About</p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {skills.curiosity.slice(0, 8).map((s) => (
-                <span key={s} className="pp-skill-tag curiosity">{s}</span>
-              ))}
-            </div>
-          </div>
-        )}
       </aside>
     </>
   );
@@ -2239,23 +2207,6 @@ export default function ProfilePage() {
               <span>Overview</span>
             </button>
 
-            <button
-              type="button"
-              className="pp-topbar-avatar-btn"
-              onClick={() => navigate('/profile')}
-              aria-label="My profile"
-              title="My profile"
-            >
-              <Avatar
-                src={profileData?.avatarUrl || authUser?.avatar || ''}
-                name={profileData?.fullName || authUser?.name || 'You'}
-                size={32}
-              />
-            </button>
-
-            <button className="pp-icon-btn" onClick={() => setShowSettingsModal(true)} aria-label="Profile settings" title="Settings">
-              <Settings size={16} aria-hidden="true" />
-            </button>
           </div>
         </div>
 
