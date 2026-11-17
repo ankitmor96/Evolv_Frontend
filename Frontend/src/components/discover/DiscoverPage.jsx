@@ -14,6 +14,7 @@ import { homePostService } from '../../services/homePostService.js';
 import { X } from "lucide-react";
 import { connectionService } from '../../services/connectionService.js';
 import { authService } from '../../services/authService.js';
+import { userSearchService } from '../../services/userSearchService.js';
 
 /* ───────────────────────── STATIC CONTENT ───────────────────────── */
 const NAV = [
@@ -320,6 +321,55 @@ export default function DiscoverPage() {
   const [people, setPeople] = useState([]);
   const [peopleLoading, setPeopleLoading] = useState(true);
   const [peopleError, setPeopleError] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const searchBoxRef = useRef(null);
+
+  useEffect(() => {
+    const q = search.trim();
+
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSearchLoading(false);
+      setSearchError('');
+      return undefined;
+    }
+
+    let cancelled = false;
+    setSearchLoading(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const found = await userSearchService.searchUsers(q);
+        if (cancelled) return;
+        setSearchResults(found);
+        setSearchError('');
+      } catch (err) {
+        if (cancelled) return;
+        console.error('[Discover] Search failed:', err);
+        setSearchResults([]);
+        setSearchError('Could not search right now. Please try again.');
+      } finally {
+        if (!cancelled) setSearchLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [search]);
+  useEffect(() => {
+    const onDocClick = (e) => {
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target)) {
+        setSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -380,6 +430,12 @@ export default function DiscoverPage() {
     if (userId == null) return;
     navigate(`/profile/${userId}`);
     window.dispatchEvent(new Event('navigated'));
+  };
+
+  const handleSelectPerson = (person) => {
+    setSearchOpen(false);
+    setSearch('');
+    openUserProfile(person.id);
   };
 
   // 2) Fetch posts of one curiosity skill
@@ -517,7 +573,6 @@ export default function DiscoverPage() {
 
   /* posts */
   const posts = useMemo(() => {
-    const q = search.trim().toLowerCase();
     return DEMO_POSTS.filter((p) => {
       const hay = [p.title, p.author, ...p.tags].join(' ').toLowerCase();
       const byTab =
@@ -525,10 +580,9 @@ export default function DiscoverPage() {
           ? true
           : tabTerms.some((t) => hay.includes(t.toLowerCase()));
       const byTopic = !topic || hay.includes(topic.toLowerCase());
-      const bySearch = !q || hay.includes(q);
-      return byTab && byTopic && bySearch;
+      return byTab && byTopic;
     });
-  }, [tab, tabTerms, topic, search]);
+  }, [tab, tabTerms, topic]);
 
   const goToPosts = () =>
     postsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -731,18 +785,60 @@ export default function DiscoverPage() {
         </header>
 
         {/* ───── Search ───── */}
-        <div className="dx-search">
-          <Search size={19} />
-          <input
-            type="search"
-            placeholder="Search skills, topics, questions, or people..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          {search && (
-            <button type="button" className="dx-clear" onClick={() => setSearch('')}>
-              Clear
-            </button>
+        <div className="dx-search-wrap" ref={searchBoxRef}>
+          <div className="dx-search">
+            <Search size={19} />
+            <input
+              type="search"
+              placeholder="Search people..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setSearchOpen(true); }}
+              onFocus={() => setSearchOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && searchResults.length > 0) {
+                  handleSelectPerson(searchResults[0]);
+                }
+                if (e.key === 'Escape') setSearchOpen(false);
+              }}
+              aria-label="Search people"
+              aria-expanded={searchOpen}
+              autoComplete="off"
+            />
+            {search && (
+              <button type="button" className="dx-clear" onClick={() => { setSearch(''); setSearchOpen(false); }}>
+                Clear
+              </button>
+            )}
+          </div>
+
+          {searchOpen && search.trim().length >= 2 && (
+            <div className="dx-search-dropdown" role="listbox" aria-label="Search results">
+              {searchLoading && <p className="dx-search-status">Searching...</p>}
+
+              {!searchLoading && searchError && (
+                <p className="dx-search-status error">{searchError}</p>
+              )}
+
+              {!searchLoading && !searchError && searchResults.length === 0 && (
+                <p className="dx-search-status">No people found for "{search.trim()}".</p>
+              )}
+
+              {!searchLoading && searchResults.map((person) => (
+                <button
+                  key={person.id}
+                  type="button"
+                  role="option"
+                  className="dx-search-result"
+                  onClick={() => handleSelectPerson(person)}
+                >
+                  <PersonAvatar src={person.avatar} name={person.name} />
+                  <span className="dx-search-result-info">
+                    <strong>{person.name}</strong>
+                    <small>{person.username ? `@${person.username}` : person.field}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
           )}
         </div>
 

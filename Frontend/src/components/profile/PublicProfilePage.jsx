@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { navigate } from '../../utils/navigate.js';
 import './ProfilePage.css';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL =
+  import.meta.env?.VITE_API_BASE_URL ??
+  'https://evolve-backend-4lux.onrender.com';
 
 export default function PublicProfilePage({ username }) {
   const [profile, setProfile] = useState(null);
@@ -13,13 +15,17 @@ export default function PublicProfilePage({ username }) {
     let cancelled = false;
     setLoading(true);
     setError('');
+    setProfile(null);
 
-    fetch(`${API_URL}/api/profile/public/${encodeURIComponent(username)}`)
-      .then((r) => {
-        if (!r.ok) throw new Error('Profile not found');
-        return r.json();
+    fetch(`${API_BASE_URL}/api/profile/public/${encodeURIComponent(username)}`)
+      .then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data?.message || 'Profile not found');
+        return data;
       })
-      .then((data) => { if (!cancelled) setProfile(data?.data ?? data); })
+      .then((data) => {
+        if (!cancelled) setProfile(data?.profile ?? data?.data ?? null);
+      })
       .catch((e) => { if (!cancelled) setError(e.message); })
       .finally(() => { if (!cancelled) setLoading(false); });
 
@@ -31,7 +37,7 @@ export default function PublicProfilePage({ username }) {
   }, [profile]);
 
   if (loading) return <p style={{ padding: 24 }}>Loading…</p>;
-  if (error) return <p style={{ padding: 24 }}>{error}</p>;
+  if (error || !profile) return <p style={{ padding: 24 }}>{error || 'Profile not found'}</p>;
 
   const initials = (profile.fullName || 'U')
     .split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();

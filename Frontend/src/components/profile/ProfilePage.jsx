@@ -876,7 +876,26 @@ function ProfileHero({ profile, user, identities, showToast, onOpenSettings, pos
     ...(skills?.curiosity ?? []),
   ]).size;
   const handleShare = async () => {
+    if (!username) {
+      showToast('Set a username first to share your profile.');
+      return;
+    }
+
     const url = buildProfileShareUrl(username);
+
+    const legacyCopy = () => {
+      const input = document.createElement('input');
+      input.value = url;
+      input.setAttribute('readonly', '');
+      input.style.position = 'fixed';
+      input.style.opacity = '0';
+      document.body.appendChild(input);
+      input.select();
+      input.setSelectionRange(0, url.length); // needed on iOS
+      const ok = document.execCommand('copy');
+      document.body.removeChild(input);
+      return ok;
+    };
 
     try {
       if (navigator.share) {
@@ -891,14 +910,7 @@ function ProfileHero({ profile, user, identities, showToast, onOpenSettings, pos
       showToast('Profile link copied!');
     } catch (err) {
       if (err?.name === 'AbortError') return; // user closed the share sheet
-      // Fallback if the clipboard API is blocked
-      const input = document.createElement('input');
-      input.value = url;
-      document.body.appendChild(input);
-      input.select();
-      document.execCommand('copy');
-      document.body.removeChild(input);
-      showToast('Profile link copied!');
+      showToast(legacyCopy() ? 'Profile link copied!' : 'Could not copy the link.');
     }
   };
 

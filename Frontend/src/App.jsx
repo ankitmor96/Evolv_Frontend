@@ -63,7 +63,7 @@ function getRoute() {
 const PUBLIC_ROUTES = ['/', '/login', '/signup', '/terms', '/privacy'];
 
 function isPublicProfileRoute(route) {
-  return /^\/u\/[^/]+$/.test(route);
+  return /^\/(u|in)\/[^/]+$/.test(route);
 }
 
 function isPublicRoute(route) {
@@ -102,13 +102,14 @@ export default function App() {
   // Also re-check when the tab becomes visible again (laptop sleep, etc.)
   useEffect(() => {
     const onVisible = () => {
+      if (isPublicRoute(route)) return; 
       if (document.visibilityState === 'visible' && getStoredToken() && isTokenExpired()) {
         forceLogout();
       }
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, []);
+  }, [route]);
 
   // 1. The allowed effect
 useEffect(() => {

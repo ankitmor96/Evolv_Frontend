@@ -806,7 +806,7 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
           <Search size={16} className="hp-search-icon" aria-hidden="true" />
           <input
             type="search"
-            placeholder="Search people, skills, interests..."
+            placeholder="Search people..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setSearchOpen(true); }}
             onFocus={() => setSearchOpen(true)}

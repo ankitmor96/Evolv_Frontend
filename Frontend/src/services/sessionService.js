@@ -91,7 +91,13 @@ export const msUntilExpiry = (token = getStoredToken()) => {
   return Math.max(0, claims.exp * 1000 - Date.now());
 };
 
+
+
+/** Clears the session and sends the user to the login page (once). */
 let redirecting = false;
+
+const isPublicProfilePath = () =>
+  /^\/(u|in)\/[^/]+\/?$/.test(window.location.pathname);
 
 /** Clears the session and sends the user to the login page (once). */
 export const forceLogout = (reason = 'expired') => {
@@ -102,8 +108,11 @@ export const forceLogout = (reason = 'expired') => {
   sessionStorage.setItem('evolv-session-msg', reason);
   window.dispatchEvent(new Event('session-expired'));
 
-  navigate('/login')
-  window.dispatchEvent(new Event('navigated'));
+  // Stay on a shared public profile; only redirect on other pages
+  if (!isPublicProfilePath()) {
+    navigate('/login');
+    window.dispatchEvent(new Event('navigated'));
+  }
 
   localStorage.removeItem('evolve-onboarding-draft');
   localStorage.removeItem('evolve-onboarding-draft-owner');
