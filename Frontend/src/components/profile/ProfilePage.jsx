@@ -273,6 +273,7 @@ function ProfileRightPanel({
   identities = [],
   postCount = 0,
   totals = { appreciation: 0, helpful: 0, learned: 0 },
+  dailyStats = null,
   posts = [],
   isOpen = false,
   onClose = () => { },
@@ -280,6 +281,8 @@ function ProfileRightPanel({
   const totalAppreciation = totals.appreciation;
   const totalLearned = totals.learned;
   const totalHelpful = totals.helpful;
+
+  const daily = (key) => (dailyStats ? dailyStats[key] : '–'); 
 
   const GOAL = 10;
   const toPct = (n) => Math.min(Math.round((n / GOAL) * 100), 100);
@@ -317,19 +320,19 @@ function ProfileRightPanel({
           <p className="pp-right-card-title">Daily Reaction Count</p>
           <div className="pp-quick-stats">
             <div className="pp-quick-stat">
-              <span className="pp-quick-stat-value">{postCount}</span>
-              <span className="pp-quick-stat-label">Posts</span>
+              <span className="pp-quick-stat-value">{daily('todayPostCount')}</span>
+              <span className="pp-quick-stat-label">Posts today</span>
             </div>
             <div className="pp-quick-stat">
-              <span className="pp-quick-stat-value">{totalAppreciation}</span>
-              <span className="pp-quick-stat-label">Total appreciation</span>
+              <span className="pp-quick-stat-value">{daily('appreciateCount')}</span>
+              <span className="pp-quick-stat-label">Appreciation</span>
             </div>
             <div className="pp-quick-stat">
-              <span className="pp-quick-stat-value">{totalLearned}</span>
-              <span className="pp-quick-stat-label">Total learning</span>
+              <span className="pp-quick-stat-value">{daily('learnedCount')}</span>
+              <span className="pp-quick-stat-label">Learning</span>
             </div>
             <div className="pp-quick-stat">
-              <span className="pp-quick-stat-value">{totalHelpful}</span>
+              <span className="pp-quick-stat-value">{daily('helpfulCount')}</span>
               <span className="pp-quick-stat-label">Helpful</span>
             </div>
           </div>
@@ -1657,6 +1660,18 @@ export default function ProfilePage() {
   // Recomputed whenever posts change (API load, socket updates, delete)
   const [engagement, setEngagement] = useState(null);
   const [learnedTotal, setLearnedTotal] = useState(null);
+  const [dailyStats, setDailyStats] = useState(null);
+
+  const loadDailyStats = useCallback(() => {
+    return homePostService
+      .getDailyStats()
+      .then(setDailyStats)
+      .catch((err) => console.warn('[ProfilePage] daily stats failed:', err.message));
+  }, []);
+
+  useEffect(() => {
+    if (authUser) loadDailyStats();
+  }, [loadDailyStats]);
 
   const loadLearnedTotal = useCallback(() => {
     return learnedService
@@ -2028,6 +2043,7 @@ export default function ProfilePage() {
         if (fresh.length === 0) return prev;
         // Refresh post counts after new post arrives
         profileService.getMyPostCounts().then(setPostCounts).catch(() => { });
+        loadDailyStats();
         return [...fresh, ...prev];
       });
     });
@@ -2038,6 +2054,7 @@ export default function ProfilePage() {
         learnedService.getMyLearnedCount().then(setLearnedTotal).catch(() => { });
       }
       if (!Array.isArray(batch) || batch.length === 0) return;
+      loadDailyStats();
       setPosts(prev => {
         let changed = false;
         const next = prev.map(post => {
@@ -2090,7 +2107,7 @@ export default function ProfilePage() {
       offComments();
       socketService.disconnect();
     };
-  }, [authUser]);
+  }, [authUser, loadDailyStats]);
 
   // ── Skills modal ────────────────────────────────────────────────────────────
   const handleOpenSkillsModal = useCallback(() => setShowSkillsModal(true), []);
@@ -2155,12 +2172,13 @@ export default function ProfilePage() {
       // Refresh appreciation / helpful / learned totals (AFTER the delete succeeds)
       loadEngagement();
       loadLearnedTotal();
+      loadDailyStats();
 
       showToast('Post deleted.');
     } finally {
       pendingDelete.current.delete(String(postId));
     }
-  }, [posts, authUserId, showToast, loadEngagement, loadLearnedTotal]);
+  }, [posts, authUserId, showToast, loadEngagement, loadLearnedTotal, loadDailyStats]);
 
   const handleCommentCountChange = useCallback((postId, delta) => {
     setPosts(prev => prev.map(p =>
@@ -2321,6 +2339,7 @@ export default function ProfilePage() {
           }
           posts={posts}
           totals={reactionTotals}
+          dailyStats={dailyStats}
           isOpen={isRightPanelOpen}
           onClose={() => setIsRightPanelOpen(false)}
         />

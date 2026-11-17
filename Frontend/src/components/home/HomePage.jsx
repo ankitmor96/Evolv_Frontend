@@ -789,7 +789,7 @@ function HomeHeader({ user, profileAvatar, profileName, onOpenSidebar, onOpenRig
   };
 
   return (
-    <header className="hp-feed-header" style={{ marginTop: '10px',gap:"10px" }}>
+    <header className="hp-feed-header" style={{ marginTop: '10px', gap: "10px" }}>
       <button
         type="button"
         className="hp-mobile-menu-btn"
@@ -1492,11 +1492,26 @@ const GROWTH_PROGRESS = [
   { label: 'Economics', pct: 35, colorClass: 'yellow' },
   { label: 'System Design', pct: 60, colorClass: 'pink' },
 ];
-const RECENTLY_LEARNED = [
-  { topic: 'Python', when: '2d ago' },
-  { topic: 'AI/ML', when: '4d ago' },
-  { topic: 'Photography', when: '1w ago' },
-];
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  if (Number.isNaN(diff)) return '';
+
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5) return `${weeks}w ago`;
+
+  return `${Math.floor(days / 30)}mo ago`;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RIGHT SIDEBAR
@@ -1516,6 +1531,32 @@ function RightSidebar({ user, isOpen, onClose }) {
   const [learningStats, setLearningStats] = useState([]);
   const [learningLoading, setLearningLoading] = useState(true);
   const [learningError, setLearningError] = useState('');
+  const [recentLearned, setRecentLearned] = useState([]);
+  const [recentLoading, setRecentLoading] = useState(true);
+  const [recentError, setRecentError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      setRecentLoading(true);
+      setRecentError('');
+      try {
+        const items = await homePostService.getRecentlyLearned();
+        if (!cancelled) setRecentLearned(items);
+      } catch (err) {
+        console.error('[RightSidebar] Failed to load recently learned:', err);
+        if (!cancelled) {
+          setRecentLearned([]);
+          setRecentError('Could not load recently learned.');
+        }
+      } finally {
+        if (!cancelled) setRecentLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, []);
 
   // Debounced API call
   useEffect(() => {
@@ -2235,7 +2276,7 @@ body {
                   //     </div>
                   //   </div>
                   // ));
-                 return <h4>Coming soon...</h4>;
+                  return <h4>Coming soon...</h4>;
                 })()
               )}
             </>
@@ -2243,22 +2284,33 @@ body {
         </section>
 
         {/* Recently Learned */}
+                {/* Recently Learned */}
         <section className="hp-right-card" aria-labelledby="recently-learned-heading">
           <div className="hp-right-card-header">
             <h2 id="recently-learned-heading" className="hp-right-card-title">Recently Learned</h2>
-            <button className="hp-view-all-btn">See all →</button>
           </div>
-          <ul className="hp-learned-list">
-            {RECENTLY_LEARNED.map(({ topic, when }) => (
-              <li key={topic} className="hp-learned-item">
-                <span className="hp-learned-check" aria-hidden="true">
-                  <Check size={11} color="#22c55e" />
-                </span>
-                <span className="hp-learned-text">{topic}</span>
-                <span className="hp-learned-when">{when}</span>
-              </li>
-            ))}
-          </ul>
+
+          {recentLoading ? (
+            <p className="hp-growth-note">Loading...</p>
+          ) : recentError ? (
+            <p className="hp-growth-note error">{recentError}</p>
+          ) : recentLearned.length === 0 ? (
+            <p className="hp-growth-note">
+              Nothing yet. Tap the ✓ Learned button on a post to see it here.
+            </p>
+          ) : (
+            <ul className="hp-learned-list">
+              {recentLearned.slice(0, 5).map(({ id, topic, learnedAt }) => (
+                <li key={id} className="hp-learned-item">
+                  <span className="hp-learned-check" aria-hidden="true">
+                    <Check size={11} color="#22c55e" />
+                  </span>
+                  <span className="hp-learned-text">{topic}</span>
+                  <span className="hp-learned-when">{timeAgo(learnedAt)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
 

@@ -601,7 +601,7 @@ export const homePostService = {
       return 0;
     }
   },
-    // ── Your Growth: learning skill stats ─────────────────────────────────────
+  // ── Your Growth: learning skill stats ─────────────────────────────────────
   /**
    * GET /api/posts/learning/skill-stats
    * Response: { success, totalSkills, data: [{ skillId, skillName,
@@ -629,6 +629,51 @@ export const homePostService = {
       skills,
     };
   },
+  /**
+ * GET /api/posts/my-posts/daily-stats
+ * Response: { success, data: { todayPostCount, appreciateCount, helpfulCount, learnedCount } }
+ */
+  async getDailyStats() {
+    const result = await request('/api/posts/my-posts/daily-stats', { method: 'GET' });
+    const d = result?.data ?? result ?? {};
+
+    return {
+      todayPostCount: Number(d.todayPostCount ?? 0),
+      appreciateCount: Number(d.appreciateCount ?? 0),
+      helpfulCount: Number(d.helpfulCount ?? 0),
+      learnedCount: Number(d.learnedCount ?? 0),
+    };
+  },
+  /**
+ * GET /api/posts/learning/recently-learned
+ * Response: { success, totalPosts, data: [...] }
+ */
+  async getRecentlyLearned() {
+    const result = await request('/api/posts/learning/recently-learned', { method: 'GET' });
+    const list = Array.isArray(result?.data) ? result.data : [];
+
+    return list.map((item, index) => {
+      const post = item.post ?? item;
+      return {
+        id: item.postId ?? post.id ?? item.id ?? index,
+        topic:
+          item.skillName ??
+          item.skill?.name ??
+          post.skillName ??
+          post.title ??
+          post.caption ??
+          'Learned post',
+        learnedAt:
+          item.learnedAt ??
+          item.createdAt ??
+          item.updatedAt ??
+          post.publishedAt ??
+          post.createdAt ??
+          null,
+      };
+    });
+  },
+
   /**
    * Uses GET /api/posts/:id/comments/count (one call per post, in parallel).
    */
