@@ -5346,3 +5346,102 @@
     display: none;
   }
 }
+
+/* =====================================================
+   ADAPTIVE MEDIA FRAMES (size follows the post)
+   ===================================================== */
+
+/* Card width: desktop */
+.hp-post,
+.hp-composer,
+.hp-feed-empty {
+  width: 100%;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+.hp-post { border-radius: 14px; }
+
+/* IMAGE FRAME: height comes from inline aspect-ratio set in JSX */
+.hp-post-image-wrapper {
+  position: relative;
+  display: block !important;
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 4 / 5;               /* fallback until the image loads */
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  overflow: hidden;
+  background: #0b0614 !important;
+  isolation: isolate;
+}
+
+/* blurred copy only shows if the image is extreme and gets letterboxed */
+.hp-post-image-wrapper::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: var(--bg);
+  background-size: cover;
+  background-position: center;
+  filter: blur(22px) brightness(0.7);
+  transform: scale(1.15);
+}
+
+.hp-post-image-wrapper img,
+.hp-post-image-wrapper .hp-post-media-img {
+  position: absolute !important;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: none !important;
+  aspect-ratio: auto !important;
+  object-fit: contain !important;
+  object-position: center;
+  border-radius: 0 !important;
+}
+.hp-image-badge { z-index: 2; }
+
+/* VIDEO FRAME: ratio also comes from inline style */
+.hp-video-frame,
+.hp-video-frame.landscape {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  max-height: none;
+  aspect-ratio: 4 / 5;               /* fallback until metadata loads */
+  margin: 0;
+  border-radius: 0;
+  overflow: hidden;
+  background: #000;
+}
+.hp-video-frame video,
+.hp-video-frame.landscape video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;               /* whole video always visible */
+  background: #000;
+  display: block;
+}
+.hp-video-badge { z-index: 2; }
+
+/* TABLET */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .hp-post, .hp-composer, .hp-feed-empty { max-width: 560px; }
+}
+
+/* MOBILE */
+@media (max-width: 767px) {
+  .hp-post, .hp-composer, .hp-feed-empty { max-width: 100%; }
+  .hp-post { border-radius: 12px; }
+}

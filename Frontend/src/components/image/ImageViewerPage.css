@@ -69,14 +69,27 @@
 
 /* Mobile: image on top, details below */
 @media (max-width: 800px) {
-  .iv-layout { grid-template-columns: 1fr; grid-template-rows: minmax(0, 62%) minmax(0, 38%); }
-  .iv-scroll { padding: 60px 8px 30px; }
+  /* image takes all free space, details only as tall as needed */
+  .iv-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+  .iv-scroll { padding: 56px 8px 36px; }
+  .iv-img { max-width: 100%; max-height: 100%; }
   .iv-nav { width: 38px; height: 38px; }
-  .iv-nav.left { left: 8px; } .iv-nav.right { right: 8px; }
-  .iv-details { padding: 16px; border-radius: 20px 20px 0 0; }
+  .iv-nav.left { left: 8px; }
+  .iv-nav.right { right: 8px; }
+  .iv-details {
+    max-height: 42dvh;
+    padding: 14px 16px 18px;
+    border-radius: 20px 20px 0 0;
+    overflow-y: auto;
+  }
   .iv-actions { grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .iv-act { padding: 10px 2px; } .iv-act span { font-size: 10px; }
+  .iv-act { padding: 10px 2px; }
+  .iv-act span { font-size: 10px; }
 }
+
 .iv-delete-zone { margin-top: 24px; padding-top: 16px; border-top: 1px solid #eee; }
 
 .iv-delete-btn {

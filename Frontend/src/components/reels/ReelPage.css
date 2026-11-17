@@ -190,9 +190,6 @@
   user-select: none;
 }
 
-.rl-image--landscape {
-  object-fit: contain;        
-}
 .rl-creator[role="button"]:hover strong {
   text-decoration: underline;
 }
@@ -210,4 +207,32 @@
     padding: 56px 0 130px;   /* room for Back button on top, caption at bottom */
     box-sizing: border-box;
   }
+}
+
+@media (max-width: 767px) {
+  .rl-image {
+    padding: 56px 0 130px;
+    box-sizing: border-box;
+  }
+}
+/* Images in reel view: always fully visible, centered */
+.rl-image {
+  object-fit: contain;
+  object-position: center;
+}
+
+/* Mobile: full screen, leave room for Back button and caption */
+@media (max-width: 767px) {
+  .rl-card { height: 100dvh; width: 100vw; }
+  .rl-image {
+    padding: 64px 0 150px;
+    box-sizing: border-box;
+  }
+  .rl-video { object-fit: cover; }
+  .rl-video--landscape { object-fit: contain; }
+}
+
+/* Small laptops: keep the card inside the screen */
+@media (min-width: 768px) and (max-height: 760px) {
+  .rl-card { height: calc(100dvh - 24px); }
 }

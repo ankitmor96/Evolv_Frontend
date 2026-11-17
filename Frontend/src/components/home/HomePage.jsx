@@ -984,12 +984,16 @@ function openDocument(postId) {
   navigate('/document');
   window.dispatchEvent(new Event('navigated'));
 }
+// Instagram range: tallest 4:5 (0.8), widest 1.91:1
+const clampRatio = (r) => Math.min(Math.max(r || 0.8, 0.8), 1.91);
 
 // Portrait box, autoplays muted when visible, click opens the Reels page
 function FeedVideo({ post }) {
   const boxRef = useRef(null);
   const videoRef = useRef(null);
   const [landscape, setLandscape] = useState(false);
+
+  const [ratio, setRatio] = useState(null);
 
   useEffect(() => {
     const box = boxRef.current;
@@ -1003,14 +1007,15 @@ function FeedVideo({ post }) {
     return () => io.disconnect();
   }, []);
 
+
   return (
     <div
       ref={boxRef}
       className={`hp-video-frame ${landscape ? 'landscape' : ''}`}
+      style={ratio ? { aspectRatio: clampRatio(ratio) } : undefined}
       onClick={() => openReel(post.id)}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter') openReel(post.id); }}
       aria-label="Open Short Video"
     >
       <video
@@ -1021,8 +1026,11 @@ function FeedVideo({ post }) {
         loop
         playsInline
         preload="metadata"
-        onLoadedMetadata={(e) =>
-          setLandscape(e.currentTarget.videoWidth > e.currentTarget.videoHeight)}
+        onLoadedMetadata={(e) => {
+          const v = e.currentTarget;
+          setLandscape(v.videoWidth > v.videoHeight);
+          setRatio(v.videoWidth / v.videoHeight);
+        }}
       />
       <span className="hp-video-badge"><Play size={12} fill="currentColor" /> Watch Short Video</span>
     </div>
@@ -1160,6 +1168,7 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
 
   const [activeActionTooltip, setActiveActionTooltip] = useState('');
   const longPressTimer = useRef(null);
+  const [imgRatio, setImgRatio] = useState(null);
 
   const startLongPress = (label) => {
     clearTimeout(longPressTimer.current);
@@ -1303,13 +1312,23 @@ function FeedPost({ post, onLike, onSave, onFollow, onAppreciate, onHelpful, onL
       ) : post.media.type === 'image' && post.media.src ? (
         <div
           className="hp-post-image-wrapper hp-image-clickable"
+          style={{
+            '--bg': `url(${post.media.src})`,
+            aspectRatio: imgRatio ? clampRatio(imgRatio) : '4 / 5',
+          }}
           onClick={() => openImage(post.id)}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => { if (e.key === 'Enter') openImage(post.id); }}
           aria-label="View full image"
         >
-          <img src={post.media.src} alt="Post content" className="hp-post-media-img" loading="lazy" />
+          <img
+            src={post.media.src}
+            alt="Post content"
+            className="hp-post-media-img"
+            loading="lazy"
+            onLoad={(e) => setImgRatio(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight)}
+          />
           <span className="hp-image-badge">Tap to view full image</span>
         </div>
       ) : null}
@@ -2284,7 +2303,7 @@ body {
         </section>
 
         {/* Recently Learned */}
-                {/* Recently Learned */}
+        {/* Recently Learned */}
         <section className="hp-right-card" aria-labelledby="recently-learned-heading">
           <div className="hp-right-card-header">
             <h2 id="recently-learned-heading" className="hp-right-card-title">Recently Learned</h2>
