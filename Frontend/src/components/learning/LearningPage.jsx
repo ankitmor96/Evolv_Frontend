@@ -231,6 +231,8 @@ export default function LearningPage() {
   const [breakdown, setBreakdown] = useState({ total: 0, byType: {} });
   const [breakdownError, setBreakdownError] = useState('');
 
+  const [totalExp, setTotalExp] = useState(null);
+
   useEffect(() => {
     if (!user) go('/login');
   }, [user]);
@@ -266,6 +268,23 @@ export default function LearningPage() {
 
     setExploredLoading(false);
   }, []);
+  const loadTotalExplorations = useCallback(async () => {
+    try {
+      const data = await learningTrackingService.getTotalExplorations();
+      setTotalExp(data);
+    } catch (err) {
+      console.error('[LearningPage] Could not load total explorations:', err);
+    }
+  }, []);
+
+  // Load once on mount
+  useEffect(() => { loadTotalExplorations(); }, [loadTotalExplorations]);
+
+  // Refresh when a tracking session ends elsewhere in the app
+  useEffect(() => {
+    window.addEventListener('learning-updated', loadTotalExplorations);
+    return () => window.removeEventListener('learning-updated', loadTotalExplorations);
+  }, [loadTotalExplorations]);
 
   // Refetch when period changes
   useEffect(() => { loadExplored(period); }, [period, loadExplored]);
@@ -433,9 +452,10 @@ export default function LearningPage() {
                 <div className="lp-stats">
                   <Stat
                     icon={BookOpen}
-                    value={explored ? explored.allTime : '…'}
+                    value={totalExp ? totalExp.total : '…'}
                     label="Total explored posts"
                     tone="blue"
+                    sub={totalExp ? `${totalExp.unique} unique · ${totalExp.repeated} repeated` : undefined}
                   />
                   <Stat
                     icon={Layers}

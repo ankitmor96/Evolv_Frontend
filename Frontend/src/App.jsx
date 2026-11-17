@@ -10,15 +10,16 @@ import ProfilePage from './components/profile/ProfilePage';
 import ReelsPage from './components/reels/ReelPage.jsx';
 import NotificationsPage from './components/NotificationsPage/NotificationsPage.jsx';
 import LegalPage from './components/legal/LegalPage.jsx';
-import { guardProtectedRoute } from './services/sessionService.js';
-import { startSessionWatcher } from './services/sessionService.js';
 import MyPostsViewerPage from './components/profile/MyPostsViewerPage.jsx';
 import MyPostFullScreenPage from './components/profile/MyPostFullScreenPage.jsx';
 import SearchPage from './components/search/SearchPage.jsx';
 import UserProfilePage from './components/userProfile/UserProfilePage.jsx';
 import DocumentViewerPage from './components/document/DocumentViewerPage.jsx';
 import LearningPage from "./components/learning/LearningPage.jsx";
-import { isTokenExpired, getStoredToken, msUntilExpiry, forceLogout } from './services/sessionService.js';
+import {
+  guardProtectedRoute, startSessionWatcher,
+  isTokenExpired, getStoredToken, msUntilExpiry, forceLogout,
+} from './services/sessionService.js';
 import './theme-dark.css';
 // ── Admin Panel ────────────────────────────────────────────────────────────────
 import AdminLogin from './components/admin/AdminLogin.jsx';
@@ -59,13 +60,19 @@ function renderAdminRoute(route) {
 function getRoute() {
   return window.location.pathname.replace(/\/+$/, '') || '/';
 }
-const isPublic = PUBLIC_ROUTES.includes(route) || isPublicProfileRoute(route);
-const PUBLIC_ROUTES = ['/', '/login', '/signup'];
+const PUBLIC_ROUTES = ['/', '/login', '/signup', '/terms', '/privacy'];
 
+function isPublicProfileRoute(route) {
+  return /^\/u\/[^/]+$/.test(route);
+}
+
+function isPublicRoute(route) {
+  return PUBLIC_ROUTES.includes(route) || isPublicProfileRoute(route);
+}
 export default function App() {
   const [route, setRoute] = useState(getRoute);
   const [allowed, setAllowed] = useState(false);
-
+  
   useEffect(() => {
     const sync = () => setRoute(getRoute());
     window.addEventListener('popstate', sync);
@@ -80,6 +87,7 @@ export default function App() {
 
   // Auto-logout the moment the token expires, even if the user is idle
   useEffect(() => {
+    if (isPublicRoute(route)) return; 
     const token = getStoredToken();
     if (!token) return;
 
@@ -102,26 +110,29 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  // 1. The allowed effect
+useEffect(() => {
+  let cancelled = false;
 
-    if (route.startsWith('/admin/')) {
-      setAllowed(true);
-      return;
-    }
-    // Public pages and onboarding skip the "must be onboarded" guard
-    if (PUBLIC_ROUTES.includes(route) || route === '/onboarding') {
-      setAllowed(true);
-      return;
-    }
+  if (route.startsWith('/admin/')) {
+    setAllowed(true);
+    return;
+  }
 
-    setAllowed(false);
-    guardProtectedRoute().then((ok) => {
-      if (!cancelled) setAllowed(ok);
-    });
+  // Public pages, public profiles and onboarding skip the guard
+  if (isPublicRoute(route) || route === '/onboarding') {
+    setAllowed(true);
+    return;
+  }
 
-    return () => { cancelled = true; };
-  }, [route]);
+  setAllowed(false);
+  guardProtectedRoute().then((ok) => {
+    if (!cancelled) setAllowed(ok);
+  });
+
+  return () => { cancelled = true; };
+}, [route]);
+
   useEffect(() => {
     if (window.location.pathname.startsWith('/admin/')) return;
     return startSessionWatcher();
@@ -133,15 +144,14 @@ export default function App() {
   }
   // ──────────────────────────────────────────────────────────────────────────
 
-  if (!allowed) return null;
+ // 2. The route guard (replace the old isPublic check)
+if (!allowed) return null;
 
-  // ── Route guard ──
-  // Route guard
-  const isPublic = PUBLIC_ROUTES.includes(route);
-  if (!isPublic && isTokenExpired()) {
-    if (getStoredToken()) { forceLogout(); return null; }
-    return <Redirect to="/login" />;
-  }
+const isPublic = isPublicRoute(route);
+if (!isPublic && isTokenExpired()) {
+  if (getStoredToken()) { forceLogout(); return null; }
+  return <Redirect to="/login" />;
+} 
 
   // Logged-in user visiting /login or /signup
   if ((route === '/login' || route === '/signup') && !isTokenExpired()) {
@@ -211,10 +221,6 @@ export default function App() {
   }
   if (route.startsWith('/connections/')) {
     return <ConnectionsPage />;
-  }
-  if (PUBLIC_ROUTES.includes(route) || route === '/onboarding' || isPublicProfileRoute(route)) {
-    setAllowed(true);
-    return;
   }
   if (route === '/terms') return <LegalPage type="terms" />;
   if (route === '/privacy') return <LegalPage type="privacy" />;

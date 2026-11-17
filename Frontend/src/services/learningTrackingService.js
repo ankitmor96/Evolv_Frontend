@@ -118,6 +118,15 @@ export const learningTrackingService = {
     });
     return { total: Number(res?.total_posts_explored ?? 0), byType };
   },
+  /** Total explorations (unique + repeated) */
+async getTotalExplorations() {
+  const res = await request('/api/v1/learning/total-explorations', { method: 'GET' });
+  return {
+    total: Number(res?.total_explorations ?? 0),
+    unique: Number(res?.unique_posts_explored ?? 0),
+    repeated: Number(res?.repeated_explorations ?? 0),
+  };
+},
   /** Consecutive days learned streak */
   async getStreak() {
     const res = await request('/api/v1/learning/streak', { method: 'GET' });
