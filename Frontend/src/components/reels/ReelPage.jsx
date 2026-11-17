@@ -134,8 +134,12 @@ function FeedItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
     <section className="rl-item" ref={itemRef} data-post-id={post.id}>
       <div className="rl-card" ref={trackRef}>
         <div className="rl-media">
-          {isLandscape && backdropSrc && (
-            <div className="rl-backdrop" style={{ backgroundImage: `url(${backdropSrc})` }} onClick={goBack} aria-label="Back to home" />
+          {(!video || isLandscape) && backdropSrc && (
+            <div
+              className="rl-backdrop"
+              style={{ backgroundImage: `url(${backdropSrc})` }}
+              aria-hidden="true"
+            />
           )}
 
           {video ? (
@@ -162,12 +166,8 @@ function FeedItem({ post, muted, setMuted, onAppreciate, onHelpful, onLearned, o
             <img
               src={post.media.src}
               alt={post.caption || 'Post image'}
-              className={`rl-image ${isLandscape ? 'rl-image--landscape' : ''}`}
+              className="rl-image"
               draggable={false}
-              onLoad={(e) => {
-                const img = e.currentTarget;
-                setIsLandscape(img.naturalWidth > img.naturalHeight);
-              }}
             />
           )}
         </div>

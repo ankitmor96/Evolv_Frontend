@@ -184,7 +184,8 @@
   z-index: 1;
   width: 100%;
   height: 100%;
-  object-fit: cover;         
+  object-fit: contain;     
+  object-position: center;
   display: block;
   user-select: none;
 }
@@ -202,4 +203,11 @@
   z-index: 5;             /* stays above the image / video layer */
   cursor: pointer;
   width: fit-content;     /* only the avatar + name are clickable, not the full row */
+}
+
+@media (max-width: 767px) {
+  .rl-image {
+    padding: 56px 0 130px;   /* room for Back button on top, caption at bottom */
+    box-sizing: border-box;
+  }
 }
